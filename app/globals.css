@@ -1,0 +1,259 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --joy-orange: #FF6B35;
+    --joy-pink: #E91E8C;
+    --joy-green: #1B5E20;
+    --joy-navy: #1A237E;
+    --font-inter: 'Inter', system-ui, sans-serif;
+    --font-poppins: 'Poppins', system-ui, sans-serif;
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    font-family: var(--font-inter);
+    background-color: #FAFAFA;
+    color: #212121;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  ::selection {
+    background-color: var(--joy-orange);
+    color: white;
+  }
+}
+
+@layer components {
+  /* JoyHub Brand Button */
+  .btn-primary {
+    @apply bg-gradient-to-r from-joy-orange to-joy-pink text-white font-semibold py-3 px-6 rounded-lg transition-all duration-300;
+    @apply hover:shadow-lg hover:scale-[1.02] active:scale-[0.98];
+    @apply focus:outline-none focus:ring-2 focus:ring-joy-orange focus:ring-offset-2;
+  }
+
+  .btn-secondary {
+    @apply bg-white text-joy-gray-800 border-2 border-joy-gray-200 font-semibold py-3 px-6 rounded-lg transition-all duration-300;
+    @apply hover:border-joy-orange hover:text-joy-orange;
+    @apply focus:outline-none focus:ring-2 focus:ring-joy-orange focus:ring-offset-2;
+  }
+
+  .btn-south-america {
+    @apply bg-gradient-to-r from-joy-orange via-joy-pink to-joy-green text-white font-bold py-4 px-8 rounded-full;
+    @apply shadow-lg hover:shadow-xl transition-all duration-300 animate-pulse-glow;
+  }
+
+  /* Product Card */
+  .product-card {
+    @apply bg-white rounded-2xl overflow-hidden transition-all duration-300;
+    @apply hover:shadow-xl hover:-translate-y-1;
+  }
+
+  .product-card-image {
+    @apply relative overflow-hidden aspect-square;
+  }
+
+  .product-card-image img {
+    @apply w-full h-full object-cover transition-transform duration-500;
+  }
+
+  .product-card:hover .product-card-image img {
+    @apply scale-110;
+  }
+
+  .product-card:hover .product-card-image img.model-image {
+    @apply opacity-100;
+  }
+
+  .product-card .model-image {
+    @apply absolute inset-0 opacity-0 transition-opacity duration-300;
+  }
+
+  /* Trust Badge */
+  .trust-badge {
+    @apply flex items-center gap-3 px-4 py-3 bg-joy-gray-50 rounded-xl;
+    @apply border border-joy-gray-100;
+  }
+
+  .trust-badge-icon {
+    @apply w-10 h-10 rounded-full bg-gradient-to-br from-joy-orange to-joy-pink flex items-center justify-center text-white;
+  }
+
+  /* Price Tag */
+  .price-tag {
+    @apply font-display font-bold;
+  }
+
+  .price-retail {
+    @apply text-joy-gray-500 line-through text-sm;
+  }
+
+  .price-wholesale {
+    @apply text-joy-orange text-lg;
+  }
+
+  .price-vip {
+    @apply text-joy-green text-xl;
+  }
+
+  /* Section Headers */
+  .section-header {
+    @apply text-center mb-12;
+  }
+
+  .section-title {
+    @apply font-display text-3xl md:text-4xl font-bold text-joy-gray-900 mb-4;
+  }
+
+  .section-subtitle {
+    @apply text-joy-gray-600 max-w-2xl mx-auto;
+  }
+
+  /* Floating Buttons */
+  .floating-buttons {
+    @apply fixed right-4 bottom-24 z-40 flex flex-col gap-3;
+  }
+
+  .floating-btn {
+    @apply w-14 h-14 rounded-full shadow-lg flex items-center justify-center transition-all duration-300;
+    @apply hover:scale-110 active:scale-95;
+  }
+
+  .floating-btn-whatsapp {
+    @apply bg-[#25D366] text-white;
+  }
+
+  .floating-btn-tiktok {
+    @apply bg-black text-white;
+  }
+
+  .floating-btn-cart {
+    @apply bg-gradient-to-r from-joy-orange to-joy-pink text-white;
+  }
+
+  /* Navigation */
+  .nav-link {
+    @apply relative text-joy-gray-700 font-medium transition-colors duration-200;
+    @apply hover:text-joy-orange;
+  }
+
+  .nav-link::after {
+    content: '';
+    @apply absolute -bottom-1 left-0 w-0 h-0.5 bg-joy-orange transition-all duration-300;
+  }
+
+  .nav-link:hover::after {
+    @apply w-full;
+  }
+
+  /* Modal Overlay */
+  .modal-overlay {
+    @apply fixed inset-0 bg-black/50 backdrop-blur-sm z-50;
+    @apply animate-fade-in;
+  }
+
+  .modal-content {
+    @apply fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-50;
+    @apply bg-white rounded-2xl shadow-2xl max-w-lg w-full mx-4;
+    @apply animate-bounce-in;
+  }
+
+  /* Subscription Modal */
+  .subscribe-modal {
+    @apply bg-gradient-to-br from-joy-orange via-joy-pink to-joy-green p-1 rounded-3xl;
+  }
+
+  .subscribe-modal-inner {
+    @apply bg-white rounded-[1.4rem] p-8;
+  }
+
+  /* Logistics Progress */
+  .logistics-progress {
+    @apply relative;
+  }
+
+  .logistics-bar {
+    @apply h-2 bg-joy-gray-200 rounded-full overflow-hidden;
+  }
+
+  .logistics-fill {
+    @apply h-full bg-gradient-to-r from-joy-orange to-joy-green rounded-full transition-all duration-1000;
+  }
+
+  /* Scene Collection Card */
+  .scene-card {
+    @apply relative overflow-hidden rounded-3xl aspect-[4/3];
+    @apply cursor-pointer;
+  }
+
+  .scene-card::before {
+    content: '';
+    @apply absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent z-10;
+  }
+
+  .scene-card-content {
+    @apply absolute bottom-0 left-0 right-0 p-6 z-20;
+  }
+
+  /* Compliance Badge */
+  .compliance-badge {
+    @apply inline-flex items-center gap-2 px-3 py-1.5 bg-joy-green/10 text-joy-green rounded-full text-sm font-medium;
+  }
+
+  /* Input Styles */
+  .input-field {
+    @apply w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 bg-white;
+    @apply transition-all duration-200;
+    @apply focus:outline-none focus:border-joy-orange focus:ring-2 focus:ring-joy-orange/20;
+    @apply placeholder:text-joy-gray-400;
+  }
+
+  /* Card Hover Effect */
+  .hover-card {
+    @apply transition-all duration-300;
+    @apply hover:shadow-xl hover:-translate-y-1;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-joy-orange via-joy-pink to-joy-green;
+  }
+
+  .bg-joy-gradient {
+    @apply bg-gradient-to-r from-joy-orange via-joy-pink to-joy-green;
+  }
+
+  .border-joy-gradient {
+    @apply border-image bg-gradient-to-r from-joy-orange via-joy-pink to-joy-green;
+  }
+
+  /* Hide scrollbar but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Safe area padding for mobile */
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top);
+  }
+}
