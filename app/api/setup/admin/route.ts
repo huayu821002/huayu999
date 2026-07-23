@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server'
 
 const prisma = new PrismaClient()
 
-export async function POST() {
+export async function GET() {
   try {
     const email = 'admin@fiestaflare.com'
     const password = 'admin123'
@@ -35,6 +35,10 @@ export async function POST() {
     return NextResponse.json({ success: true, message: 'Admin created' })
   } catch (error) {
     console.error('Setup error:', error)
-    return NextResponse.json({ success: false, error: 'Setup failed' }, { status: 500 })
+    return NextResponse.json({ success: false, error: String(error) }, { status: 500 })
   }
+}
+
+export async function POST() {
+  return GET()
 }
