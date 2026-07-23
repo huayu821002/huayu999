@@ -6,7 +6,6 @@
   "installCommand": "npm install",
   "regions": ["iad1"],
   "env": {
-    "NEXT_PUBLIC_APP_URL": "https://999.gatudou.top",
-    "DATABASE_URL": "${DATABASE_POSTGRES_URL}"
+    "NEXT_PUBLIC_APP_URL": "https://huayu-ebon.vercel.app"
   }
 }
