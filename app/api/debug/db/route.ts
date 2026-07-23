@@ -5,20 +5,20 @@ const prisma = new PrismaClient()
 
 export async function GET() {
   try {
+    // Test basic connection
+    await prisma.$connect()
     const userCount = await prisma.user.count()
     return NextResponse.json({ 
       success: true, 
       userCount,
-      message: 'Database connected'
+      message: 'Database connected successfully'
     })
-  } catch (error) {
+  } catch (error: any) {
     return NextResponse.json({ 
       success: false, 
-      error: String(error),
-      env: {
-        hasDatabaseUrl: !!process.env.DATABASE_POSTGRES_URL,
-        dbUrlPreview: process.env.DATABASE_POSTGRES_URL?.substring(0, 30) + '...'
-      }
+      error: error.message || String(error),
+      code: error.code,
+      name: error.name
     }, { status: 500 })
   }
 }
