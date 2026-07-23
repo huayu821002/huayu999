@@ -11,7 +11,7 @@ const FOOTER_LINKS = {
     { href: '/products?collection=trending-now', label: '🔥 Trending Now' },
   ],
   company: [
-    { href: '/about', label: 'About JoyHub' },
+    { href: '/about', label: 'About Fiestaflare' },
     { href: '/contact', label: 'Contact Us' },
     { href: '/faq', label: 'FAQ' },
     { href: '/blog', label: 'Blog' },
@@ -75,8 +75,8 @@ export function Footer() {
                 JH
               </div>
               <div>
-                <div className="font-display font-bold text-xl">JoyHub</div>
-                <div className="text-xs text-joy-gray-400">Wholesale</div>
+                <div className="font-display font-bold text-xl">Fiestaflare</div>
+                <div className="text-xs text-joy-gray-400">Wholesaler</div>
               </div>
             </Link>
             <p className="text-joy-gray-400 text-sm mb-4">
@@ -84,8 +84,8 @@ export function Footer() {
             </p>
             <div className="flex items-center gap-2">
               <Icons.Mail size={18} className="text-joy-gray-400" />
-              <a href="mailto:hello@joyhubwholesale.com" className="text-sm text-joy-gray-300 hover:text-white transition-colors">
-                hello@joyhubwholesale.com
+              <a href="mailto:hello@fiestaflare.com" className="text-sm text-joy-gray-300 hover:text-white transition-colors">
+                hello@fiestaflare.com
               </a>
             </div>
           </div>
@@ -153,7 +153,7 @@ export function Footer() {
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="text-joy-gray-400 text-sm">
-              © {new Date().getFullYear()} JoyHub Wholesale. All rights reserved.
+              © {new Date().getFullYear()} Fiestaflare Wholesaler. All rights reserved.
             </div>
 
             {/* Payment Methods */}

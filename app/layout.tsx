@@ -15,19 +15,19 @@ const poppins = Poppins({
 })
 
 export const metadata: Metadata = {
-  title: 'JoyHub Wholesale | Yiwu Accessories, Pet Supplies & Creative Gifts',
+  title: 'Fiestaflare Wholesaler | Yiwu Accessories, Pet Supplies & Creative Gifts',
   description: 'B2B small wholesale platform for high-quality accessories, pet trending supplies, creative novelty gifts, and Nordic/Ins-style home décor. $50 minimum mixed order. Ships to North & South America.',
   keywords: ['wholesale', 'Yiwu accessories', 'pet supplies', 'novelty gifts', 'B2B', 'small wholesale', 'cross-border e-commerce'],
-  authors: [{ name: 'JoyHub' }],
+  authors: [{ name: 'Fiestaflare' }],
   openGraph: {
-    title: 'JoyHub Wholesale | B2B Small Wholesale Platform',
+    title: 'Fiestaflare Wholesaler | B2B Small Wholesale Platform',
     description: 'High-quality accessories, pet supplies & creative gifts. $50 minimum mixed order. Ships worldwide.',
     type: 'website',
     locale: 'en_US',
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'JoyHub Wholesale',
+    title: 'Fiestaflare Wholesaler',
     description: 'B2B small wholesale for trending accessories, pet supplies & gifts.',
   },
   robots: {

@@ -74,11 +74,11 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-joy-orange to-joy-pink flex items-center justify-center text-white font-display font-bold text-xl">
-              JH
+              FF
             </div>
             <div className="hidden sm:block">
-              <div className="font-display font-bold text-xl text-joy-gray-900">JoyHub</div>
-              <div className="text-xs text-joy-gray-500 -mt-1">Wholesale</div>
+              <div className="font-display font-bold text-xl text-joy-gray-900">Fiestaflare</div>
+              <div className="text-xs text-joy-gray-500 -mt-1">Wholesaler</div>
             </div>
           </Link>
 

@@ -88,7 +88,7 @@ export function CartDrawer() {
               <Icons.ShoppingCart size={48} className="text-joy-gray-300" />
             </div>
             <h3 className="font-semibold text-joy-gray-900 mb-2">Your cart is empty</h3>
-            <p className="text-joy-gray-500 mb-6">Discover amazing products from JoyHub Wholesale!</p>
+            <p className="text-joy-gray-500 mb-6">Discover amazing products from Fiestaflare Wholesaler!</p>
             <Button onClick={toggleCart} variant="primary">
               Continue Shopping
             </Button>

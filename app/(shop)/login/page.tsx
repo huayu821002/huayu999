@@ -66,8 +66,8 @@ export default function LoginPage() {
             JH
           </div>
           <div>
-            <div className="font-display font-bold text-xl text-joy-gray-900">JoyHub</div>
-            <div className="text-xs text-joy-gray-500">Wholesale</div>
+            <div className="font-display font-bold text-xl text-joy-gray-900">Fiestaflare</div>
+            <div className="text-xs text-joy-gray-500">Wholesaler</div>
           </div>
         </Link>
 

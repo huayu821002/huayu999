@@ -25,12 +25,12 @@ export function FloatingButtons({ productUrl, productName }: FloatingButtonsProp
 
   const whatsappLink = getWhatsAppLink(
     WHATSAPP_NUMBER,
-    productName ? `Hi! I'm interested in: ${productName}` : 'Hi! I have a question about JoyHub Wholesale.'
+    productName ? `Hi! I'm interested in: ${productName}` : 'Hi! I have a question about Fiestaflare Wholesaler.'
   )
 
   const tiktokLink = getTikTokShareLink(
     productUrl || 'https://joyhubwholesale.com',
-    productName || 'Check out these amazing products from JoyHub Wholesale!'
+    productName || 'Check out these amazing products from Fiestaflare Wholesaler!'
   )
 
   return (

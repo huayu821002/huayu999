@@ -114,7 +114,7 @@ export function SubscribeModal({ delay = 10, onClose }: SubscribeModalProps) {
                   Check your inbox for the <strong>2026 Q3 Trending Products List</strong> PDF.
                 </p>
                 <p className="text-sm text-joy-gray-500">
-                  Welcome to the JoyHub family!
+                  Welcome to the Fiestaflare family!
                 </p>
               </div>
             ) : (

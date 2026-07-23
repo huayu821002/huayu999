@@ -460,12 +460,12 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Why JoyHub */}
+        {/* Why Fiestaflare */}
         <section className="py-16 lg:py-24 bg-joy-gray-900 text-white">
           <div className="max-w-7xl mx-auto px-4">
             <div className="text-center mb-16">
               <h2 className="font-display text-3xl md:text-4xl font-bold mb-4">
-                Why JoyHub?
+                Why Fiestaflare?
               </h2>
               <p className="text-joy-gray-400 max-w-2xl mx-auto">
                 We're not just a supplier. We're your cross-border e-commerce partner.
@@ -514,7 +514,7 @@ export default function HomePage() {
               Ready to Start Selling?
             </h2>
             <p className="text-lg text-joy-gray-600 mb-8 max-w-2xl mx-auto">
-              Join thousands of retailers and dropshippers who trust JoyHub Wholesale for their inventory.
+              Join thousands of retailers and dropshippers who trust Fiestaflare Wholesaler for their inventory.
               Create your free account today.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
