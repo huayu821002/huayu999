@@ -4,7 +4,7 @@ import { prisma } from '@/lib/prisma'
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   try {
     const product = await prisma.product.findUnique({
-      where: { id: params.id },
+      where: { id: params.productId },
       include: { category: true },
     })
     if (!product) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
@@ -25,7 +25,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
     } = body
 
     const product = await prisma.product.update({
-      where: { id: params.id },
+      where: { id: params.productId },
       data: {
         name, slug, description, shortDesc,
         price: parseFloat(price),
@@ -55,7 +55,7 @@ export async function PUT(request: Request, { params }: { params: { id: string }
 
 export async function DELETE(request: Request, { params }: { params: { id: string } }) {
   try {
-    await prisma.product.delete({ where: { id: params.id } })
+    await prisma.product.delete({ where: { id: params.productId } })
     return NextResponse.json({ success: true })
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to delete product' }, { status: 500 })
