@@ -164,12 +164,29 @@ model Subscriber {
 
 model SiteContent {
   id        String   @id @default(cuid())
-  section   String   @unique  // e.g., "hero", "banners", "trust_badges", "featured_title"
+  section   String   @unique
   title     String?
   subtitle  String?
-  content   String?  // JSON string for flexible content (images, links, etc.)
+  content   String?
   isActive  Boolean  @default(true)
   sortOrder Int      @default(0)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model ShippingMethod {
+  id           String   @id @default(cuid())
+  name         String   // e.g., "Standard Shipping", "DHL Express"
+  code         String   @unique  // e.g., "STANDARD", "DHL"
+  description  String?
+  baseCost     Float    @default(0)   // Base cost in USD
+  costPerKg    Float    @default(0)   // Cost per kg
+  freeThreshold Float   @default(0)   // Free shipping when order >= this amount
+  minWeight    Float    @default(0)   // Minimum weight in kg
+  maxWeight    Float    @default(0)   // Maximum weight in kg (0 = unlimited)
+  estimatedDays String? // e.g., "7-15 days"
+  isActive     Boolean  @default(true)
+  sortOrder    Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
