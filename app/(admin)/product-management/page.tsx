@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Icons } from '@/components/ui/Icons'
@@ -34,9 +35,49 @@ const STATUS_COLORS: Record<string, string> = {
 }
 
 export default function AdminProductsPage() {
+  const router = useRouter()
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    
+    if (!token || !userStr) {
+      router.push('/login')
+      return
+    }
+    
+    try {
+      const user = JSON.parse(userStr)
+      if (user.role !== 'ADMIN') {
+        router.push('/login')
+        return
+      }
+      setIsAdmin(true)
+    } catch {
+      router.push('/login')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-joy-gray-50 flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" />
+      </div>
+    )
+  }
+
+  if (!isAdmin) return null
+
+
   const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products')
   const [searchQuery, setSearchQuery] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
+
+  if (!isAdmin) return null
 
   const filteredProducts = PRODUCTS.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||

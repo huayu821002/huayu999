@@ -1,10 +1,10 @@
+'use client'
+
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { redirect } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Icons } from '@/components/ui/Icons'
-
-// Mock admin check - in production, use proper auth
-const isAdmin = true
 
 const STATS = [
   { label: 'Total Revenue', value: '$124,592', change: '+12.5%', icon: Icons.DollarSign, color: 'text-joy-green' },
@@ -28,23 +28,52 @@ const TOP_PRODUCTS = [
 ]
 
 export default function AdminDashboard() {
-  if (!isAdmin) {
-    redirect('/login')
+  const router = useRouter()
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    
+    if (!token || !userStr) {
+      router.push('/login')
+      return
+    }
+    
+    try {
+      const user = JSON.parse(userStr)
+      if (user.role !== 'ADMIN') {
+        router.push('/login')
+        return
+      }
+      setIsAdmin(true)
+    } catch {
+      router.push('/login')
+    } finally {
+      setIsLoading(false)
+    }
+  }, [router])
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-joy-gray-50 flex items-center justify-center">
+        <div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" />
+      </div>
+    )
   }
+
+  if (!isAdmin) return null
 
   return (
     <div className="min-h-screen bg-joy-gray-50">
       <Header />
-
       <main className="pt-[calc(4rem+36px)]">
         <div className="max-w-7xl mx-auto px-4 py-8">
-          {/* Page Header */}
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold text-joy-gray-900">Dashboard</h1>
-            <p className="text-joy-gray-600">Welcome back! Here's what's happening with your store.</p>
+            <p className="text-joy-gray-600">Welcome back! Here is what is happening with your store.</p>
           </div>
-
-          {/* Stats Grid */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8">
             {STATS.map((stat) => (
               <div key={stat.label} className="bg-white rounded-2xl p-6 shadow-sm">
@@ -61,14 +90,12 @@ export default function AdminDashboard() {
               </div>
             ))}
           </div>
-
           <div className="grid lg:grid-cols-3 gap-6">
-            {/* Recent Orders */}
             <div className="lg:col-span-2 bg-white rounded-2xl shadow-sm">
               <div className="p-6 border-b border-joy-gray-100">
                 <div className="flex items-center justify-between">
                   <h2 className="font-semibold text-lg text-joy-gray-900">Recent Orders</h2>
-                  <Link href="/admin/orders" className="text-sm text-joy-orange hover:underline">
+                  <Link href="/product-management" className="text-sm text-joy-orange hover:underline">
                     View All
                   </Link>
                 </div>
@@ -87,9 +114,7 @@ export default function AdminDashboard() {
                   <tbody className="divide-y divide-joy-gray-100">
                     {RECENT_ORDERS.map((order) => (
                       <tr key={order.id} className="hover:bg-joy-gray-50 transition-colors">
-                        <td className="px-6 py-4">
-                          <span className="font-mono text-sm">{order.id}</span>
-                        </td>
+                        <td className="px-6 py-4"><span className="font-mono text-sm">{order.id}</span></td>
                         <td className="px-6 py-4">
                           <div className="font-medium text-joy-gray-900">{order.customer}</div>
                           <div className="text-xs text-joy-gray-500">{order.items} items</div>
@@ -112,16 +137,9 @@ export default function AdminDashboard() {
                 </table>
               </div>
             </div>
-
-            {/* Top Products */}
             <div className="bg-white rounded-2xl shadow-sm">
               <div className="p-6 border-b border-joy-gray-100">
-                <div className="flex items-center justify-between">
-                  <h2 className="font-semibold text-lg text-joy-gray-900">Top Products</h2>
-                  <Link href="/admin/products" className="text-sm text-joy-orange hover:underline">
-                    View All
-                  </Link>
-                </div>
+                <h2 className="font-semibold text-lg text-joy-gray-900">Top Products</h2>
               </div>
               <div className="p-6">
                 <div className="space-y-4">
@@ -141,31 +159,29 @@ export default function AdminDashboard() {
               </div>
             </div>
           </div>
-
-          {/* Quick Actions */}
           <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
-            <Link href="/admin/products" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <Link href="/product-management" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="w-12 h-12 rounded-xl bg-joy-orange/10 flex items-center justify-center mb-4 group-hover:bg-joy-orange/20 transition-colors">
                 <Icons.Plus size={24} className="text-joy-orange" />
               </div>
               <h3 className="font-semibold text-joy-gray-900">Add Product</h3>
               <p className="text-sm text-joy-gray-500">Create new listing</p>
             </Link>
-            <Link href="/admin/orders" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <Link href="/product-management" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="w-12 h-12 rounded-xl bg-joy-pink/10 flex items-center justify-center mb-4 group-hover:bg-joy-pink/20 transition-colors">
                 <Icons.Package size={24} className="text-joy-pink" />
               </div>
               <h3 className="font-semibold text-joy-gray-900">Manage Orders</h3>
-              <p className="text-sm text-joy-gray-500">View & process orders</p>
+              <p className="text-sm text-joy-gray-500">View and process orders</p>
             </Link>
-            <Link href="/admin/customers" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <Link href="/product-management" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="w-12 h-12 rounded-xl bg-joy-green/10 flex items-center justify-center mb-4 group-hover:bg-joy-green/20 transition-colors">
                 <Icons.User size={24} className="text-joy-green" />
               </div>
               <h3 className="font-semibold text-joy-gray-900">Customers</h3>
               <p className="text-sm text-joy-gray-500">Manage customer accounts</p>
             </Link>
-            <Link href="/admin/settings" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <Link href="/product-management" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="w-12 h-12 rounded-xl bg-joy-navy/10 flex items-center justify-center mb-4 group-hover:bg-joy-navy/20 transition-colors">
                 <Icons.Sliders size={24} className="text-joy-navy" />
               </div>
