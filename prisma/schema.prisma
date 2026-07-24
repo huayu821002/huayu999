@@ -161,3 +161,15 @@ model Subscriber {
   source    String?
   createdAt DateTime @default(now())
 }
+
+model SiteContent {
+  id        String   @id @default(cuid())
+  section   String   @unique  // e.g., "hero", "banners", "trust_badges", "featured_title"
+  title     String?
+  subtitle  String?
+  content   String?  // JSON string for flexible content (images, links, etc.)
+  isActive  Boolean  @default(true)
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}

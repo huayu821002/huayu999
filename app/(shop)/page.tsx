@@ -11,11 +11,14 @@ import { SubscribeModal } from '@/components/shop/SubscribeModal'
 import { ProductCard } from '@/components/shop/ProductCard'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { formatCurrency } from '@/lib/utils'
 import type { Product } from '@/types'
 
-const FEATURED_PRODUCTS: Product[] = []
-const TRENDING_PRODUCTS: Product[] = []
+interface SiteContent {
+  section: string
+  title: string | null
+  subtitle: string | null
+  content: string | null
+}
 
 const CATEGORIES = [
   { id: 'cat-1', name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400', count: 0 },
@@ -33,11 +36,12 @@ const TRUST_BADGES = [
 
 export default function ShopHomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
-  const [trendingProducts, setTrendingProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
+  const [siteContent, setSiteContent] = useState<Record<string, SiteContent>>({})
 
   useEffect(() => {
     fetchProducts()
+    fetchSiteContent()
   }, [])
 
   const fetchProducts = async () => {
@@ -51,7 +55,6 @@ export default function ShopHomePage() {
         const allData = await allRes.json()
         if (allData.success) {
           setFeaturedProducts(allData.data.slice(0, 8))
-          setTrendingProducts(allData.data.filter((p: Product) => p.isTrending).slice(0, 4))
         }
       }
     } catch (err) {
@@ -60,6 +63,26 @@ export default function ShopHomePage() {
       setIsLoading(false)
     }
   }
+
+  const fetchSiteContent = async () => {
+    try {
+      const res = await fetch('/api/admin/site-content')
+      const data = await res.json()
+      if (data.success) {
+        const contentMap: Record<string, SiteContent> = {}
+        data.data.forEach((item: SiteContent) => { contentMap[item.section] = item })
+        setSiteContent(contentMap)
+      }
+    } catch (err) { console.error('Failed to fetch site content:', err) }
+  }
+
+  const sc = (section: string) => siteContent[section]
+
+  // Parse banners from site content
+  let banners: { image: string; link: string; alt: string }[] = []
+  try {
+    if (sc('banners')?.content) banners = JSON.parse(sc('banners')!.content!)
+  } catch {}
 
   return (
     <div className="min-h-screen bg-white">
@@ -70,11 +93,11 @@ export default function ShopHomePage() {
           <div className="max-w-7xl mx-auto px-4">
             <div className="max-w-2xl">
               <h1 className="font-display text-4xl md:text-6xl font-bold mb-6">
-                Wholesale Products from Yiwu
-                <span className="block text-joy-orange">Direct from Factory</span>
+                {sc('hero_title')?.title || 'Wholesale Products from Yiwu'}
+                <span className="block text-joy-orange">{sc('hero_title')?.subtitle || 'Direct from Factory'}</span>
               </h1>
               <p className="text-lg text-joy-gray-300 mb-8">
-                No middlemen. No markups. Just factory-direct pricing on 50,000+ products with shipping to 150+ countries.
+                {sc('hero_subtitle')?.title || 'No middlemen. No markups. Just factory-direct pricing on 50,000+ products with shipping to 150+ countries.'}
               </p>
               <div className="flex flex-wrap gap-4">
                 <Link href="/products">
@@ -89,6 +112,21 @@ export default function ShopHomePage() {
             </div>
           </div>
         </section>
+
+        {/* Banners (if set in admin) */}
+        {banners.length > 0 && (
+          <section className="py-8 bg-joy-gray-50">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="grid grid-cols-2 gap-4">
+                {banners.map((banner, i) => (
+                  <Link key={i} href={banner.link || '/products'} className="relative rounded-2xl overflow-hidden aspect-[3/1]">
+                    <Image src={banner.image} alt={banner.alt} fill className="object-cover" />
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Trust Badges */}
         <section className="bg-joy-gray-50 py-8 border-b">
@@ -113,7 +151,9 @@ export default function ShopHomePage() {
         <section className="py-16">
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="font-display text-2xl font-bold text-joy-gray-900">Shop by Category</h2>
+              <h2 className="font-display text-2xl font-bold text-joy-gray-900">
+                {sc('category_title')?.title || 'Shop by Category'}
+              </h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {CATEGORIES.map((cat) => (
@@ -134,8 +174,12 @@ export default function ShopHomePage() {
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-center justify-between mb-8">
               <div>
-                <h2 className="font-display text-2xl font-bold text-joy-gray-900">Featured Products</h2>
-                <p className="text-joy-gray-500 mt-1">Handpicked bestsellers at wholesale prices</p>
+                <h2 className="font-display text-2xl font-bold text-joy-gray-900">
+                  {sc('featured_title')?.title || 'Featured Products'}
+                </h2>
+                <p className="text-joy-gray-500 mt-1">
+                  {sc('featured_title')?.subtitle || 'Handpicked bestsellers at wholesale prices'}
+                </p>
               </div>
               <Link href="/products">
                 <Button variant="secondary">
@@ -164,8 +208,6 @@ export default function ShopHomePage() {
             )}
           </div>
         </section>
-
-        {/* Footer */}
       </main>
       <Footer />
       <FloatingButtons />
