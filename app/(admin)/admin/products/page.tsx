@@ -14,22 +14,30 @@ interface Product {
   slug: string
   sku: string
   price: number
+  comparePrice: number | null
+  costPrice: number | null
+  wholesalePrice: number | null
+  vipPrice: number | null
+  minOrderQty: number
   inventory: number
+  lowStockAlert: number
+  description: string
+  shortDesc: string | null
+  images: string
+  modelImage: string | null
+  categoryId: string | null
+  category: { id: string; name: string } | null
   isActive: boolean
   isFeatured: boolean
   isTrending: boolean
-  category?: { name: string }
+  tags: string | null
+  createdAt: string
 }
 
 interface Category {
   id: string
   name: string
   slug: string
-}
-
-const STATUS_COLORS: Record<string, string> = {
-  Active: 'bg-joy-green/10 text-joy-green',
-  Draft: 'bg-joy-gray-100 text-joy-gray-600',
 }
 
 export default function AdminProductsPage() {
@@ -39,9 +47,10 @@ export default function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [searchQuery, setSearchQuery] = useState('')
-  const [showAddModal, setShowAddModal] = useState(false)
+  const [showModal, setShowModal] = useState(false)
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [formData, setFormData] = useState({
+  const [form, setForm] = useState({
     name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '',
     costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1',
     inventory: '0', lowStockAlert: '10', categoryId: '', images: '',
@@ -90,24 +99,58 @@ export default function AdminProductsPage() {
     p.sku.toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const handleAddProduct = async () => {
+  const openAdd = () => {
+    setEditingProduct(null)
+    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false })
+    setShowModal(true)
+  }
+
+  const openEdit = (product: Product) => {
+    setEditingProduct(product)
+    setForm({
+      name: product.name, sku: product.sku, description: product.description, shortDesc: product.shortDesc || '',
+      price: String(product.price), comparePrice: product.comparePrice ? String(product.comparePrice) : '',
+      costPrice: product.costPrice ? String(product.costPrice) : '', wholesalePrice: product.wholesalePrice ? String(product.wholesalePrice) : '',
+      vipPrice: product.vipPrice ? String(product.vipPrice) : '', minOrderQty: String(product.minOrderQty),
+      inventory: String(product.inventory), lowStockAlert: String(product.lowStockAlert),
+      categoryId: product.categoryId || '', images: product.images,
+      isActive: product.isActive, isFeatured: product.isFeatured, isTrending: product.isTrending,
+    })
+    setShowModal(true)
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this product? This cannot be undone.')) return
+    try {
+      const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+      if (res.ok) fetchProducts()
+      else alert('Failed to delete product')
+    } catch { alert('Failed to delete product') }
+  }
+
+  const handleSubmit = async () => {
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/products', {
-        method: 'POST',
+      const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : '/api/admin/products'
+      const method = editingProduct ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(form),
       })
       const data = await res.json()
       if (data.success) {
-        setShowAddModal(false)
+        setShowModal(false)
         fetchProducts()
-        setFormData({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false })
       } else {
-        alert(data.error)
+        alert(data.error || 'Failed to save product')
       }
-    } catch (err) { alert('Failed to add product') }
+    } catch { alert('Failed to save product') }
     setIsSaving(false)
+  }
+
+  const parseImages = (imgStr: string): string[] => {
+    try { return JSON.parse(imgStr) } catch { return imgStr ? [imgStr] : [] }
   }
 
   return (
@@ -122,7 +165,7 @@ export default function AdminProductsPage() {
             </div>
             <div className="flex items-center gap-4">
               <Link href="/admin/dashboard"><Button variant="secondary">Back to Dashboard</Button></Link>
-              <Button onClick={() => setShowAddModal(true)}><Icons.Plus size={18} className="mr-2" />Add Product</Button>
+              <Button onClick={openAdd}><Icons.Plus size={18} className="mr-2" />Add Product</Button>
             </div>
           </div>
           <div className="mb-6">
@@ -141,16 +184,23 @@ export default function AdminProductsPage() {
                     <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Price</th>
                     <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Stock</th>
                     <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Status</th>
+                    <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-joy-gray-100">
                   {filteredProducts.length === 0 ? (
-                    <tr><td colSpan={5} className="px-6 py-8 text-center text-joy-gray-500">No products found</td></tr>
+                    <tr><td colSpan={6} className="px-6 py-8 text-center text-joy-gray-500">No products found</td></tr>
                   ) : filteredProducts.map((product) => (
                     <tr key={product.id} className="hover:bg-joy-gray-50 transition-colors">
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
-                          <div className="w-12 h-12 rounded-lg bg-joy-gray-100 flex items-center justify-center text-joy-gray-400"><Icons.Package size={20} /></div>
+                          <div className="w-12 h-12 rounded-lg bg-joy-gray-100 overflow-hidden flex-shrink-0">
+                            {parseImages(product.images)[0] ? (
+                              <img src={parseImages(product.images)[0]} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-joy-gray-300"><Icons.Package size={20} /></div>
+                            )}
+                          </div>
                           <div>
                             <p className="font-medium text-joy-gray-900">{product.name}</p>
                             <p className="text-xs text-joy-gray-500">{product.category?.name || 'Uncategorized'}</p>
@@ -160,8 +210,12 @@ export default function AdminProductsPage() {
                       <td className="px-6 py-4 font-mono text-sm text-joy-gray-600">{product.sku}</td>
                       <td className="px-6 py-4 font-semibold text-joy-orange">${product.price.toFixed(2)}</td>
                       <td className="px-6 py-4"><span className={`font-medium ${product.inventory < 20 ? 'text-red-500' : 'text-joy-gray-700'}`}>{product.inventory}</span></td>
+                      <td className="px-6 py-4"><span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${product.isActive ? 'bg-joy-green/10 text-joy-green' : 'bg-joy-gray-100 text-joy-gray-600'}`}>{product.isActive ? 'Active' : 'Draft'}</span></td>
                       <td className="px-6 py-4">
-                        <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${product.isActive ? STATUS_COLORS.Active : STATUS_COLORS.Draft}`}>{product.isActive ? 'Active' : 'Draft'}</span>
+                        <div className="flex items-center gap-2">
+                          <button onClick={() => openEdit(product)} className="p-2 hover:bg-joy-gray-100 rounded-lg transition-colors" title="Edit"><Icons.Copy size={18} className="text-joy-gray-500" /></button>
+                          <button onClick={() => handleDelete(product.id)} className="p-2 hover:bg-red-50 rounded-lg transition-colors" title="Delete"><Icons.Trash2 size={18} className="text-red-500" /></button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -171,49 +225,50 @@ export default function AdminProductsPage() {
           </div>
         </div>
       </main>
-      {showAddModal && (
+
+      {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
             <div className="sticky top-0 bg-white border-b border-joy-gray-100 px-6 py-4 flex items-center justify-between">
-              <h2 className="font-display text-xl font-bold text-joy-gray-900">Add New Product</h2>
-              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
+              <h2 className="font-display text-xl font-bold text-joy-gray-900">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
+              <button onClick={() => setShowModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
             </div>
             <div className="p-6 space-y-4">
-              <Input label="Product Name *" placeholder="Enter product name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} />
+              <Input label="Product Name *" placeholder="Enter product name" value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} />
               <div className="grid grid-cols-2 gap-4">
-                <Input label="SKU *" placeholder="e.g., AC-001" value={formData.sku} onChange={(e) => setFormData({...formData, sku: e.target.value})} />
-                <div><label className="block text-sm font-medium text-joy-gray-700 mb-2">Category</label><select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none" value={formData.categoryId} onChange={(e) => setFormData({...formData, categoryId: e.target.value})}><option value="">Select category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                <Input label="SKU *" placeholder="e.g., AC-001" value={form.sku} onChange={(e) => setForm({...form, sku: e.target.value})} />
+                <div><label className="block text-sm font-medium text-joy-gray-700 mb-2">Category</label><select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none" value={form.categoryId} onChange={(e) => setForm({...form, categoryId: e.target.value})}><option value="">Select category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <Input label="Price (USD) *" type="number" placeholder="0.00" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} />
+                <Input label="Compare At Price" type="number" placeholder="0.00" value={form.comparePrice} onChange={(e) => setForm({...form, comparePrice: e.target.value})} />
+                <Input label="Wholesale Price" type="number" placeholder="0.00" value={form.wholesalePrice} onChange={(e) => setForm({...form, wholesalePrice: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-3 gap-4">
+                <Input label="VIP Price" type="number" placeholder="0.00" value={form.vipPrice} onChange={(e) => setForm({...form, vipPrice: e.target.value})} />
+                <Input label="Cost Price" type="number" placeholder="0.00" value={form.costPrice} onChange={(e) => setForm({...form, costPrice: e.target.value})} />
+                <Input label="Min Order Qty" type="number" placeholder="1" value={form.minOrderQty} onChange={(e) => setForm({...form, minOrderQty: e.target.value})} />
               </div>
               <div className="grid grid-cols-2 gap-4">
-                <Input label="Price (USD) *" type="number" placeholder="0.00" value={formData.price} onChange={(e) => setFormData({...formData, price: e.target.value})} />
-                <Input label="Compare At Price" type="number" placeholder="0.00" value={formData.comparePrice} onChange={(e) => setFormData({...formData, comparePrice: e.target.value})} />
+                <Input label="Inventory *" type="number" placeholder="0" value={form.inventory} onChange={(e) => setForm({...form, inventory: e.target.value})} />
+                <Input label="Low Stock Alert" type="number" placeholder="10" value={form.lowStockAlert} onChange={(e) => setForm({...form, lowStockAlert: e.target.value})} />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="Cost Price" type="number" placeholder="0.00" value={formData.costPrice} onChange={(e) => setFormData({...formData, costPrice: e.target.value})} />
-                <Input label="Wholesale Price" type="number" placeholder="0.00" value={formData.wholesalePrice} onChange={(e) => setFormData({...formData, wholesalePrice: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="VIP Price" type="number" placeholder="0.00" value={formData.vipPrice} onChange={(e) => setFormData({...formData, vipPrice: e.target.value})} />
-                <Input label="Min Order Qty" type="number" placeholder="1" value={formData.minOrderQty} onChange={(e) => setFormData({...formData, minOrderQty: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="Inventory *" type="number" placeholder="0" value={formData.inventory} onChange={(e) => setFormData({...formData, inventory: e.target.value})} />
-                <Input label="Low Stock Alert" type="number" placeholder="10" value={formData.lowStockAlert} onChange={(e) => setFormData({...formData, lowStockAlert: e.target.value})} />
-              </div>
+              <Input label="Image URL (comma separated for multiple)" placeholder="https://example.com/image1.jpg, https://example.com/image2.jpg" value={form.images} onChange={(e) => setForm({...form, images: e.target.value})} />
               <div>
                 <label className="block text-sm font-medium text-joy-gray-700 mb-2">Description *</label>
-                <textarea className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none min-h-[100px]" placeholder="Enter product description..." value={formData.description} onChange={(e) => setFormData({...formData, description: e.target.value})} />
+                <textarea className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none min-h-[100px]" placeholder="Enter full description (HTML allowed)..." value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} />
               </div>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formData.isActive} onChange={(e) => setFormData({...formData, isActive: e.target.checked})} className="rounded border-joy-gray-300" /><span className="text-sm text-joy-gray-700">Active</span></label>
-                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formData.isFeatured} onChange={(e) => setFormData({...formData, isFeatured: e.target.checked})} className="rounded border-joy-gray-300" /><span className="text-sm text-joy-gray-700">Featured</span></label>
-                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={formData.isTrending} onChange={(e) => setFormData({...formData, isTrending: e.target.checked})} className="rounded border-joy-gray-300" /><span className="text-sm text-joy-gray-700">Trending</span></label>
+              <Input label="Short Description" placeholder="Brief description for listings" value={form.shortDesc} onChange={(e) => setForm({...form, shortDesc: e.target.value})} />
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.isActive} onChange={(e) => setForm({...form, isActive: e.target.checked})} className="rounded border-joy-gray-300" /><span className="text-sm text-joy-gray-700">Active</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.isFeatured} onChange={(e) => setForm({...form, isFeatured: e.target.checked})} className="rounded border-joy-gray-300" /><span className="text-sm text-joy-gray-700">Featured</span></label>
+                <label className="flex items-center gap-2 cursor-pointer"><input type="checkbox" checked={form.isTrending} onChange={(e) => setForm({...form, isTrending: e.target.checked})} className="rounded border-joy-gray-300" /><span className="text-sm text-joy-gray-700">Trending</span></label>
               </div>
             </div>
             <div className="sticky bottom-0 bg-white border-t border-joy-gray-100 px-6 py-4 flex items-center justify-end gap-3">
-              <Button variant="secondary" onClick={() => setShowAddModal(false)}>Cancel</Button>
-              <Button onClick={handleAddProduct} isLoading={isSaving}>Save Product</Button>
+              <Button variant="secondary" onClick={() => setShowModal(false)}>Cancel</Button>
+              <Button onClick={handleSubmit} isLoading={isSaving}>{editingProduct ? 'Update Product' : 'Save Product'}</Button>
             </div>
           </div>
         </div>
