@@ -1,7 +1,7 @@
 {
   "name": "joyhub-wholesale",
   "version": 2,
-  "buildCommand": "npx prisma generate && npx prisma db push --skip-generate && next build",
+  "buildCommand": "npx prisma db push --skip-generate && next build",
   "devCommand": "next dev",
   "installCommand": "npm install",
   "regions": ["iad1"],
