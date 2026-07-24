@@ -15,6 +15,7 @@ interface CartState {
   toggleCart: () => void
   getSubtotal: () => number
   getItemCount: () => number
+  getTotalWeight: () => number
 }
 
 export const useCartStore = create<CartState>()(
@@ -85,6 +86,14 @@ export const useCartStore = create<CartState>()(
       getItemCount: () => {
         return get().items.reduce((count, item) => count + item.quantity, 0)
       },
+
+      getTotalWeight: () => {
+        const { items } = get()
+        return items.reduce((total, item) => {
+          const weight = item.product.weight || 0
+          return total + weight * item.quantity
+        }, 0)
+      },
     }),
     {
       name: 'joyhub-cart',
@@ -137,7 +146,7 @@ export const useUIStore = create<UIState>((set) => ({
   isMobileMenuOpen: false,
   isSearchOpen: false,
   isSubscribeModalOpen: false,
-  subscribeDelay: 10, // seconds
+  subscribeDelay: 10,
 
   mobileMenuOpen: () => set({ isMobileMenuOpen: true }),
   mobileMenuClose: () => set({ isMobileMenuOpen: false }),
@@ -149,7 +158,7 @@ export const useUIStore = create<UIState>((set) => ({
 
 // Wishlist Store
 interface WishlistState {
-  items: string[] // product IDs
+  items: string[]
   addItem: (productId: string) => void
   removeItem: (productId: string) => void
   isInWishlist: (productId: string) => boolean

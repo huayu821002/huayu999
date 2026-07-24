@@ -29,7 +29,7 @@ interface ShippingForm {
 
 export default function CheckoutPage() {
   const router = useRouter()
-  const { items, currency, getSubtotal, clearCart } = useCartStore()
+  const { items, currency, getSubtotal, getTotalWeight, clearCart } = useCartStore()
   const [currentStep, setCurrentStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
@@ -41,7 +41,16 @@ export default function CheckoutPage() {
   })
 
   const subtotal = getSubtotal()
-  const shippingCost = subtotal >= 299 ? 0 : 12.99
+  const totalWeight = getTotalWeight() // in kg
+  
+  // Weight-based shipping calculation
+  // Base rate $5.99 + $1.50 per 0.5kg
+  // Free shipping for orders >= $199 or total weight <= 0.5kg
+  const baseShipping = 5.99
+  const perHalfKg = 1.50
+  const weightRate = Math.ceil(totalWeight / 0.5) * perHalfKg
+  const calculatedShipping = subtotal >= 199 ? 0 : baseShipping + weightRate
+  const shippingCost = calculatedShipping
   const tax = subtotal * 0.08
   const total = subtotal + shippingCost + tax
 
@@ -207,6 +216,42 @@ export default function CheckoutPage() {
                         <option>Argentina</option>
                       </select>
                     </div>
+
+                    {/* Shipping Options based on weight */}
+                    <div className="border-t border-joy-gray-100 pt-6 mt-6">
+                      <h3 className="font-medium text-joy-gray-900 mb-4">Shipping Method</h3>
+                      <div className="space-y-3">
+                        <label className="flex items-center justify-between p-4 border-2 border-joy-orange rounded-xl cursor-pointer bg-joy-orange/5">
+                          <div className="flex items-center gap-3">
+                            <input type="radio" name="shipping" defaultChecked className="accent-joy-orange" />
+                            <div>
+                              <p className="font-medium text-joy-gray-900">Standard Shipping</p>
+                              <p className="text-sm text-joy-gray-500">{totalWeight <= 0.5 ? '1-3 days' : totalWeight <= 2 ? '5-7 days' : '10-15 days'} ({totalWeight.toFixed(2)}kg)</p>
+                            </div>
+                          </div>
+                          <span className="font-semibold text-joy-gray-900">
+                            {shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost, currency)}
+                          </span>
+                        </label>
+                        <label className="flex items-center justify-between p-4 border-2 border-joy-gray-200 rounded-xl cursor-pointer hover:border-joy-orange transition-colors">
+                          <div className="flex items-center gap-3">
+                            <input type="radio" name="shipping" className="accent-joy-orange" />
+                            <div>
+                              <p className="font-medium text-joy-gray-900">Express Shipping</p>
+                              <p className="text-sm text-joy-gray-500">{totalWeight <= 0.5 ? '1-2 days' : '3-5 days'} ({totalWeight.toFixed(2)}kg)</p>
+                            </div>
+                          </div>
+                          <span className="font-semibold text-joy-gray-900">
+                            {shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost * 1.8, currency)}
+                          </span>
+                        </label>
+                      </div>
+                      {shippingCost > 0 && subtotal < 199 && (
+                        <p className="text-sm text-joy-gray-500 mt-3">
+                          Add {formatCurrency(199 - subtotal, currency)} more for free shipping
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <div className="flex gap-4 mt-6">
                     <Button variant="secondary" onClick={() => setCurrentStep(1)}>Back</Button>
@@ -295,7 +340,7 @@ export default function CheckoutPage() {
                 </div>
                 <div className="border-t border-joy-gray-100 pt-4 space-y-3">
                   <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Subtotal</span><span className="font-medium">{formatCurrency(subtotal, currency)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Shipping</span><span className="font-medium">{shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost, currency)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Shipping ({totalWeight.toFixed(2)}kg)</span><span className="font-medium">{shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost, currency)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Tax (8%)</span><span className="font-medium">{formatCurrency(tax, currency)}</span></div>
                   <div className="flex justify-between text-lg font-bold pt-3 border-t border-joy-gray-100"><span>Total</span><span className="text-joy-orange">{formatCurrency(total, currency)}</span></div>
                 </div>
