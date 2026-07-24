@@ -5,7 +5,6 @@ export async function GET(request: Request, { params }: { params: { productId: s
   try {
     const variants = await prisma.productVariant.findMany({
       where: { productId: params.productId },
-      orderBy: { createdAt: 'asc' },
     })
     return NextResponse.json({ success: true, data: variants })
   } catch (error) {
