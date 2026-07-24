@@ -47,7 +47,7 @@ export default function AdminSettingsPage() {
             {/* Store Info */}
             <div className="bg-white rounded-2xl shadow-sm p-6">
               <h2 className="font-semibold text-lg text-joy-gray-900 mb-6 flex items-center gap-2">
-                <Icons.Store size={20} className="text-joy-orange" />
+                <Icons.Globe size={20} className="text-joy-orange" />
                 Store Information
               </h2>
               <div className="grid grid-cols-2 gap-4">
