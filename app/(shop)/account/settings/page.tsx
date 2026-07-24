@@ -33,7 +33,7 @@ export default function AccountSettingsPage() {
       <main className="pt-[calc(4rem+36px)]">
         <div className="max-w-2xl mx-auto px-4 py-8">
           <div className="flex items-center gap-4 mb-8">
-            <Link href="/account" className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.ArrowLeft size={20} /></Link>
+            <Link href="/account" className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.ChevronLeft size={20} /></Link>
             <h1 className="font-display text-3xl font-bold text-joy-gray-900">Account Settings</h1>
           </div>
           <div className="bg-white rounded-2xl shadow-sm p-6 space-y-6">

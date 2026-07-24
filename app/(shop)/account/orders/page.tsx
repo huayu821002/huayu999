@@ -24,7 +24,7 @@ export default function AccountOrdersPage() {
       <main className="pt-[calc(4rem+36px)]">
         <div className="max-w-4xl mx-auto px-4 py-8">
           <div className="flex items-center gap-4 mb-8">
-            <Link href="/account" className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.ArrowLeft size={20} /></Link>
+            <Link href="/account" className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.ChevronLeft size={20} /></Link>
             <h1 className="font-display text-3xl font-bold text-joy-gray-900">My Orders</h1>
           </div>
           <div className="bg-white rounded-2xl shadow-sm p-12 text-center">
@@ -32,7 +32,7 @@ export default function AccountOrdersPage() {
             <h2 className="font-semibold text-lg text-joy-gray-900 mb-2">No Orders Yet</h2>
             <p className="text-joy-gray-500 mb-6">Start shopping to see your orders here</p>
             <Link href="/products" className="inline-flex items-center gap-2 px-6 py-3 bg-joy-orange text-white rounded-xl font-medium hover:bg-joy-orange/90 transition-colors">
-              Browse Products <Icons.ArrowRight size={18} />
+              Browse Products <Icons.ChevronRight size={18} />
             </Link>
           </div>
         </div>
