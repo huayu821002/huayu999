@@ -68,7 +68,7 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState({
     name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '',
     costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1',
-    inventory: '0', lowStockAlert: '10', categoryId: '', images: '',
+    inventory: '0', weight: '', categoryId: '', images: '',
     isActive: true, isFeatured: false, isTrending: false,
   })
 
@@ -137,7 +137,7 @@ export default function AdminProductsPage() {
       price: String(product.price), comparePrice: product.comparePrice ? String(product.comparePrice) : '',
       costPrice: product.costPrice ? String(product.costPrice) : '', wholesalePrice: product.wholesalePrice ? String(product.wholesalePrice) : '',
       vipPrice: product.vipPrice ? String(product.vipPrice) : '', minOrderQty: String(product.minOrderQty),
-      inventory: String(product.inventory), lowStockAlert: String(product.lowStockAlert),
+      inventory: String(product.inventory), weight: product.weight ? String(product.weight) : '',
       categoryId: product.categoryId || '', images: product.images,
       isActive: product.isActive, isFeatured: product.isFeatured, isTrending: product.isTrending,
     })
@@ -316,7 +316,7 @@ export default function AdminProductsPage() {
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <Input label="Inventory *" type="number" placeholder="0" value={form.inventory} onChange={(e) => setForm({...form, inventory: e.target.value})} />
-                  <Input label="Low Stock Alert" type="number" placeholder="10" value={form.lowStockAlert} onChange={(e) => setForm({...form, lowStockAlert: e.target.value})} />
+                  <Input label="Weight (kg)" type="number" step="0.01" placeholder="0.5" value={form.weight || ''} onChange={(e) => setForm({...form, weight: e.target.value})} />
                 </div>
                 <Input label="Image URL (comma separated)" placeholder="https://example.com/img.jpg" value={form.images} onChange={(e) => setForm({...form, images: e.target.value})} />
                 <div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -16,15 +16,13 @@ import type { Currency } from '@/types'
 const STEPS = ['Cart', 'Shipping', 'Payment', 'Confirm']
 
 interface ShippingForm {
-  firstName: string
-  lastName: string
-  email: string
-  phone: string
-  address: string
-  city: string
-  state: string
-  zip: string
-  country: string
+  firstName: string; lastName: string; email: string; phone: string
+  address: string; city: string; state: string; zip: string; country: string
+}
+
+interface ShippingOption {
+  id: string; name: string; code: string; description: string | null
+  estimatedDays: string | null; cost: number; freeShipping: boolean; available: boolean
 }
 
 export default function CheckoutPage() {
@@ -34,6 +32,8 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
   const [error, setError] = useState('')
+  const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([])
+  const [selectedShipping, setSelectedShipping] = useState<string>('')
 
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     firstName: '', lastName: '', email: '', phone: '',
@@ -41,16 +41,43 @@ export default function CheckoutPage() {
   })
 
   const subtotal = getSubtotal()
-  const totalWeight = getTotalWeight() // in kg
-  
-  // Weight-based shipping calculation
-  // Base rate $5.99 + $1.50 per 0.5kg
-  // Free shipping for orders >= $199 or total weight <= 0.5kg
-  const baseShipping = 5.99
-  const perHalfKg = 1.50
-  const weightRate = Math.ceil(totalWeight / 0.5) * perHalfKg
-  const calculatedShipping = subtotal >= 199 ? 0 : baseShipping + weightRate
-  const shippingCost = calculatedShipping
+  const totalWeight = getTotalWeight()
+
+  useEffect(() => {
+    if (items.length > 0 && subtotal > 0) {
+      fetchShippingRates()
+    }
+  }, [subtotal, totalWeight])
+
+  const fetchShippingRates = async () => {
+    try {
+      const res = await fetch('/api/shipping/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subtotal, weight: totalWeight, country: shippingForm.country }),
+      })
+      const data = await res.json()
+      if (data.success && data.data.length > 0) {
+        setShippingOptions(data.data)
+        // Auto-select first available
+        const first = data.data.find((o: ShippingOption) => o.available)
+        if (first) setSelectedShipping(first.id)
+      } else {
+        // Fallback if no methods configured
+        setShippingOptions([{
+          id: 'fallback', name: 'Standard Shipping', code: 'FALLBACK',
+          description: 'Calculated shipping', estimatedDays: '10-15 days',
+          cost: subtotal >= 199 ? 0 : 9.99, freeShipping: subtotal >= 199, available: true
+        }])
+        setSelectedShipping('fallback')
+      }
+    } catch (err) {
+      console.error('Failed to fetch shipping rates:', err)
+    }
+  }
+
+  const selectedOption = shippingOptions.find(o => o.id === selectedShipping)
+  const shippingCost = selectedOption?.cost || 0
   const tax = subtotal * 0.08
   const total = subtotal + shippingCost + tax
 
@@ -61,17 +88,13 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async () => {
     setIsProcessing(true)
     setError('')
-
     try {
-      // Get user from localStorage
       const userStr = localStorage.getItem('user')
       const user = userStr ? JSON.parse(userStr) : null
       const userId = user?.id || 'guest'
 
-      // Build shipping address string
       const shippingAddress = `${shippingForm.firstName} ${shippingForm.lastName}, ${shippingForm.address}, ${shippingForm.city}, ${shippingForm.state} ${shippingForm.zip}, ${shippingForm.country}`
 
-      // Prepare items for API
       const orderItems = items.map(item => ({
         productId: item.product.id,
         name: item.product.name,
@@ -99,7 +122,6 @@ export default function CheckoutPage() {
       })
 
       const data = await res.json()
-
       if (data.success) {
         setOrderNumber(data.data.orderNumber)
         clearCart()
@@ -135,7 +157,6 @@ export default function CheckoutPage() {
   return (
     <div className="min-h-screen bg-joy-gray-50">
       <Header />
-
       <main className="pt-[calc(4rem+36px)]">
         <div className="max-w-6xl mx-auto px-4 py-8">
           {/* Progress Steps */}
@@ -143,18 +164,11 @@ export default function CheckoutPage() {
             <div className="flex items-center justify-center gap-4">
               {STEPS.map((step, i) => (
                 <div key={step} className="flex items-center">
-                  <div className={cn(
-                    'w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-colors',
-                    i + 1 <= currentStep ? 'bg-joy-orange text-white' : 'bg-joy-gray-200 text-joy-gray-500'
-                  )}>
+                  <div className={cn('w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-colors', i + 1 <= currentStep ? 'bg-joy-orange text-white' : 'bg-joy-gray-200 text-joy-gray-500')}>
                     {i + 1 < currentStep ? <Icons.Check size={18} /> : i + 1}
                   </div>
-                  <span className={cn('ml-2 font-medium hidden sm:inline', i + 1 <= currentStep ? 'text-joy-gray-900' : 'text-joy-gray-400')}>
-                    {step}
-                  </span>
-                  {i < STEPS.length - 1 && (
-                    <div className={cn('w-12 lg:w-20 h-0.5 mx-4', i + 1 < currentStep ? 'bg-joy-orange' : 'bg-joy-gray-200')} />
-                  )}
+                  <span className={cn('ml-2 font-medium hidden sm:inline', i + 1 <= currentStep ? 'text-joy-gray-900' : 'text-joy-gray-400')}>{step}</span>
+                  {i < STEPS.length - 1 && <div className={cn('w-12 lg:w-20 h-0.5 mx-4', i + 1 < currentStep ? 'bg-joy-orange' : 'bg-joy-gray-200')} />}
                 </div>
               ))}
             </div>
@@ -177,7 +191,7 @@ export default function CheckoutPage() {
                           <p className="text-sm text-joy-gray-500">SKU: {item.product.sku}</p>
                           {item.variant && <p className="text-sm text-joy-gray-500">{item.variant.name}: {item.variant.value}</p>}
                           <div className="flex items-center justify-between mt-2">
-                            <span className="text-sm text-joy-gray-500">Qty: {item.quantity}</span>
+                            <span className="text-sm text-joy-gray-500">Qty: {item.quantity}{item.product.weight ? ` | ${item.product.weight}kg` : ''}</span>
                             <span className="font-semibold text-joy-orange">{formatCurrency(convertPrice(item.product.price * item.quantity, currency), currency)}</span>
                           </div>
                         </div>
@@ -191,69 +205,58 @@ export default function CheckoutPage() {
               )}
 
               {currentStep === 2 && (
-                <div className="bg-white rounded-2xl shadow-sm p-6">
-                  <h2 className="font-semibold text-xl text-joy-gray-900 mb-6">Shipping Information</h2>
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input label="First Name *" placeholder="John" value={shippingForm.firstName} onChange={e => updateShipping('firstName', e.target.value)} />
-                      <Input label="Last Name *" placeholder="Smith" value={shippingForm.lastName} onChange={e => updateShipping('lastName', e.target.value)} />
-                    </div>
-                    <Input label="Email *" type="email" placeholder="john@example.com" value={shippingForm.email} onChange={e => updateShipping('email', e.target.value)} />
-                    <Input label="Phone *" type="tel" placeholder="+1 (555) 000-0000" value={shippingForm.phone} onChange={e => updateShipping('phone', e.target.value)} />
-                    <Input label="Address *" placeholder="123 Main St" value={shippingForm.address} onChange={e => updateShipping('address', e.target.value)} />
-                    <div className="grid grid-cols-3 gap-4">
-                      <Input label="City *" placeholder="New York" value={shippingForm.city} onChange={e => updateShipping('city', e.target.value)} />
-                      <Input label="State *" placeholder="NY" value={shippingForm.state} onChange={e => updateShipping('state', e.target.value)} />
-                      <Input label="ZIP *" placeholder="10001" value={shippingForm.zip} onChange={e => updateShipping('zip', e.target.value)} />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">Country *</label>
-                      <select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none" value={shippingForm.country} onChange={e => updateShipping('country', e.target.value)}>
-                        <option>United States</option>
-                        <option>Canada</option>
-                        <option>Mexico</option>
-                        <option>Brazil</option>
-                        <option>Argentina</option>
-                      </select>
-                    </div>
-
-                    {/* Shipping Options based on weight */}
-                    <div className="border-t border-joy-gray-100 pt-6 mt-6">
-                      <h3 className="font-medium text-joy-gray-900 mb-4">Shipping Method</h3>
-                      <div className="space-y-3">
-                        <label className="flex items-center justify-between p-4 border-2 border-joy-orange rounded-xl cursor-pointer bg-joy-orange/5">
-                          <div className="flex items-center gap-3">
-                            <input type="radio" name="shipping" defaultChecked className="accent-joy-orange" />
-                            <div>
-                              <p className="font-medium text-joy-gray-900">Standard Shipping</p>
-                              <p className="text-sm text-joy-gray-500">{totalWeight <= 0.5 ? '1-3 days' : totalWeight <= 2 ? '5-7 days' : '10-15 days'} ({totalWeight.toFixed(2)}kg)</p>
-                            </div>
-                          </div>
-                          <span className="font-semibold text-joy-gray-900">
-                            {shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost, currency)}
-                          </span>
-                        </label>
-                        <label className="flex items-center justify-between p-4 border-2 border-joy-gray-200 rounded-xl cursor-pointer hover:border-joy-orange transition-colors">
-                          <div className="flex items-center gap-3">
-                            <input type="radio" name="shipping" className="accent-joy-orange" />
-                            <div>
-                              <p className="font-medium text-joy-gray-900">Express Shipping</p>
-                              <p className="text-sm text-joy-gray-500">{totalWeight <= 0.5 ? '1-2 days' : '3-5 days'} ({totalWeight.toFixed(2)}kg)</p>
-                            </div>
-                          </div>
-                          <span className="font-semibold text-joy-gray-900">
-                            {shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost * 1.8, currency)}
-                          </span>
-                        </label>
-                      </div>
-                      {shippingCost > 0 && subtotal < 199 && (
-                        <p className="text-sm text-joy-gray-500 mt-3">
-                          Add {formatCurrency(199 - subtotal, currency)} more for free shipping
-                        </p>
-                      )}
-                    </div>
+                <div className="bg-white rounded-2xl shadow-sm p-6 space-y-6">
+                  <h2 className="font-semibold text-xl text-joy-gray-900">Shipping Information</h2>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="First Name *" placeholder="John" value={shippingForm.firstName} onChange={e => updateShipping('firstName', e.target.value)} />
+                    <Input label="Last Name *" placeholder="Smith" value={shippingForm.lastName} onChange={e => updateShipping('lastName', e.target.value)} />
                   </div>
-                  <div className="flex gap-4 mt-6">
+                  <Input label="Email *" type="email" placeholder="john@example.com" value={shippingForm.email} onChange={e => updateShipping('email', e.target.value)} />
+                  <Input label="Phone *" type="tel" placeholder="+1 (555) 000-0000" value={shippingForm.phone} onChange={e => updateShipping('phone', e.target.value)} />
+                  <Input label="Address *" placeholder="123 Main St" value={shippingForm.address} onChange={e => updateShipping('address', e.target.value)} />
+                  <div className="grid grid-cols-3 gap-4">
+                    <Input label="City *" placeholder="New York" value={shippingForm.city} onChange={e => updateShipping('city', e.target.value)} />
+                    <Input label="State *" placeholder="NY" value={shippingForm.state} onChange={e => updateShipping('state', e.target.value)} />
+                    <Input label="ZIP *" placeholder="10001" value={shippingForm.zip} onChange={e => updateShipping('zip', e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Country *</label>
+                    <select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none" value={shippingForm.country} onChange={e => updateShipping('country', e.target.value)}>
+                      <option>United States</option><option>Canada</option><option>Mexico</option><option>Brazil</option><option>Argentina</option>
+                    </select>
+                  </div>
+
+                  {/* Shipping Options */}
+                  <div className="border-t border-joy-gray-100 pt-6">
+                    <h3 className="font-medium text-joy-gray-900 mb-4">Shipping Method ({totalWeight.toFixed(2)}kg total)</h3>
+                    {shippingOptions.length === 0 ? (
+                      <p className="text-joy-gray-500 text-sm">Loading shipping options...</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {shippingOptions.filter(o => o.available).map(option => (
+                          <label key={option.id} className={cn('flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-colors', selectedShipping === option.id ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange')}>
+                            <div className="flex items-center gap-3">
+                              <input type="radio" name="shipping" checked={selectedShipping === option.id} onChange={() => setSelectedShipping(option.id)} className="accent-joy-orange" />
+                              <div>
+                                <p className="font-medium text-joy-gray-900">{option.name}</p>
+                                <p className="text-sm text-joy-gray-500">{option.estimatedDays}</p>
+                              </div>
+                            </div>
+                            <span className="font-semibold text-joy-gray-900">
+                              {option.freeShipping ? <span className="text-joy-green">FREE</span> : formatCurrency(option.cost, currency)}
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                    )}
+                    {shippingOptions.length > 0 && !selectedOption?.freeShipping && (
+                      <p className="text-sm text-joy-gray-500 mt-3">
+                        Add {formatCurrency((selectedOption?.cost || 0) * 5, currency)} more for free express shipping
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex gap-4">
                     <Button variant="secondary" onClick={() => setCurrentStep(1)}>Back</Button>
                     <Button onClick={() => setCurrentStep(3)} className="flex-1" size="lg">
                       Continue to Payment <Icons.ChevronRight size={18} className="ml-1" />
@@ -306,11 +309,7 @@ export default function CheckoutPage() {
                   </div>
                   <h2 className="font-display text-2xl font-bold text-joy-gray-900 mb-2">Order Placed!</h2>
                   <p className="text-joy-gray-600 mb-6">Thank you for your order. We'll send you a confirmation email shortly.</p>
-                  {orderNumber && (
-                    <p className="font-mono text-lg bg-joy-gray-50 rounded-lg py-3 px-4 inline-block mb-6">
-                      Order #{orderNumber}
-                    </p>
-                  )}
+                  {orderNumber && <p className="font-mono text-lg bg-joy-gray-50 rounded-lg py-3 px-4 inline-block mb-6">Order #{orderNumber}</p>}
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
                     <Link href="/account/orders"><Button variant="secondary">View Order</Button></Link>
                     <Link href="/products"><Button>Continue Shopping</Button></Link>
@@ -347,9 +346,7 @@ export default function CheckoutPage() {
                 <div className="mt-6">
                   <label className="block text-sm font-medium text-joy-gray-700 mb-2">Display Currency</label>
                   <select value={currency} onChange={e => useCartStore.getState().setCurrency(e.target.value as Currency)} className="w-full px-4 py-2.5 rounded-xl border-2 border-joy-gray-200 text-sm focus:border-joy-orange focus:outline-none">
-                    <option value="USD">$ USD - US Dollar</option>
-                    <option value="MXN">MX$ MXN - Mexican Peso</option>
-                    <option value="BRL">R$ BRL - Brazilian Real</option>
+                    <option value="USD">$ USD - US Dollar</option><option value="MXN">MX$ MXN - Mexican Peso</option><option value="BRL">R$ BRL - Brazilian Real</option>
                   </select>
                 </div>
               </div>
@@ -357,7 +354,6 @@ export default function CheckoutPage() {
           </div>
         </div>
       </main>
-
       <Footer />
     </div>
   )
