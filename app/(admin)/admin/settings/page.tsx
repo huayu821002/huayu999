@@ -87,7 +87,7 @@ export default function AdminSettingsPage() {
       const data = await res.json()
       if (data.success) {
         const cm: Record<string, SiteContent> = {}
-        const fm: Record<string, { title: string; subtitle: string; content: string }> {}
+        const fm: Record<string, { title: string; subtitle: string; content: string }> = {}
         data.data.forEach((item: SiteContent) => {
           cm[item.section] = item
           fm[item.section] = { title: item.title || '', subtitle: item.subtitle || '', content: item.content || '' }
