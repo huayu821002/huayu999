@@ -63,7 +63,7 @@ export default function LoginPage() {
         {/* Logo */}
         <Link href="/" className="flex items-center justify-center gap-2 mb-8">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-joy-orange to-joy-pink flex items-center justify-center text-white font-display font-bold text-xl">
-            JH
+            FF
           </div>
           <div>
             <div className="font-display font-bold text-xl text-joy-gray-900">Fiestaflare</div>
@@ -157,7 +157,7 @@ export default function LoginPage() {
           {mode === 'login' && (
             <div className="mt-6 p-4 bg-joy-orange/10 rounded-xl">
               <p className="text-sm font-medium text-joy-orange mb-2">Demo Admin Account:</p>
-              <p className="text-xs text-joy-gray-600">Email: admin@joyhub.com</p>
+              <p className="text-xs text-joy-gray-600">Email: admin@fiestaflare.com</p>
               <p className="text-xs text-joy-gray-600">Password: admin123</p>
             </div>
           )}
