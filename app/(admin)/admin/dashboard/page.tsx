@@ -95,7 +95,7 @@ export default function AdminDashboard() {
               <div className="p-6 border-b border-joy-gray-100">
                 <div className="flex items-center justify-between">
                   <h2 className="font-semibold text-lg text-joy-gray-900">Recent Orders</h2>
-                  <Link href="/admin/products" className="text-sm text-joy-orange hover:underline">
+                  <Link href="/admin/orders" className="text-sm text-joy-orange hover:underline">
                     View All
                   </Link>
                 </div>
@@ -167,21 +167,21 @@ export default function AdminDashboard() {
               <h3 className="font-semibold text-joy-gray-900">Add Product</h3>
               <p className="text-sm text-joy-gray-500">Create new listing</p>
             </Link>
-            <Link href="/admin/products" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <Link href="/admin/orders" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="w-12 h-12 rounded-xl bg-joy-pink/10 flex items-center justify-center mb-4 group-hover:bg-joy-pink/20 transition-colors">
                 <Icons.Package size={24} className="text-joy-pink" />
               </div>
               <h3 className="font-semibold text-joy-gray-900">Manage Orders</h3>
               <p className="text-sm text-joy-gray-500">View and process orders</p>
             </Link>
-            <Link href="/admin/products" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <Link href="/admin/customers" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="w-12 h-12 rounded-xl bg-joy-green/10 flex items-center justify-center mb-4 group-hover:bg-joy-green/20 transition-colors">
                 <Icons.User size={24} className="text-joy-green" />
               </div>
               <h3 className="font-semibold text-joy-gray-900">Customers</h3>
               <p className="text-sm text-joy-gray-500">Manage customer accounts</p>
             </Link>
-            <Link href="/admin/products" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+            <Link href="/admin/settings" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="w-12 h-12 rounded-xl bg-joy-navy/10 flex items-center justify-center mb-4 group-hover:bg-joy-navy/20 transition-colors">
                 <Icons.Sliders size={24} className="text-joy-navy" />
               </div>
