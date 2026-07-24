@@ -8,7 +8,6 @@ import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 
-// Mock products data
 const PRODUCTS = [
   { id: '1', name: 'Yiwu Crystal Beaded Necklace', sku: 'AC-001', price: 12.99, inventory: 150, status: 'Active', category: 'Accessories', isTrending: true },
   { id: '2', name: 'Pet Collar with LED Light', sku: 'PET-002', price: 15.99, inventory: 200, status: 'Active', category: 'Pet Supplies', isTrending: true },
@@ -38,6 +37,9 @@ export default function AdminProductsPage() {
   const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [showAddModal, setShowAddModal] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -72,13 +74,6 @@ export default function AdminProductsPage() {
 
   if (!isAdmin) return null
 
-
-  const [activeTab, setActiveTab] = useState<'products' | 'orders'>('products')
-  const [searchQuery, setSearchQuery] = useState('')
-  const [showAddModal, setShowAddModal] = useState(false)
-
-  if (!isAdmin) return null
-
   const filteredProducts = PRODUCTS.filter(p => 
     p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     p.sku.toLowerCase().includes(searchQuery.toLowerCase())
@@ -92,20 +87,16 @@ export default function AdminProductsPage() {
   return (
     <div className="min-h-screen bg-joy-gray-50">
       <Header />
-
       <main className="pt-[calc(4rem+36px)]">
         <div className="max-w-7xl mx-auto px-4 py-8">
-          {/* Page Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h1 className="font-display text-3xl font-bold text-joy-gray-900">
-                Admin Dashboard
-              </h1>
+              <h1 className="font-display text-3xl font-bold text-joy-gray-900">Products and Orders</h1>
               <p className="text-joy-gray-600">Manage your products and orders</p>
             </div>
             <div className="flex items-center gap-4">
-              <Link href="/">
-                <Button variant="secondary">← Back to Store</Button>
+              <Link href="/admin/dashboard">
+                <Button variant="secondary">Back to Dashboard</Button>
               </Link>
               <Button onClick={() => setShowAddModal(true)}>
                 <Icons.Plus size={18} className="mr-2" />
@@ -113,15 +104,11 @@ export default function AdminProductsPage() {
               </Button>
             </div>
           </div>
-
-          {/* Tabs */}
           <div className="flex border-b border-joy-gray-200 mb-6">
             <button
               onClick={() => setActiveTab('products')}
               className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors ${
-                activeTab === 'products'
-                  ? 'text-joy-orange border-joy-orange'
-                  : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'
+                activeTab === 'products' ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'
               }`}
             >
               <Icons.Package size={18} className="inline mr-2" />
@@ -130,17 +117,13 @@ export default function AdminProductsPage() {
             <button
               onClick={() => setActiveTab('orders')}
               className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors ${
-                activeTab === 'orders'
-                  ? 'text-joy-orange border-joy-orange'
-                  : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'
+                activeTab === 'orders' ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'
               }`}
             >
               <Icons.ShoppingCart size={18} className="inline mr-2" />
               Orders ({ORDERS.length})
             </button>
           </div>
-
-          {/* Search */}
           <div className="mb-6">
             <div className="relative max-w-md">
               <Icons.Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-joy-gray-400" />
@@ -153,8 +136,6 @@ export default function AdminProductsPage() {
               />
             </div>
           </div>
-
-          {/* Products Table */}
           {activeTab === 'products' && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -175,11 +156,7 @@ export default function AdminProductsPage() {
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-3">
                             <div className="w-12 h-12 rounded-lg bg-joy-gray-100 overflow-hidden flex-shrink-0">
-                              <img
-                                src={`https://picsum.photos/seed/${product.id}/100/100`}
-                                alt={product.name}
-                                className="w-full h-full object-cover"
-                              />
+                              <img src={`https://picsum.photos/seed/${product.id}/100/100`} alt={product.name} className="w-full h-full object-cover" />
                             </div>
                             <div>
                               <p className="font-medium text-joy-gray-900">{product.name}</p>
@@ -190,26 +167,16 @@ export default function AdminProductsPage() {
                         <td className="px-6 py-4 font-mono text-sm text-joy-gray-600">{product.sku}</td>
                         <td className="px-6 py-4 font-semibold text-joy-orange">${product.price.toFixed(2)}</td>
                         <td className="px-6 py-4">
-                          <span className={`font-medium ${product.inventory < 20 ? 'text-red-500' : 'text-joy-gray-700'}`}>
-                            {product.inventory}
-                          </span>
+                          <span className={`font-medium ${product.inventory < 20 ? 'text-red-500' : 'text-joy-gray-700'}`}>{product.inventory}</span>
                         </td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[product.status]}`}>
-                            {product.status}
-                          </span>
+                          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[product.status]}`}>{product.status}</span>
                         </td>
                         <td className="px-6 py-4">
                           <div className="flex items-center gap-2">
-                            <button className="p-2 hover:bg-joy-gray-100 rounded-lg transition-colors">
-                              <Icons.Eye size={18} className="text-joy-gray-500" />
-                            </button>
-                            <button className="p-2 hover:bg-joy-gray-100 rounded-lg transition-colors">
-                              <Icons.Copy size={18} className="text-joy-gray-500" />
-                            </button>
-                            <button className="p-2 hover:bg-red-50 rounded-lg transition-colors">
-                              <Icons.Trash2 size={18} className="text-red-500" />
-                            </button>
+                            <button className="p-2 hover:bg-joy-gray-100 rounded-lg transition-colors"><Icons.Eye size={18} className="text-joy-gray-500" /></button>
+                            <button className="p-2 hover:bg-joy-gray-100 rounded-lg transition-colors"><Icons.Copy size={18} className="text-joy-gray-500" /></button>
+                            <button className="p-2 hover:bg-red-50 rounded-lg transition-colors"><Icons.Trash2 size={18} className="text-red-500" /></button>
                           </div>
                         </td>
                       </tr>
@@ -219,8 +186,6 @@ export default function AdminProductsPage() {
               </div>
             </div>
           )}
-
-          {/* Orders Table */}
           {activeTab === 'orders' && (
             <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
               <div className="overflow-x-auto">
@@ -233,38 +198,19 @@ export default function AdminProductsPage() {
                       <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Total</th>
                       <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Status</th>
                       <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Date</th>
-                      <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Actions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-joy-gray-100">
                     {filteredOrders.map((order) => (
                       <tr key={order.id} className="hover:bg-joy-gray-50 transition-colors">
                         <td className="px-6 py-4 font-mono text-sm font-medium text-joy-gray-900">{order.orderNumber}</td>
-                        <td className="px-6 py-4">
-                          <p className="font-medium text-joy-gray-900">{order.customer}</p>
-                        </td>
+                        <td className="px-6 py-4"><p className="font-medium text-joy-gray-900">{order.customer}</p></td>
                         <td className="px-6 py-4 text-joy-gray-600">{order.items}</td>
                         <td className="px-6 py-4 font-semibold text-joy-orange">${order.total.toFixed(2)}</td>
                         <td className="px-6 py-4">
-                          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[order.status]}`}>
-                            {order.status}
-                          </span>
+                          <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[order.status]}`}>{order.status}</span>
                         </td>
                         <td className="px-6 py-4 text-sm text-joy-gray-500">{order.date}</td>
-                        <td className="px-6 py-4">
-                          <div className="flex items-center gap-2">
-                            <button className="p-2 hover:bg-joy-gray-100 rounded-lg transition-colors">
-                              <Icons.Eye size={18} className="text-joy-gray-500" />
-                            </button>
-                            <select className="text-sm border border-joy-gray-200 rounded-lg px-2 py-1 focus:border-joy-orange focus:outline-none">
-                              <option>Update Status</option>
-                              <option>Pending</option>
-                              <option>Processing</option>
-                              <option>Shipped</option>
-                              <option>Delivered</option>
-                            </select>
-                          </div>
-                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -274,17 +220,13 @@ export default function AdminProductsPage() {
           )}
         </div>
       </main>
-
-      {/* Add Product Modal */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowAddModal(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
             <div className="sticky top-0 bg-white border-b border-joy-gray-100 px-6 py-4 flex items-center justify-between">
               <h2 className="font-display text-xl font-bold text-joy-gray-900">Add New Product</h2>
-              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg">
-                <Icons.X size={20} />
-              </button>
+              <button onClick={() => setShowAddModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
             </div>
             <div className="p-6 space-y-4">
               <Input label="Product Name" placeholder="Enter product name" />
@@ -303,18 +245,12 @@ export default function AdminProductsPage() {
               <div>
                 <label className="block text-sm font-medium text-joy-gray-700 mb-2">Category</label>
                 <select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none">
-                  <option>Accessories</option>
-                  <option>Pet Supplies</option>
-                  <option>Gifts</option>
-                  <option>Home Decor</option>
+                  <option>Accessories</option><option>Pet Supplies</option><option>Gifts</option><option>Home Decor</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-joy-gray-700 mb-2">Description</label>
-                <textarea 
-                  className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none min-h-[100px]"
-                  placeholder="Enter product description..."
-                />
+                <textarea className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none min-h-[100px]" placeholder="Enter product description..." />
               </div>
               <div>
                 <label className="block text-sm font-medium text-joy-gray-700 mb-2">Product Images</label>
@@ -323,16 +259,6 @@ export default function AdminProductsPage() {
                   <p className="text-joy-gray-600 mb-2">Drag and drop images here, or click to upload</p>
                   <Button variant="secondary" size="sm">Upload Images</Button>
                 </div>
-              </div>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="rounded border-joy-gray-300" />
-                  <span className="text-sm text-joy-gray-700">This is a trending product</span>
-                </label>
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" className="rounded border-joy-gray-300" />
-                  <span className="text-sm text-joy-gray-700">This is a featured product</span>
-                </label>
               </div>
             </div>
             <div className="sticky bottom-0 bg-white border-t border-joy-gray-100 px-6 py-4 flex items-center justify-end gap-3">
