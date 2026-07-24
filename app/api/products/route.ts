@@ -9,7 +9,7 @@ export async function GET(request: Request) {
     const trending = searchParams.get('trending')
     const featured = searchParams.get('featured')
 
-    const where: Record<string, unknown> = { isActive: true }
+    const where: Record<string, unknown> = {}
 
     if (category) {
       where.category = { slug: category }
@@ -33,19 +33,14 @@ export async function GET(request: Request) {
 
     const products = await prisma.product.findMany({
       where,
-      include: {
-        category: true,
-      },
+      include: { category: true },
       orderBy: { createdAt: 'desc' },
     })
 
     return NextResponse.json({ success: true, data: products })
   } catch (error) {
     console.error('Products API error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to fetch products' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Failed to fetch products' }, { status: 500 })
   }
 }
 
@@ -53,16 +48,16 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const {
-      name, slug, description, shortDesc, price, comparePrice,
-      costPrice, wholesalePrice, vipPrice, minOrderQty, weight,
-      dimensions, images, modelImage, sku, barcode, inventory,
-      categoryId, tags, isTrending, isFeatured
+      name, slug, description, shortDesc, price, comparePrice, costPrice,
+      wholesalePrice, vipPrice, minOrderQty, weight, dimensions, images,
+      modelImage, sizeChart, sku, barcode, inventory, lowStockAlert,
+      categoryId, tags, isActive, isFeatured, isTrending, compliance
     } = body
 
     const product = await prisma.product.create({
       data: {
         name,
-        slug: slug || name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, ''),
+        slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
         description,
         shortDesc,
         price: parseFloat(price),
@@ -73,24 +68,25 @@ export async function POST(request: Request) {
         minOrderQty: parseInt(minOrderQty) || 1,
         weight: weight ? parseFloat(weight) : null,
         dimensions,
-        images,
+        images: typeof images === 'string' ? images : JSON.stringify(images),
         modelImage,
+        sizeChart,
         sku,
         barcode,
         inventory: parseInt(inventory) || 0,
+        lowStockAlert: parseInt(lowStockAlert) || 10,
         categoryId,
-        tags: tags || '',
-        isTrending: isTrending || false,
-        isFeatured: isFeatured || false,
+        tags,
+        isActive: isActive !== false,
+        isFeatured: isFeatured === true,
+        isTrending: isTrending === true,
+        compliance,
       },
     })
 
     return NextResponse.json({ success: true, data: product })
   } catch (error) {
     console.error('Create product error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to create product' },
-      { status: 500 }
-    )
+    return NextResponse.json({ success: false, error: 'Failed to create product' }, { status: 500 })
   }
 }
