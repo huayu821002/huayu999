@@ -140,6 +140,7 @@ export default function ShippingSettingsPage() {
       }
       
       // Save to settings API
+      console.log('Saving templates:', newTemplates)
       const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -148,13 +149,16 @@ export default function ShippingSettingsPage() {
           value: JSON.stringify(newTemplates)
         })
       })
+      console.log('Response status:', res.status)
+      const resData = await res.json()
+      console.log('Response data:', resData)
       
-      if (res.ok) {
+      if (res.ok && resData.success) {
         setTemplates(newTemplates)
         setShowModal(false)
         setEditingItem(null)
       } else {
-        alert('Failed to save template')
+        alert('Failed to save template: ' + (resData.error || 'Unknown error'))
       }
     } catch (error) {
       console.error('Failed to save:', error)
@@ -177,6 +181,8 @@ export default function ShippingSettingsPage() {
           value: JSON.stringify(newTemplates)
         })
       })
+      const data = await res.json()
+      console.log('Delete template response:', data)
       if (res.ok) {
         setTemplates(newTemplates)
       }
