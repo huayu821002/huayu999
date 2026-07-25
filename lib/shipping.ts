@@ -267,6 +267,9 @@ export interface ShippingOption {
   estimatedDays: string
   isActive: boolean
   freeThreshold: number
+  cost?: number  // calculated cost including weight
+  isFree?: boolean
+  description?: string
 }
 
 export function calculateTotalWeight(items: { weight?: number | null; quantity: number }[]): number {
@@ -274,6 +277,33 @@ export function calculateTotalWeight(items: { weight?: number | null; quantity: 
     const weight = item.weight || 0
     return total + (weight * item.quantity)
   }, 0)
+}
+
+// Calculate shipping options with costs for display in ShippingSelect
+export function calculateShipping(
+  countryCode: string,
+  totalWeight: number,
+  subtotal: number
+): ShippingOption[] {
+  const methods = getShippingMethods(countryCode)
+  
+  return methods.map(method => {
+    // Check free shipping threshold
+    const isFree = method.freeThreshold > 0 && subtotal >= method.freeThreshold
+    
+    // Calculate cost: base + (weight * costPerKg)
+    const weightCost = totalWeight * method.costPerKg
+    const cost = isFree ? 0 : method.baseCost + weightCost
+    
+    return {
+      ...method,
+      cost,
+      isFree,
+      description: isFree 
+        ? `Free shipping on orders over $${method.freeThreshold}!`
+        : method.estimatedDays
+    }
+  })
 }
 
 // Get estimated days

@@ -75,7 +75,7 @@ export default function BatchCheckoutPage() {
 
   // Calculate totals
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const shippingCost = selectedShipping?.isFree ? 0 : (selectedShipping?.cost || 0)
+  const shippingCost = selectedShipping?.cost ?? 0
   const total = subtotal + shippingCost
 
   const handleSubmitOrder = async () => {
