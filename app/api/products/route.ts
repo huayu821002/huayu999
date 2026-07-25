@@ -17,9 +17,9 @@ export async function GET(request: Request) {
 
     if (search) {
       where.OR = [
-        { name: { contains: search,  } },
-        { description: { contains: search,  } },
-        { sku: { contains: search,  } },
+        { name: { contains: search } },
+        { description: { contains: search } },
+        { sku: { contains: search } },
       ]
     }
 
@@ -38,9 +38,9 @@ export async function GET(request: Request) {
     })
 
     return NextResponse.json({ success: true, data: products })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Products API error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch products' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code }, { status: 500 })
   }
 }
 
