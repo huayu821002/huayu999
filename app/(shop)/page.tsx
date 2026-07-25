@@ -47,12 +47,29 @@ export default function ShopHomePage() {
 
   const fetchProducts = async () => {
     try {
-      // Fetch all products
+      // Fetch featured products
+      const featuredRes = await fetch('/api/products?featured=true')
+      const featuredData = await featuredRes.json()
+      if (featuredData.success && featuredData.data.length > 0) {
+        setFeaturedProducts(featuredData.data.slice(0, 8))
+      } else {
+        const allRes = await fetch('/api/products')
+        const allData = await allRes.json()
+        if (allData.success) {
+          setFeaturedProducts(allData.data.slice(0, 8))
+        }
+      }
+
+      // Fetch new arrivals (products created in last 30 days)
       const allRes = await fetch('/api/products')
       const allData = await allRes.json()
       if (allData.success) {
-        setFeaturedProducts(allData.data.slice(0, 8))
-        setNewArrivalProducts(allData.data.slice(0, 8))
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        const newProducts = allData.data.filter((p: any) => 
+          p.createdAt && new Date(p.createdAt) >= thirtyDaysAgo
+        )
+        setNewArrivalProducts(newProducts.slice(0, 8))
       }
     } catch (err) {
       console.error('Failed to fetch products:', err)
