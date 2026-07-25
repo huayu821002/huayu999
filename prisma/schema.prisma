@@ -68,9 +68,6 @@ model Product {
   inventory   Int         @default(0)
   trackInventory Boolean  @default(true)
   status      String      @default("ACTIVE")
-  isFeatured  Boolean     @default(false)
-  isTrending  Boolean     @default(false)
-  isNew       Boolean     @default(false)
   isWholesale Boolean    @default(false)
   wholesalePrices String?
   createdAt   DateTime    @default(now())
@@ -192,6 +189,7 @@ model ShippingRate {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
 
 model SiteSetting {
   id        String   @id @default(cuid())

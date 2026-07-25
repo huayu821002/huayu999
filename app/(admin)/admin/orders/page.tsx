@@ -167,12 +167,8 @@ export default function AdminOrdersPage() {
     } catch { return null }
   }
 
-    const parseItems = (itemsStr: string): OrderItem[] => {
-    if (!itemsStr) return []
-    try { 
-      const parsed = JSON.parse(itemsStr)
-      return Array.isArray(parsed) ? parsed : []
-    } catch { return [] }
+  const parseItems = (itemsStr: string): OrderItem[] => {
+    try { return JSON.parse(itemsStr) } catch { return [] }
   }
 
   if (isLoading) return <div className="min-h-screen bg-joy-gray-50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" /></div>
