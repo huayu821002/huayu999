@@ -501,7 +501,7 @@ function ProductsContent() {
             onClear={clearBatchSelection}
             onContinueShopping={() => setBatchMode(false)}
           />
-        )
+        )}
       </div>
     </>
   )
