@@ -84,21 +84,21 @@ export const countries: Country[] = [
   },
   {
     code: 'HK',
-    name: 'Hong Kong SAR, China',
+    name: '中国香港',
     states: [
       { code: 'HK', name: 'Hong Kong', cities: ['Hong Kong Island', 'Kowloon', 'New Territories'] },
     ],
   },
   {
     code: 'MO',
-    name: 'Macau SAR, China',
+    name: '中国澳门',
     states: [
       { code: 'MO', name: 'Macau', cities: ['Macau Peninsula', 'Taipa', 'Coloane'] },
     ],
   },
   {
     code: 'TW',
-    name: 'Taiwan',
+    name: '中国台湾',
     states: [
       { code: 'TW', name: 'Taiwan', cities: ['Taipei', 'New Taipei', 'Taichung', 'Kaohsiung', 'Keelung', 'Taoyuan', 'Hsinchu'] },
     ],
