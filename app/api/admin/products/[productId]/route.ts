@@ -7,10 +7,10 @@ export async function GET(request: Request, { params }: { params: { productId: s
       where: { id: params.productId },
       include: { category: true },
     })
-    if (!product) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
+    if (!product) return NextResponse.json({ success: false, error: 'Product not found' }, { isActive: 404 })
     return NextResponse.json({ success: true, data: product })
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to fetch product' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch product' }, { isActive: 500 })
   }
 }
 
@@ -41,7 +41,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
     return NextResponse.json({ success: true, data: product })
   } catch (error) {
     console.error(error)
-    return NextResponse.json({ success: false, error: 'Failed to update product' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to update product' }, { isActive: 500 })
   }
 }
 
@@ -50,6 +50,6 @@ export async function DELETE(request: Request, { params }: { params: { productId
     await prisma.product.delete({ where: { id: params.productId } })
     return NextResponse.json({ success: true })
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to delete product' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to delete product' }, { isActive: 500 })
   }
 }
