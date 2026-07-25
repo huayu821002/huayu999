@@ -75,7 +75,6 @@ model Product {
   trackInventory Boolean  @default(true)
   minOrderQty  Int        @default(1)
   isActive    Boolean     @default(true)
-  status     String     @default("ACTIVE")
   isFeatured  Boolean     @default(false)
   isTrending  Boolean     @default(false)
   isNew       Boolean     @default(false)

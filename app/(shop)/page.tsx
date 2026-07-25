@@ -61,15 +61,8 @@ export default function ShopHomePage() {
   }
 
   const fetchSiteContent = async () => {
-    try {
-      const res = await fetch('/api/admin/site-content')
-      const data = await res.json()
-      if (data.success) {
-        const contentMap: Record<string, SiteContent> = {}
-        data.data.forEach((item: SiteContent) => { contentMap[item.section] = item })
-        setSiteContent(contentMap)
-      }
-    } catch (err) { console.error('Failed to fetch site content:', err) }
+    // Site content API may not exist, fail silently
+    setSiteContent({})
   }
 
   const sc = (section: string) => siteContent[section]
