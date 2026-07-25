@@ -109,12 +109,18 @@ export default function BatchCheckoutPage() {
         zip: address.zip,
       })
 
+      // Include full product details in order items
+      const orderItems = items.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        sku: item.sku,
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image || null,
+      }))
+
       const orderData = {
-        items: items.map(item => ({
-          productId: item.productId,
-          quantity: item.quantity,
-          price: item.price,
-        })),
+        items: orderItems,
         subtotal,
         shippingCost,
         total,

@@ -8,8 +8,10 @@ import { Icons } from '@/components/ui/Icons'
 import { cn } from '@/lib/utils'
 
 interface OrderItem {
-  id: string
+  id?: string
+  productId?: string
   name: string
+  sku?: string
   price: number
   quantity: number
   image?: string
@@ -405,6 +407,7 @@ export default function AdminOrdersPage() {
                     <thead className="bg-joy-gray-50">
                       <tr>
                         <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Product</th>
+                        <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">SKU</th>
                         <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Price</th>
                         <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Qty</th>
                         <th className="text-right text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Total</th>
@@ -414,9 +417,19 @@ export default function AdminOrdersPage() {
                       {parseItems(selectedOrder.items).map((item, i) => (
                         <tr key={i}>
                           <td className="px-4 py-3">
-                            <p className="font-medium text-joy-gray-900">{item.name}</p>
-                            {item.variant && <p className="text-sm text-joy-gray-500">{item.variant}</p>}
+                            <div className="flex items-center gap-3">
+                              {item.image && (
+                                <div className="w-12 h-12 rounded-lg bg-joy-gray-100 overflow-hidden flex-shrink-0">
+                                  <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-medium text-joy-gray-900 line-clamp-1">{item.name}</p>
+                                {item.variant && <p className="text-xs text-joy-gray-500">{item.variant}</p>}
+                              </div>
+                            </div>
                           </td>
+                          <td className="px-4 py-3 text-sm text-joy-gray-500 font-mono">{item.sku || '-'}</td>
                           <td className="px-4 py-3 text-joy-gray-600">${item.price.toFixed(2)}</td>
                           <td className="px-4 py-3 text-joy-gray-600">{item.quantity}</td>
                           <td className="px-4 py-3 text-right font-semibold text-joy-orange">
