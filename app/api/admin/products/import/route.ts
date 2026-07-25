@@ -107,6 +107,16 @@ export async function POST(request: Request) {
         // Generate slug if not provided
         const slug = row.slug || row.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now().toString(36) || `product-${i}-${Date.now()}`
         
+        // Check if product with same SKU already exists (skip duplicates)
+        if (row.sku) {
+          const existing = await prisma.product.findFirst({ where: { sku: row.sku } })
+          if (existing) {
+            results.failed++
+            results.errors.push(`Row ${i}: SKU "${row.sku}" already exists, skipping`)
+            continue
+          }
+        }
+
         await prisma.product.create({
           data: {
             name: row.name || `Product ${i}`,
