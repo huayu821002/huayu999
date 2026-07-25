@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
+import { getShippingMethods, calculateShipping, calculateTotalWeight } from '@/lib/shipping'
 
 export async function POST(request: Request) {
   try {
@@ -9,18 +9,15 @@ export async function POST(request: Request) {
     const subtotalNum = parseFloat(subtotal) || 0
     const weightNum = parseFloat(weight) || 0
 
-    // Get all active shipping methods sorted by sortOrder
-    const methods = await prisma.shippingMethod.findMany({
-      where: { isActive: true },
-      orderBy: { sortOrder: 'asc' },
-    })
+    // Get shipping methods for country
+    const methods = getShippingMethods(country)
 
-    const results = methods.map(method => {
+    const results = methods.map((method: any) => {
       // Check weight constraints
-      if (method.minWeight > 0 && weightNum < method.minWeight) {
+      if (method.minWeight && weightNum < method.minWeight) {
         return { id: method.id, name: method.name, code: method.code, available: false, reason: `Minimum weight ${method.minWeight}kg` }
       }
-      if (method.maxWeight > 0 && weightNum > method.maxWeight) {
+      if (method.maxWeight && weightNum > method.maxWeight) {
         return { id: method.id, name: method.name, code: method.code, available: false, reason: `Maximum weight ${method.maxWeight}kg` }
       }
 
@@ -36,7 +33,7 @@ export async function POST(request: Request) {
         id: method.id,
         name: method.name,
         code: method.code,
-        description: method.description,
+        description: method.estimatedDays,
         estimatedDays: method.estimatedDays,
         cost,
         freeShipping: cost === 0,

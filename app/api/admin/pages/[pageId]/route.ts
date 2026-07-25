@@ -25,7 +25,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json()
-    const { title, slug, excerpt, content, featuredImage, template, metaTitle, metaDesc, status, isActive, sortOrder, publishAt } = body
+    const { title, slug, content, status, productId } = body
 
     // Check if new slug conflicts with another page
     if (slug) {
@@ -37,24 +37,15 @@ export async function PUT(
       }
     }
 
-    const isPublished = status === 'published'
-
     const updateData: any = {
       title,
       slug,
-      excerpt: excerpt || null,
       content,
-      featuredImage: featuredImage || null,
-      template: template || 'default',
-      metaTitle: metaTitle || null,
-      metaDesc: metaDesc || null,
-      status: status || 'draft',
-      isActive: isPublished,
-      sortOrder: sortOrder || 0,
+      status,
     }
 
-    if (publishAt) {
-      updateData.publishAt = new Date(publishAt)
+    if (productId) {
+      updateData.productId = productId
     }
 
     const page = await prisma.page.update({

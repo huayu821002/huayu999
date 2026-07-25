@@ -6,7 +6,6 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    // First try to find product without variants
     const product = await prisma.product.findUnique({
       where: { slug: params.slug },
       include: { category: true },
@@ -16,20 +15,9 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
     }
 
-    // Then try to get variants separately
-    let variants: any[] = []
-    try {
-      variants = await prisma.productVariant.findMany({
-        where: { productId: product.id },
-      })
-    } catch (e) {
-      console.error('Variants query error:', e)
-      // Continue without variants if this fails
-    }
-
     return NextResponse.json({ 
       success: true, 
-      data: { ...product, variants } 
+      data: product
     })
   } catch (error) {
     console.error('Product API error:', error)

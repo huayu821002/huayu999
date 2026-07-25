@@ -18,32 +18,24 @@ export async function PUT(request: Request, { params }: { params: { productId: s
   try {
     const body = await request.json()
     const {
-      name, slug, description, shortDesc, price, comparePrice, costPrice,
-      wholesalePrice, vipPrice, minOrderQty, weight, dimensions, images,
-      modelImage, sizeChart, sku, barcode, inventory, lowStockAlert,
-      categoryId, tags, isActive, isFeatured, isTrending, compliance
+      name, slug, description, price, comparePrice, costPrice,
+      weight, images, sku, barcode, inventory,
+      categoryId, status
     } = body
 
     const product = await prisma.product.update({
       where: { id: params.productId },
       data: {
-        name, slug, description, shortDesc,
+        name, slug, description,
         price: parseFloat(price),
         comparePrice: comparePrice ? parseFloat(comparePrice) : null,
         costPrice: costPrice ? parseFloat(costPrice) : null,
-        wholesalePrice: wholesalePrice ? parseFloat(wholesalePrice) : null,
-        vipPrice: vipPrice ? parseFloat(vipPrice) : null,
-        minOrderQty: parseInt(minOrderQty) || 1,
         weight: weight ? parseFloat(weight) : null,
-        dimensions, images: Array.isArray(images) ? JSON.stringify(images) : images,
-        modelImage, sizeChart, sku, barcode,
+        images: Array.isArray(images) ? JSON.stringify(images) : images,
+        sku, barcode,
         inventory: parseInt(inventory) || 0,
-        lowStockAlert: parseInt(lowStockAlert) || 10,
-        categoryId, tags,
-        isActive: isActive !== undefined ? isActive : true,
-        isFeatured: isFeatured === true,
-        isTrending: isTrending === true,
-        compliance,
+        categoryId,
+        status,
       },
     })
     return NextResponse.json({ success: true, data: product })

@@ -16,10 +16,10 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, slug, excerpt, content, featuredImage, template, metaTitle, metaDesc, status, sortOrder } = body
+    const { title, slug, content, status, productId } = body
 
-    if (!title || !slug) {
-      return NextResponse.json({ success: false, error: 'Title and slug are required' }, { status: 400 })
+    if (!title || !slug || !productId) {
+      return NextResponse.json({ success: false, error: 'Title, slug, and productId are required' }, { status: 400 })
     }
 
     // Check if slug already exists
@@ -28,34 +28,23 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'A page with this slug already exists' }, { status: 400 })
     }
 
-    const isPublished = status === 'published'
-
     const page = await prisma.page.create({
       data: {
         title,
         slug,
-        excerpt: excerpt || null,
         content: content || '',
-        featuredImage: featuredImage || null,
-        template: template || 'default',
-        metaTitle: metaTitle || null,
-        metaDesc: metaDesc || null,
-        status: status || 'draft',
-        isActive: isPublished,
-        sortOrder: parseInt(sortOrder) || 0,
+        status: status || 'DRAFT',
+        productId,
       },
     })
 
     return NextResponse.json({ success: true, data: page })
   } catch (error: any) {
     console.error('Create page error:', error)
-    // Return detailed error message
-    const errorMessage = error?.message || 'Failed to create page'
-    const errorCode = error?.code || ''
     return NextResponse.json({ 
       success: false, 
-      error: errorMessage,
-      code: errorCode
+      error: error?.message || 'Failed to create page',
+      code: error?.code || ''
     }, { status: 500 })
   }
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import prisma from '@/lib/prisma'
+import { prisma } from '@/lib/prisma'
 
 // GET shipping rates for a country (from database with fallback to defaults)
 export async function GET(request: Request) {

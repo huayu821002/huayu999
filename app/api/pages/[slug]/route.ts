@@ -7,13 +7,10 @@ export async function GET(
 ) {
   try {
     // Only show published pages publicly
-    const page = await prisma.customPage.findFirst({
+    const page = await prisma.page.findFirst({
       where: { 
         slug: params.slug,
-        OR: [
-          { status: 'published' },
-          { isActive: true }
-        ]
+        status: 'PUBLISHED',
       },
     })
     if (!page) {

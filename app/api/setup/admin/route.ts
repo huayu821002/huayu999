@@ -28,7 +28,6 @@ export async function GET() {
         password: hashedPassword,
         name: 'Admin',
         role: 'ADMIN',
-        company: 'Fiestaflare',
       },
     })
 

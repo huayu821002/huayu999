@@ -101,7 +101,7 @@ export function ShippingSelect({ items, subtotal, country, value, onChange }: Sh
             {option.isFree ? (
               <span className="font-bold text-joy-green">FREE</span>
             ) : (
-              <span className="font-bold text-joy-gray-900">${option.cost.toFixed(2)}</span>
+              <span className="font-bold text-joy-gray-900">${(option.cost ?? 0).toFixed(2)}</span>
             )}
           </div>
         </label>

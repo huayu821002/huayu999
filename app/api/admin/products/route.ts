@@ -6,14 +6,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
 
-    // Test database connection first
-    try {
-      await prisma.$connect()
-    } catch (dbError: any) {
-      console.error('Database connection error:', dbError)
-      return NextResponse.json({ success: false, error: 'Database connection failed', details: dbError?.message }, { status: 500 })
-    }
-
     const where: Record<string, unknown> = {}
     if (search) {
       where.OR = [
@@ -23,7 +15,6 @@ export async function GET(request: Request) {
       ]
     }
 
-    // First try without include to isolate the issue
     let products
     try {
       products = await prisma.product.findMany({
@@ -53,7 +44,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, data: productsWithCategory, count: products.length })
   } catch (error: any) {
     console.error('Admin products GET error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code, stack: error?.stack }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message }, { status: 500 })
   }
 }
 
@@ -61,10 +52,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const {
-      name, slug, description, shortDesc, price, comparePrice, costPrice,
-      wholesalePrice, vipPrice, minOrderQty, weight, dimensions, images,
-      modelImage, sizeChart, sku, barcode, inventory, lowStockAlert,
-      categoryId, tags, isActive, isFeatured, isTrending, compliance
+      name, slug, description, price, comparePrice, costPrice,
+      weight, images, sku, barcode, inventory,
+      categoryId, status
     } = body
 
     const product = await prisma.product.create({
@@ -72,34 +62,22 @@ export async function POST(request: Request) {
         name,
         slug: slug || name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36),
         description,
-        shortDesc,
-        price: parseFloat(price),
+        price: parseFloat(price) || 0,
         comparePrice: comparePrice ? parseFloat(comparePrice) : null,
         costPrice: costPrice ? parseFloat(costPrice) : null,
-        wholesalePrice: wholesalePrice ? parseFloat(wholesalePrice) : null,
-        vipPrice: vipPrice ? parseFloat(vipPrice) : null,
-        minOrderQty: parseInt(minOrderQty) || 1,
         weight: weight ? parseFloat(weight) : null,
-        dimensions,
         images: Array.isArray(images) ? JSON.stringify(images) : images,
-        modelImage,
-        sizeChart,
         sku,
         barcode,
         inventory: parseInt(inventory) || 0,
-        lowStockAlert: parseInt(lowStockAlert) || 10,
         categoryId,
-        tags: Array.isArray(tags) ? JSON.stringify(tags) : tags,
-        isActive: isActive !== false,
-        isFeatured: isFeatured === true,
-        isTrending: isTrending === true,
-        compliance,
+        status: status || 'ACTIVE',
       },
     })
 
     return NextResponse.json({ success: true, data: product })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Admin products POST error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to create product' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to create product', details: error?.message }, { status: 500 })
   }
 }

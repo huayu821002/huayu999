@@ -29,7 +29,6 @@ async function main() {
         password: hashedPassword,
         name: 'Admin',
         role: 'ADMIN',
-        company: 'Fiestaflare',
       },
     })
     console.log('Admin user created')

@@ -6,8 +6,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const search = searchParams.get('search')
-    const trending = searchParams.get('trending')
-    const featured = searchParams.get('featured')
 
     const where: Record<string, unknown> = {}
 
@@ -23,15 +21,7 @@ export async function GET(request: Request) {
       ]
     }
 
-    if (trending === 'true') {
-      where.isTrending = true
-    }
-
-    if (featured === 'true') {
-      where.isFeatured = true
-    }
-
-    // Fetch products without include to avoid serialization issues
+    // Fetch products
     const products = await prisma.product.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -50,7 +40,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, data: productsWithCategory })
   } catch (error: any) {
     console.error('Products API error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message }, { status: 500 })
   }
 }
 
@@ -58,10 +48,9 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const {
-      name, slug, description, shortDesc, price, comparePrice, costPrice,
-      wholesalePrice, vipPrice, minOrderQty, weight, dimensions, images,
-      modelImage, sizeChart, sku, barcode, inventory, lowStockAlert,
-      categoryId, tags, isActive, isFeatured, isTrending, compliance
+      name, slug, description, price, comparePrice, costPrice,
+      weight, images, sku, barcode, inventory,
+      categoryId, status
     } = body
 
     const product = await prisma.product.create({
@@ -69,28 +58,16 @@ export async function POST(request: Request) {
         name,
         slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
         description,
-        shortDesc,
         price: parseFloat(price),
         comparePrice: comparePrice ? parseFloat(comparePrice) : null,
         costPrice: costPrice ? parseFloat(costPrice) : null,
-        wholesalePrice: wholesalePrice ? parseFloat(wholesalePrice) : null,
-        vipPrice: vipPrice ? parseFloat(vipPrice) : null,
-        minOrderQty: parseInt(minOrderQty) || 1,
         weight: weight ? parseFloat(weight) : null,
-        dimensions,
         images: typeof images === 'string' ? images : JSON.stringify(images),
-        modelImage,
-        sizeChart,
         sku,
         barcode,
         inventory: parseInt(inventory) || 0,
-        lowStockAlert: parseInt(lowStockAlert) || 10,
         categoryId,
-        tags,
-        isActive: isActive !== false,
-        isFeatured: isFeatured === true,
-        isTrending: isTrending === true,
-        compliance,
+        status: status || 'ACTIVE',
       },
     })
 
