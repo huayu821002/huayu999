@@ -61,9 +61,22 @@ export function ProductScraper({ onScraped, onCancel }: ProductScraperProps) {
     }
   }
 
+  // Generate random SKU
+  const generateSKU = () => {
+    const prefix = 'SKU'
+    const timestamp = Date.now().toString(36).toUpperCase()
+    const random = Math.random().toString(36).substring(2, 6).toUpperCase()
+    return `${prefix}-${timestamp}-${random}`
+  }
+
   const handleUseProduct = () => {
     if (preview) {
-      onScraped(preview)
+      // Generate a random SKU for the scraped product
+      const scrapedWithSKU = {
+        ...preview,
+        sku: generateSKU(),
+      }
+      onScraped(scrapedWithSKU)
     }
   }
 

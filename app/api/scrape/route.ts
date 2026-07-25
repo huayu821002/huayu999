@@ -199,12 +199,12 @@ function extractImages(html: string): string[] {
     if (match) images.push(match[1])
   })
 
-  // Deduplicate and filter
+  // Deduplicate and filter - limit to 5 images for main product images
   const unique = Array.from(new Set(images)).filter(img => {
     return img.startsWith('http') && !img.includes('data:')
   })
 
-  return unique.slice(0, 10) // Limit to 10 images
+  return unique.slice(0, 5) // Limit to 5 images as main product images
 }
 
 function extractJsonLd(html: string): any {
