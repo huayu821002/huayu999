@@ -133,8 +133,8 @@ model WishlistItem {
 model Order {
   id              String   @id @default(cuid())
   orderNumber     String   @unique
-  userId          String
-  user            User     @relation(fields: [userId], references: [id])
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
   status          String   @default("PENDING")
   items           String
   subtotal        Float
