@@ -1,7 +1,4 @@
 import { NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { join } from 'path'
-import { randomUUID } from 'crypto'
 
 export async function POST(request: Request) {
   try {
@@ -23,25 +20,15 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'File too large. Max 5MB' }, { status: 400 })
     }
 
-    // Create unique filename
-    const ext = file.name.split('.').pop()
-    const filename = `${randomUUID()}.${ext}`
-    
-    // Ensure uploads directory exists
-    const uploadsDir = join(process.cwd(), 'public', 'uploads')
-    await mkdir(uploadsDir, { recursive: true })
-    
-    // Write file
+    // Convert to base64 data URL
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    const filepath = join(uploadsDir, filename)
-    await writeFile(filepath, buffer)
+    const base64 = buffer.toString('base64')
+    const dataUrl = `data:${file.type};base64,${base64}`
 
-    // Return public URL
-    const url = `/uploads/${filename}`
-    return NextResponse.json({ success: true, url })
+    return NextResponse.json({ success: true, url: dataUrl })
   } catch (error) {
     console.error('Upload error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to upload file' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to process file' }, { status: 500 })
   }
 }
