@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { ProductScraper } from '@/components/admin/ProductScraper'
 
 interface Variant {
   id: string
@@ -65,6 +66,7 @@ export default function AdminProductsPage() {
   const [productVariants, setProductVariants] = useState<Variant[]>([])
   const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '0' })
   const [isSaving, setIsSaving] = useState(false)
+  const [showScraperModal, setShowScraperModal] = useState(false)
 
   const [form, setForm] = useState({
     name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '',
@@ -127,6 +129,43 @@ export default function AdminProductsPage() {
     setEditingProduct(null)
     setProductVariants([])
     setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false })
+    setShowProductModal(true)
+  }
+
+  const handleScrapedProduct = (scraped: any) => {
+    // Parse images
+    const imagesStr = scraped.images?.length > 0 ? JSON.stringify(scraped.images) : ''
+    
+    // Convert price if needed (from CNY to USD for example)
+    let price = scraped.price || ''
+    if (price && scraped.currency === 'CNY') {
+      // Rough conversion, user should adjust
+      price = (parseFloat(price) / 7.2).toFixed(2)
+    }
+    
+    setEditingProduct(null)
+    setProductVariants([])
+    setForm({
+      name: scraped.title || '',
+      sku: '',
+      description: scraped.description || '',
+      shortDesc: '',
+      price: price,
+      comparePrice: '',
+      costPrice: '',
+      wholesalePrice: '',
+      vipPrice: '',
+      minOrderQty: '1',
+      inventory: '100',
+      lowStockAlert: '10',
+      weight: '',
+      categoryId: '',
+      images: imagesStr,
+      isActive: false,
+      isFeatured: false,
+      isTrending: false,
+    })
+    setShowScraperModal(false)
     setShowProductModal(true)
   }
 
@@ -264,6 +303,7 @@ export default function AdminProductsPage() {
                 <Icons.Package size={18} className="mr-2" />Import CSV
               </label>
               <Button variant="secondary" onClick={() => window.open('/api/admin/products/import', '_blank')}><Icons.Download size={18} className="mr-2" />Export CSV</Button>
+              <Button variant="secondary" onClick={() => setShowScraperModal(true)}><Icons.Globe size={18} className="mr-2" />Scrape Product</Button>
               <Button onClick={openAdd}><Icons.Plus size={18} className="mr-2" />Add Product</Button>
             </div>
           </div>
@@ -465,6 +505,30 @@ export default function AdminProductsPage() {
             <div className="sticky bottom-0 bg-white border-t border-joy-gray-100 px-6 py-4 flex items-center justify-end gap-3">
               <Button variant="secondary" onClick={() => setShowProductModal(false)}>Cancel</Button>
               <Button onClick={handleProductSubmit} isLoading={isSaving}>{editingProduct ? 'Update Product' : 'Save Product'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product Scraper Modal */}
+      {showScraperModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowScraperModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-xl max-h-[90vh] overflow-auto">
+            <div className="px-6 py-4 border-b border-joy-gray-100 flex items-center justify-between">
+              <div>
+                <h2 className="font-display text-lg font-bold text-joy-gray-900">Scrape Product</h2>
+                <p className="text-sm text-joy-gray-500">Import product from any e-commerce URL</p>
+              </div>
+              <button onClick={() => setShowScraperModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg">
+                <Icons.X size={20} />
+              </button>
+            </div>
+            <div className="p-6">
+              <ProductScraper
+                onScraped={handleScrapedProduct}
+                onCancel={() => setShowScraperModal(false)}
+              />
             </div>
           </div>
         </div>

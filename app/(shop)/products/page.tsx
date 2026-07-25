@@ -7,10 +7,12 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { CartDrawer } from '@/components/shop/CartDrawer'
 import { ProductCard } from '@/components/shop/ProductCard'
+import { BatchProductCard } from '@/components/shop/BatchProductCard'
+import { BatchOrderBar } from '@/components/shop/BatchOrderBar'
 import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
 import type { Product } from '@/types'
 
@@ -194,7 +196,58 @@ function ProductsContent() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
 
+  // Batch mode state
+  const [batchMode, setBatchMode] = useState(false)
+  const [selectedProducts, setSelectedProducts] = useState<Map<string, number>>(new Map())
+
   const activeCategory = searchParams.get('category') || selectedCategory
+
+  // Batch selection handlers
+  const toggleProductSelect = (productId: string) => {
+    setSelectedProducts(prev => {
+      const next = new Map(prev)
+      if (next.has(productId)) {
+        next.delete(productId)
+      } else {
+        const product = products.find(p => p.id === productId)
+        next.set(productId, product?.minOrderQty || 1)
+      }
+      return next
+    })
+  }
+
+  const updateProductQuantity = (productId: string, qty: number) => {
+    setSelectedProducts(prev => {
+      const next = new Map(prev)
+      if (next.has(productId)) {
+        next.set(productId, qty)
+      }
+      return next
+    })
+  }
+
+  const clearBatchSelection = () => {
+    setSelectedProducts(new Map())
+  }
+
+  // Convert selected products to array for batch order bar
+  const batchOrderItems = Array.from(selectedProducts.entries()).map(([productId, qty]) => {
+    const product = products.find(p => p.id === productId)
+    if (!product) return null
+    const images: string[] = (() => {
+      if (!product.images) return []
+      if (Array.isArray(product.images)) return product.images
+      try { return JSON.parse(product.images as string) } catch { return [product.images] }
+    })()
+    return {
+      productId,
+      name: product.name,
+      sku: product.sku || '',
+      price: product.price,
+      quantity: qty,
+      image: images[0],
+    }
+  }).filter(Boolean) as any[]
 
   useEffect(() => {
     fetchProducts()
@@ -365,6 +418,24 @@ function ProductsContent() {
                     <Icons.Menu size={18} />
                   </button>
                 </div>
+                
+                {/* Batch Mode Toggle */}
+                <button
+                  onClick={() => {
+                    setBatchMode(!batchMode)
+                    if (batchMode) clearBatchSelection()
+                  }}
+                  className={cn(
+                    'px-4 py-2.5 rounded-xl border-2 text-sm font-medium transition-all flex items-center gap-2',
+                    batchMode 
+                      ? 'bg-joy-orange border-joy-orange text-white' 
+                      : 'border-joy-gray-200 text-joy-gray-600 hover:border-joy-orange'
+                  )}
+                >
+                  <Icons.Check size={18} />
+                  Batch Order
+                </button>
+                
                 <Button
                   variant="secondary"
                   size="sm"
@@ -393,14 +464,44 @@ function ProductsContent() {
                 </Button>
               </div>
             ) : (
-              <div className={cn('grid gap-4 lg:gap-6', viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-1')}>
-                {sortedProducts.map((product) => (
-                  <ProductCard key={product.id} product={product} currency={currency} />
-                ))}
-              </div>
+              <>
+                {batchMode ? (
+                  // Batch Mode Grid
+                  <div className="grid gap-4 lg:gap-6 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                    {sortedProducts.map((product) => (
+                      <BatchProductCard
+                        key={product.id}
+                        product={product}
+                        currency={currency}
+                        selected={selectedProducts.has(product.id)}
+                        quantity={selectedProducts.get(product.id) || product.minOrderQty || 1}
+                        onToggleSelect={toggleProductSelect}
+                        onQuantityChange={updateProductQuantity}
+                      />
+                    ))}
+                  </div>
+                ) : (
+                  // Normal Mode Grid
+                  <div className={cn('grid gap-4 lg:gap-6', viewMode === 'grid' ? 'grid-cols-2 lg:grid-cols-3' : 'grid-cols-1')}>
+                    {sortedProducts.map((product) => (
+                      <ProductCard key={product.id} product={product} currency={currency} />
+                    ))}
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
+        
+        {/* Batch Order Bar */}
+        {batchMode && (
+          <BatchOrderBar
+            items={batchOrderItems}
+            currency={currency}
+            onClear={clearBatchSelection}
+            onContinueShopping={() => setBatchMode(false)}
+          />
+        )
       </div>
     </>
   )
