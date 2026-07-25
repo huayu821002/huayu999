@@ -6,6 +6,7 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const search = searchParams.get('search')
+    const featured = searchParams.get('featured')
 
     const where: Record<string, unknown> = {}
 
@@ -21,7 +22,11 @@ export async function GET(request: Request) {
       ]
     }
 
-    // Fetch products
+    // Filter by featured flag
+    if (featured === 'true') {
+      where.isFeatured = true
+    }
+
     const products = await prisma.product.findMany({
       where,
       orderBy: { createdAt: 'desc' },
@@ -74,6 +79,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, data: product })
   } catch (error) {
     console.error('Create product error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to create product' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to create product' })
   }
 }
