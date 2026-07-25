@@ -336,10 +336,11 @@ function ProductsContent() {
         return a.price - b.price
       case 'price-high':
         return b.price - a.price
-      case 'newest':
+      case 'trending':
+        return (b.isTrending ? 1 : 0) - (a.isTrending ? 1 : 0)
+      case 'featured':
       default:
-        // Sort by id as a proxy for newest (Prisma returns newest first by default)
-        return 0 // Keep original order since API already returns newest first
+        return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0)
     }
   })
 
