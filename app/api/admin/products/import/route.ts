@@ -73,9 +73,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'File is empty or has no data rows' }, { status: 400 })
     }
 
-    // Parse header row - remove quotes
-    const header = parseCSVLine(lines[0])
-    const expectedColumns = 18 // Based on our export format
+    // Parse header row - remove quotes and filter empty columns
+    const headerRaw = parseCSVLine(lines[0])
+    // Filter out empty columns and trim
+    const header = headerRaw.map(h => h.trim()).filter(h => h.length > 0)
 
     // Parse data rows
     const results = { success: 0, failed: 0, errors: [] as string[] }
@@ -86,17 +87,14 @@ export async function POST(request: Request) {
 
       const values = parseCSVLine(line)
       
-      // If column count doesn't match, try to handle it gracefully
+      // If column count doesn't match, be forgiving - pad or trim as needed
       if (values.length !== header.length) {
-        // Maybe it's a partial row or extra commas - pad with empty strings
         if (values.length > header.length) {
           // Too many columns - trim extras
           values.length = header.length
-        } else {
-          // Too few - this might be a real error
-          results.failed++
-          results.errors.push(`Row ${i}: Expected ${header.length} columns, got ${values.length}`)
-          continue
+        } else if (values.length < header.length) {
+          // Fewer columns - pad with empty strings (graceful handling)
+          while (values.length < header.length) values.push('')
         }
       }
 
