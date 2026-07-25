@@ -336,11 +336,9 @@ function ProductsContent() {
         return a.price - b.price
       case 'price-high':
         return b.price - a.price
-      case 'trending':
-        return (b.isTrending ? 1 : 0) - (a.isTrending ? 1 : 0)
-      case 'featured':
+      case 'newest':
       default:
-        return (b.isFeatured ? 1 : 0) - (a.isFeatured ? 1 : 0)
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
     }
   })
 
