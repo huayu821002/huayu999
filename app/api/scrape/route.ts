@@ -178,11 +178,18 @@ function extractImages(html: string): string[] {
     images.push(...img.filter(Boolean))
   }
 
-  // Open Graph images
-  const ogImages = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/gi) || []
-  ogImages.forEach(m => {
-    const match = m.match(/content=["']([^"']+)["']/)
-    if (match) images.push(match[1])
+  // Open Graph images - try multiple patterns
+  const ogPatterns = [
+    /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/gi,
+    /<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/gi,
+    /<meta[^>]+name=["']og:image["'][^>]+content=["']([^"']+)["']/gi,
+  ]
+  ogPatterns.forEach(pattern => {
+    const matches = html.match(pattern) || []
+    matches.forEach(m => {
+      const match = m.match(/content=["']([^"']+)["']/)
+      if (match) images.push(match[1])
+    })
   })
 
   // Twitter images
@@ -192,16 +199,35 @@ function extractImages(html: string): string[] {
     if (match) images.push(match[1])
   })
 
-  // Additional og:image in reversed order
-  const ogImages2 = html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/gi) || []
-  ogImages2.forEach(m => {
-    const match = m.match(/content=["']([^"']+)["']/)
-    if (match) images.push(match[1])
+  // Look for image URLs in JavaScript variables like var images = [...] or data-src=
+  const jsImagePatterns = [
+    /images\s*:\s*\[(.*?)\]/gi,
+    /photos\s*:\s*\[(.*?)\]/gi,
+    /pictures\s*:\s*\[(.*?)\]/gi,
+    /"images"\s*:\s*\[(.*?)\]/gi,
+  ]
+  jsImagePatterns.forEach(pattern => {
+    let match
+    while ((match = pattern.exec(html)) !== null) {
+      const imgArray = match[1]
+      const imgMatches = imgArray.match(/["'](https?:\/\/[^<>"'\s,}]+\.(?:jpg|jpeg|png|webp|gif))["']/gi) || []
+      imgMatches.forEach((img: string) => {
+        const clean = img.replace(/["']/g, '')
+        if (clean.startsWith('http')) images.push(clean)
+      })
+    }
+  })
+
+  // Look for data-src or data-original attributes (common lazy loading pattern)
+  const dataSrcMatches = html.match(/data-(?:src|original|image)\s*=\s*["']([^"']+)["']/gi) || []
+  dataSrcMatches.forEach(m => {
+    const match = m.match(/= ["']([^"']+)["']/)
+    if (match && match[1].startsWith('http')) images.push(match[1])
   })
 
   // Deduplicate and filter - limit to 5 images for main product images
   const unique = Array.from(new Set(images)).filter(img => {
-    return img.startsWith('http') && !img.includes('data:')
+    return img.startsWith('http') && !img.includes('data:') && !img.includes('base64')
   })
 
   return unique.slice(0, 5) // Limit to 5 images as main product images
