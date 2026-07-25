@@ -24,7 +24,7 @@ export async function GET() {
       prisma.user.count({ where: { role: 'USER' } }),
       
       // Product count
-      prisma.product.count({ where: { isActive: true } }),
+      prisma.product.count({ where: { status: 'ACTIVE' } }),
       
       // Recent orders (last 10)
       prisma.order.findMany({
