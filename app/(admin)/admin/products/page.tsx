@@ -320,7 +320,55 @@ export default function AdminProductsPage() {
                   <Input label="Low Stock Alert" type="number" placeholder="10" value={form.lowStockAlert} onChange={(e) => setForm({...form, lowStockAlert: e.target.value})} />
                   <Input label="Weight (kg)" type="number" step="0.01" placeholder="0.5" value={form.weight || ''} onChange={(e) => setForm({...form, weight: e.target.value})} />
                 </div>
-                <Input label="Image URL (comma separated)" placeholder="https://example.com/img.jpg" value={form.images} onChange={(e) => setForm({...form, images: e.target.value})} />
+                {/* Product Images - Multi Upload */}
+                <div>
+                  <label className="block text-sm font-medium text-joy-gray-700 mb-2">Product Images (up to 5)</label>
+                  <div className="grid grid-cols-5 gap-3 mb-3">
+                    {parseImages(form.images).concat(Array(5 - parseImages(form.images).length).fill(null)).slice(0, 5).map((img, i) => (
+                      <div key={i} className="aspect-square rounded-xl border-2 border-dashed border-joy-gray-200 overflow-hidden relative bg-joy-gray-50">
+                        {img ? (
+                          <>
+                            <img src={img} alt="" className="w-full h-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newImages = parseImages(form.images).filter((_, idx) => idx !== i)
+                                setForm({...form, images: newImages.join(',')})
+                              }}
+                              className="absolute top-1 right-1 w-6 h-6 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600"
+                            >×</button>
+                          </>
+                        ) : (
+                          <label className="w-full h-full flex flex-col items-center justify-center cursor-pointer hover:bg-joy-gray-100">
+                            <Icons.Plus size={20} className="text-joy-gray-400" />
+                            <span className="text-xs text-joy-gray-400 mt-1">Image {i + 1}</span>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="hidden"
+                              onChange={async (e) => {
+                                const file = e.target.files?.[0]
+                                if (!file) return
+                                const formData = new FormData()
+                                formData.append('file', file)
+                                try {
+                                  const res = await fetch('/api/upload', { method: 'POST', body: formData })
+                                  const data = await res.json()
+                                  if (data.success) {
+                                    const currentImages = parseImages(form.images)
+                                    currentImages[i] = data.url
+                                    setForm({...form, images: currentImages.filter(Boolean).join(',')})
+                                  }
+                                } catch { console.error('Upload failed') }
+                              }}
+                            />
+                          </label>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-xs text-joy-gray-500">Click each box to upload. First image will be the main product image.</p>
+                </div>
                 <div>
                   <label className="block text-sm font-medium text-joy-gray-700 mb-2">Description *</label>
                   <textarea className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none min-h-[100px]" placeholder="Full description..." value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} />
