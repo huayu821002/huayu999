@@ -99,6 +99,94 @@ const shippingZones: Record<string, ShippingRate[]> = {
     { name: 'Standard to India', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '10-14 days', freeThreshold: 199 },
     { name: 'Express to India', baseCost: 32.99, costPerKg: 8.99, estimatedDays: '5-7 days', freeThreshold: 349 },
   ],
+
+  // Southeast Asia
+  'SG': [
+    { name: 'Standard to Singapore', baseCost: 9.99, costPerKg: 2.99, estimatedDays: '3-5 days', freeThreshold: 99 },
+    { name: 'Express to Singapore', baseCost: 17.99, costPerKg: 4.99, estimatedDays: '1-2 days', freeThreshold: 199 },
+  ],
+  'MY': [
+    { name: 'Standard to Malaysia', baseCost: 11.99, costPerKg: 3.29, estimatedDays: '5-8 days', freeThreshold: 149 },
+    { name: 'Express to Malaysia', baseCost: 22.99, costPerKg: 5.99, estimatedDays: '2-3 days', freeThreshold: 249 },
+  ],
+  'TH': [
+    { name: 'Standard to Thailand', baseCost: 12.99, costPerKg: 3.49, estimatedDays: '6-10 days', freeThreshold: 149 },
+    { name: 'Express to Thailand', baseCost: 24.99, costPerKg: 5.99, estimatedDays: '2-3 days', freeThreshold: 299 },
+  ],
+  'VN': [
+    { name: 'Standard to Vietnam', baseCost: 12.99, costPerKg: 3.49, estimatedDays: '6-10 days', freeThreshold: 149 },
+    { name: 'Express to Vietnam', baseCost: 24.99, costPerKg: 5.99, estimatedDays: '2-3 days', freeThreshold: 299 },
+  ],
+  'PH': [
+    { name: 'Standard to Philippines', baseCost: 12.99, costPerKg: 3.49, estimatedDays: '7-12 days', freeThreshold: 149 },
+    { name: 'Express to Philippines', baseCost: 27.99, costPerKg: 6.99, estimatedDays: '3-5 days', freeThreshold: 299 },
+  ],
+  'ID': [
+    { name: 'Standard to Indonesia', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '8-14 days', freeThreshold: 199 },
+    { name: 'Express to Indonesia', baseCost: 29.99, costPerKg: 7.99, estimatedDays: '4-6 days', freeThreshold: 349 },
+  ],
+  'NZ': [
+    { name: 'Standard to New Zealand', baseCost: 17.99, costPerKg: 5.49, estimatedDays: '10-14 days', freeThreshold: 249 },
+    { name: 'Express to New Zealand', baseCost: 39.99, costPerKg: 10.99, estimatedDays: '5-7 days', freeThreshold: 399 },
+  ],
+
+  // More EU countries
+  'PL': [
+    { name: 'Standard to Poland', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Poland', baseCost: 29.99, costPerKg: 7.99, estimatedDays: '4-6 days', freeThreshold: 299 },
+  ],
+  'BE': [
+    { name: 'Standard to Belgium', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Belgium', baseCost: 29.99, costPerKg: 7.99, estimatedDays: '4-6 days', freeThreshold: 299 },
+  ],
+  'SE': [
+    { name: 'Standard to Sweden', baseCost: 15.99, costPerKg: 4.99, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Sweden', baseCost: 32.99, costPerKg: 8.99, estimatedDays: '4-6 days', freeThreshold: 349 },
+  ],
+  'AT': [
+    { name: 'Standard to Austria', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Austria', baseCost: 29.99, costPerKg: 7.99, estimatedDays: '4-6 days', freeThreshold: 299 },
+  ],
+  'PT': [
+    { name: 'Standard to Portugal', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Portugal', baseCost: 29.99, costPerKg: 7.99, estimatedDays: '4-6 days', freeThreshold: 299 },
+  ],
+  'GR': [
+    { name: 'Standard to Greece', baseCost: 15.99, costPerKg: 4.99, estimatedDays: '9-14 days', freeThreshold: 199 },
+    { name: 'Express to Greece', baseCost: 34.99, costPerKg: 8.99, estimatedDays: '5-7 days', freeThreshold: 349 },
+  ],
+  'CZ': [
+    { name: 'Standard to Czech Republic', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Czech Republic', baseCost: 29.99, costPerKg: 7.99, estimatedDays: '4-6 days', freeThreshold: 299 },
+  ],
+  'RO': [
+    { name: 'Standard to Romania', baseCost: 15.99, costPerKg: 4.99, estimatedDays: '9-14 days', freeThreshold: 199 },
+    { name: 'Express to Romania', baseCost: 34.99, costPerKg: 8.99, estimatedDays: '5-7 days', freeThreshold: 349 },
+  ],
+  'HU': [
+    { name: 'Standard to Hungary', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Hungary', baseCost: 29.99, costPerKg: 7.99, estimatedDays: '4-6 days', freeThreshold: 299 },
+  ],
+  'CH': [
+    { name: 'Standard to Switzerland', baseCost: 15.99, costPerKg: 4.99, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Switzerland', baseCost: 34.99, costPerKg: 8.99, estimatedDays: '4-6 days', freeThreshold: 349 },
+  ],
+  'NO': [
+    { name: 'Standard to Norway', baseCost: 16.99, costPerKg: 5.49, estimatedDays: '9-14 days', freeThreshold: 249 },
+    { name: 'Express to Norway', baseCost: 39.99, costPerKg: 10.99, estimatedDays: '5-7 days', freeThreshold: 399 },
+  ],
+  'DK': [
+    { name: 'Standard to Denmark', baseCost: 15.99, costPerKg: 4.99, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Denmark', baseCost: 34.99, costPerKg: 8.99, estimatedDays: '4-6 days', freeThreshold: 349 },
+  ],
+  'FI': [
+    { name: 'Standard to Finland', baseCost: 16.99, costPerKg: 5.49, estimatedDays: '9-14 days', freeThreshold: 249 },
+    { name: 'Express to Finland', baseCost: 39.99, costPerKg: 10.99, estimatedDays: '5-7 days', freeThreshold: 399 },
+  ],
+  'IE': [
+    { name: 'Standard to Ireland', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '8-12 days', freeThreshold: 199 },
+    { name: 'Express to Ireland', baseCost: 29.99, costPerKg: 7.99, estimatedDays: '4-6 days', freeThreshold: 299 },
+  ],
 }
 
 // Default rates for countries not explicitly listed
