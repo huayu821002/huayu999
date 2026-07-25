@@ -35,7 +35,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
         sku, barcode,
         inventory: parseInt(inventory) || 0,
         categoryId,
-        status,
+        isActive,
       },
     })
     return NextResponse.json({ success: true, data: product })
