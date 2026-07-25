@@ -6,6 +6,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const search = searchParams.get('search')
+    const featured = searchParams.get('featured')
+    const newProduct = searchParams.get('new')
+    const trending = searchParams.get('trending')
 
     const where: Record<string, unknown> = {}
 
@@ -19,6 +22,17 @@ export async function GET(request: Request) {
         { description: { contains: search } },
         { sku: { contains: search } },
       ]
+    }
+
+    // Filter by special flags
+    if (featured === 'true') {
+      where.isFeatured = true
+    }
+    if (newProduct === 'true') {
+      where.isNew = true
+    }
+    if (trending === 'true') {
+      where.isTrending = true
     }
 
     const products = await prisma.product.findMany({
