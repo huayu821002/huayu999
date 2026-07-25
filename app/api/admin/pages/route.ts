@@ -42,7 +42,7 @@ export async function POST(request: Request) {
         metaDesc: metaDesc || null,
         status: status || 'draft',
         isActive: isPublished,
-        sortOrder: sortOrder || 0,
+        sortOrder: parseInt(sortOrder) || 0,
       },
     })
 
@@ -51,6 +51,11 @@ export async function POST(request: Request) {
     console.error('Create page error:', error)
     // Return detailed error message
     const errorMessage = error?.message || 'Failed to create page'
-    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
+    const errorCode = error?.code || ''
+    return NextResponse.json({ 
+      success: false, 
+      error: errorMessage,
+      code: errorCode
+    }, { status: 500 })
   }
 }

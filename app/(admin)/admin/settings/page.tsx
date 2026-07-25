@@ -225,12 +225,13 @@ export default function AdminSettingsPage() {
         body: JSON.stringify(pageForm),
       })
       const data = await res.json()
+      console.log('Page save result:', data)
       if (data.success) {
         setShowPageModal(false)
         fetchCustomPages()
         alert(editingPage ? 'Page updated!' : 'Page created!')
       } else {
-        alert('Error: ' + (data.error || 'Unknown error'))
+        alert('Error: ' + (data.error || 'Unknown error') + (data.code ? ` (${data.code})` : ''))
       }
     } catch (err) { 
       console.error('Submit error:', err)
