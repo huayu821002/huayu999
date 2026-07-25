@@ -65,17 +65,31 @@ export default function BatchCheckoutPage() {
     setIsSubmitting(true)
     
     try {
+      // Format customer info as shipping address string
+      const shippingAddress = JSON.stringify({
+        name: customerInfo.name,
+        email: customerInfo.email,
+        phone: customerInfo.phone,
+        company: customerInfo.company,
+        address: customerInfo.address,
+        city: customerInfo.city,
+        state: customerInfo.state,
+        zip: customerInfo.zip,
+        country: customerInfo.country,
+        notes: customerInfo.notes,
+      })
+
       const orderData = {
         items: items.map(item => ({
           productId: item.productId,
           quantity: item.quantity,
           price: item.price,
         })),
-        customer: customerInfo,
         subtotal,
-        shipping,
+        shippingCost: shipping,
         total,
-        type: 'BATCH_ORDER',
+        shippingAddress,
+        currency: 'USD',
       }
 
       const res = await fetch('/api/orders', {
