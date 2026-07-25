@@ -157,16 +157,6 @@ export const countries: Country[] = [
     ],
   },
   {
-    code: 'BR',
-    name: 'Brazil',
-    states: [
-      { code: 'SP', name: 'São Paulo', cities: ['São Paulo', 'Campinas', 'Santos', 'São Bernardo', 'São José'] },
-      { code: 'RJ', name: 'Rio de Janeiro', cities: ['Rio de Janeiro', 'São Gonçalo', 'Duque de Caxias', 'Nova Iguaçu', 'Niterói'] },
-      { code: 'MG', name: 'Minas Gerais', cities: ['Belo Horizonte', 'Uberlândia', 'Contagem', 'Betim', 'Juiz de Fora'] },
-      { code: 'DF', name: 'Distrito Federal', cities: ['Brasília', 'Taguatinga', 'Ceilândia', 'Samambaia', 'Planaltina'] },
-    ],
-  },
-  {
     code: 'IN',
     name: 'India',
     states: [

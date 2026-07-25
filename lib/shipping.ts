@@ -88,12 +88,6 @@ const shippingZones: Record<string, ShippingRate[]> = {
     { name: 'Express to Australia', baseCost: 34.99, costPerKg: 9.99, estimatedDays: '5-7 days', freeThreshold: 399 },
   ],
   
-  // South America
-  'BR': [
-    { name: 'Standard to Brazil', baseCost: 17.99, costPerKg: 5.99, estimatedDays: '12-18 days', freeThreshold: 249 },
-    { name: 'Express to Brazil', baseCost: 39.99, costPerKg: 11.99, estimatedDays: '6-8 days', freeThreshold: 399 },
-  ],
-  
   // India
   'IN': [
     { name: 'Standard to India', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '10-14 days', freeThreshold: 199 },
