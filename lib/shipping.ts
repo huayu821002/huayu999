@@ -63,10 +63,17 @@ const shippingZones: Record<string, ShippingRate[]> = {
   ],
   
   // Asia Pacific
-  'CN': [
-    { name: 'Economy to China', baseCost: 9.99, costPerKg: 2.99, estimatedDays: '10-15 days', freeThreshold: 149 },
-    { name: 'Standard to China', baseCost: 17.99, costPerKg: 4.99, estimatedDays: '7-10 days', freeThreshold: 199 },
-    { name: 'Express to China', baseCost: 34.99, costPerKg: 8.99, estimatedDays: '3-5 days', freeThreshold: 349 },
+  'HK': [
+    { name: 'Standard to Hong Kong', baseCost: 9.99, costPerKg: 2.49, estimatedDays: '3-5 days', freeThreshold: 99 },
+    { name: 'Express to Hong Kong', baseCost: 19.99, costPerKg: 4.99, estimatedDays: '1-2 days', freeThreshold: 199 },
+  ],
+  'MO': [
+    { name: 'Standard to Macau', baseCost: 9.99, costPerKg: 2.49, estimatedDays: '3-5 days', freeThreshold: 99 },
+    { name: 'Express to Macau', baseCost: 19.99, costPerKg: 4.99, estimatedDays: '1-2 days', freeThreshold: 199 },
+  ],
+  'TW': [
+    { name: 'Standard to Taiwan', baseCost: 12.99, costPerKg: 3.49, estimatedDays: '4-7 days', freeThreshold: 149 },
+    { name: 'Express to Taiwan', baseCost: 24.99, costPerKg: 5.99, estimatedDays: '2-3 days', freeThreshold: 249 },
   ],
   'JP': [
     { name: 'Standard to Japan', baseCost: 14.99, costPerKg: 4.99, estimatedDays: '7-10 days', freeThreshold: 199 },

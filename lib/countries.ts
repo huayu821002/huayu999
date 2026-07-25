@@ -83,17 +83,24 @@ export const countries: Country[] = [
     ],
   },
   {
-    code: 'CN',
-    name: 'China',
+    code: 'HK',
+    name: 'Hong Kong SAR, China',
     states: [
-      { code: 'BJ', name: 'Beijing', cities: ['Beijing'] },
-      { code: 'SH', name: 'Shanghai', cities: ['Shanghai'] },
-      { code: 'GD', name: 'Guangdong', cities: ['Guangzhou', 'Shenzhen', 'Dongguan', 'Foshan', 'Zhuhai'] },
-      { code: 'ZJ', name: 'Zhejiang', cities: ['Hangzhou', 'Ningbo', 'Wenzhou', 'Jiaxing', 'Shaoxing'] },
-      { code: 'JS', name: 'Jiangsu', cities: ['Nanjing', 'Suzhou', 'Wuxi', 'Changzhou', 'Nantong'] },
-      { code: 'SD', name: 'Shandong', cities: ['Jinan', 'Qingdao', 'Yantai', 'Weifang', 'Zibo'] },
-      { code: 'SC', name: 'Sichuan', cities: ['Chengdu', 'Mianyang', 'Deyang', 'Leshan', 'Nanchong'] },
-      { code: 'HE', name: 'Henan', cities: ['Zhengzhou', 'Luoyang', 'Kaifeng', 'Xinxiang', 'Anyang'] },
+      { code: 'HK', name: 'Hong Kong', cities: ['Hong Kong Island', 'Kowloon', 'New Territories'] },
+    ],
+  },
+  {
+    code: 'MO',
+    name: 'Macau SAR, China',
+    states: [
+      { code: 'MO', name: 'Macau', cities: ['Macau Peninsula', 'Taipa', 'Coloane'] },
+    ],
+  },
+  {
+    code: 'TW',
+    name: 'Taiwan',
+    states: [
+      { code: 'TW', name: 'Taiwan', cities: ['Taipei', 'New Taipei', 'Taichung', 'Kaohsiung', 'Keelung', 'Taoyuan', 'Hsinchu'] },
     ],
   },
   {

@@ -70,7 +70,7 @@ export function AddressSelect({ value, onChange, compact = false }: AddressSelec
       {/* Country */}
       <div>
         <label className="block text-sm font-medium text-joy-gray-700 mb-1.5">
-          Country *
+          Country / Region *
         </label>
         <select
           value={value.country}
