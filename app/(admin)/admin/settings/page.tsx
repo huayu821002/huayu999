@@ -26,6 +26,19 @@ const HOMEPAGE_SECTIONS = [
   { key: 'banners', label: 'Banners (JSON)' },
   { key: 'trust_badges', label: 'Trust Badges' },
   { key: 'category_title', label: 'Category Section Title' },
+  { key: 'new_arrivals', label: 'New Arrivals (title=false to disable)' },
+]
+
+const PAGE_SECTIONS = [
+  { key: 'about_hero', label: 'About - Hero Title' },
+  { key: 'about_content', label: 'About - Main Content (HTML)', multiline: true },
+  { key: 'about_story', label: 'About - Company Story' },
+  { key: 'about_values', label: 'About - Values (JSON array)' },
+  { key: 'about_cta', label: 'About - CTA Section' },
+  { key: 'contact_hero', label: 'Contact - Hero Title' },
+  { key: 'contact_form', label: 'Contact - Form Title' },
+  { key: 'contact_info', label: 'Contact - Info (JSON: email,whatsapp,phone,address,hours)' },
+  { key: 'contact_extra', label: 'Contact - Extra Content (HTML)' },
 ]
 
 export default function AdminSettingsPage() {
@@ -33,7 +46,7 @@ export default function AdminSettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'shipping'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'shipping' | 'pages'>('general')
 
   // Categories
   const [categories, setCategories] = useState<Category[]>([])
@@ -69,7 +82,7 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     if (!isAdmin) return
     if (activeTab === 'categories') fetchCategories()
-    if (activeTab === 'homepage') fetchHomepageContent()
+    if (activeTab === 'homepage' || activeTab === 'pages') fetchHomepageContent()
     if (activeTab === 'shipping') fetchShippingMethods()
   }, [isAdmin, activeTab])
 
@@ -164,6 +177,21 @@ export default function AdminSettingsPage() {
     setIsSaving(false)
   }
 
+  const handleSaveHomepage = async (sections: string[]) => {
+    setIsSaving(true)
+    try {
+      for (const section of sections) {
+        const form = homepageForm[section]
+        if (form) {
+          await fetch('/api/admin/site-content', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ section, ...form }) })
+        }
+      }
+      fetchHomepageContent()
+      alert('All page content saved!')
+    } catch { alert('Failed to save') }
+    setIsSaving(false)
+  }
+
   return (
     <div className="min-h-screen bg-joy-gray-50">
       <Header />
@@ -174,10 +202,10 @@ export default function AdminSettingsPage() {
             <Link href="/admin/dashboard"><Button variant="secondary">Back to Dashboard</Button></Link>
           </div>
 
-          <div className="flex border-b border-joy-gray-200 mb-6">
-            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }].map(tab => (
+          <div className="flex border-b border-joy-gray-200 mb-6 overflow-x-auto">
+            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'pages', label: 'Pages' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
-                className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors ${activeTab === tab.key ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'}`}>
+                className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors whitespace-nowrap ${activeTab === tab.key ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'}`}>
                 {tab.label}
               </button>
             ))}
@@ -246,6 +274,72 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Pages Tab - About & Contact */}
+          {activeTab === 'pages' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2">Page Content Editor</h2>
+                <p className="text-sm text-joy-gray-500 mb-6">Edit About Us and Contact Us page content. Changes appear immediately on the storefront.</p>
+                
+                {PAGE_SECTIONS.map(section => (
+                  <div key={section.key} className="mb-6 pb-6 border-b border-joy-gray-100 last:border-0">
+                    <h3 className="font-medium text-joy-gray-900 mb-3">{section.label}</h3>
+                    <div className="space-y-3">
+                      <Input 
+                        label="Title"
+                        placeholder="Section title"
+                        value={homepageForm[section.key]?.title || ''}
+                        onChange={e => setHomepageForm({
+                          ...homepageForm,
+                          [section.key]: { ...homepageForm[section.key], title: e.target.value }
+                        })}
+                      />
+                      <Input 
+                        label="Subtitle"
+                        placeholder="Section subtitle"
+                        value={homepageForm[section.key]?.subtitle || ''}
+                        onChange={e => setHomepageForm({
+                          ...homepageForm,
+                          [section.key]: { ...homepageForm[section.key], subtitle: e.target.value }
+                        })}
+                      />
+                      {section.multiline ? (
+                        <div>
+                          <label className="block text-sm font-medium text-joy-gray-700 mb-2">Content (HTML supported)</label>
+                          <textarea
+                            className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange min-h-[120px] font-mono text-sm"
+                            placeholder="<p>Your HTML content here...</p>"
+                            value={homepageForm[section.key]?.content || ''}
+                            onChange={e => setHomepageForm({
+                              ...homepageForm,
+                              [section.key]: { ...homepageForm[section.key], content: e.target.value }
+                            })}
+                          />
+                        </div>
+                      ) : (
+                        <Input
+                          label="Content"
+                          placeholder="Content or JSON data"
+                          value={homepageForm[section.key]?.content || ''}
+                          onChange={e => setHomepageForm({
+                            ...homepageForm,
+                            [section.key]: { ...homepageForm[section.key], content: e.target.value }
+                          })}
+                        />
+                      )}
+                    </div>
+                  </div>
+                ))}
+                
+                <div className="flex justify-end">
+                  <Button onClick={() => handleSaveHomepage(PAGE_SECTIONS.map(s => s.key))} isLoading={isSaving}>
+                    Save Page Content
+                  </Button>
                 </div>
               </div>
             </div>
