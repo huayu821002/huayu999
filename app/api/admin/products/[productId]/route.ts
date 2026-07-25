@@ -20,7 +20,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
     const {
       name, slug, description, price, comparePrice, costPrice,
       weight, images, sku, barcode, inventory,
-      categoryId, status
+      categoryId, isActive
     } = body
 
     const product = await prisma.product.update({
