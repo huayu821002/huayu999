@@ -1,3 +1,6 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
 generator client {
   provider = "prisma-client-js"
 }
@@ -8,20 +11,18 @@ datasource db {
 }
 
 model User {
-  id        String    @id @default(cuid())
-  email     String    @unique
-  password  String
-  name      String
-  role      String    @default("CUSTOMER")
-  company   String?
-  phone     String?
-  currency  String    @default("USD")
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  cart      Cart?
-  orders    Order[]
-  wishlist  WishlistItem[]
-  addresses Address[]
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String?
+  name          String?
+  role          String    @default("CUSTOMER")
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  addresses     Address[]
+  orders        Order[]
+  cart          Cart?
+  wishlist      Wishlist?
+  reviews       Review[]
 }
 
 model Address {
@@ -43,91 +44,38 @@ model Category {
   description String?
   image       String?
   parentId    String?
-  parent      Category? @relation("CategoryHierarchy", fields: [parentId], references: [id])
-  children    Category[] @relation("CategoryHierarchy")
-  products    Product[]
+  parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id])
+  children    Category[] @relation("CategoryToCategory")
+  products    Product[] @relation("ProductToCategory")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
 
 model Product {
-  id              String   @id @default(cuid())
-  name            String
-  slug            String   @unique
-  description     String
-  shortDesc       String?
-  price           Float
-  comparePrice    Float?
-  costPrice       Float?
-  wholesalePrice  Float?
-  vipPrice        Float?
-  minOrderQty     Int      @default(1)
-  weight          Float?
-  dimensions      String?
-  images          String
-  modelImage      String?
-  sizeChart       String?
-  sku             String   @unique
-  barcode         String?
-  inventory       Int      @default(0)
-  lowStockAlert   Int      @default(10)
-  categoryId      String
-  category        Category @relation(fields: [categoryId], references: [id])
-  tags            String?
-  isActive        Boolean  @default(true)
-  isFeatured      Boolean  @default(false)
-  isTrending      Boolean  @default(false)
-  compliance      String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  cartItems       CartItem[]
-  wishlistItems   WishlistItem[]
-  variants        ProductVariant[]
-}
-
-model ProductVariant {
-  id        String  @id @default(cuid())
-  productId String
-  product   Product @relation(fields: [productId], references: [id], onDelete: Cascade)
-  name      String
-  value     String
-  sku       String?
-  price     Float?
-  inventory Int     @default(0)
-  image     String?
-  cartItems CartItem[]
-}
-
-model Cart {
-  id        String     @id @default(cuid())
-  userId    String     @unique
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  items     CartItem[]
-  createdAt DateTime   @default(now())
-  updatedAt DateTime   @updatedAt
-}
-
-model CartItem {
-  id        String   @id @default(cuid())
-  cartId    String
-  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id])
-  quantity  Int
-  variantId String?
-  variant   ProductVariant? @relation(fields: [variantId], references: [id])
-  createdAt DateTime @default(now())
-}
-
-model WishlistItem {
-  id        String   @id @default(cuid())
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  productId String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
-  createdAt DateTime @default(now())
-
-  @@unique([userId, productId])
+  id          String      @id @default(cuid())
+  name        String
+  slug        String      @unique
+  description String?
+  price       Float
+  comparePrice Float?
+  costPrice   Float?
+  sku         String      @unique
+  barcode     String?
+  weight      Float?
+  images      String?
+  categoryId  String?
+  category    Category?   @relation("ProductToCategory", fields: [categoryId], references: [id])
+  inventory   Int         @default(0)
+  trackInventory Boolean  @default(true)
+  status      String      @default("ACTIVE")
+  isWholesale Boolean    @default(false)
+  wholesalePrices String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+  reviews     Review[]
+  page        Page?
 }
 
 model Order {
@@ -152,59 +100,100 @@ model Order {
   notes           String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  orderItems      OrderItem[]
 }
 
-model Subscriber {
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String
+  sku       String?
+  price     Float
+  quantity  Int
+  image     String?
+  weight    Float?
+  variant   String?
+}
+
+model Cart {
+  id        String     @id @default(cuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id])
+  items     CartItem[]
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+}
+
+model CartItem {
+  id        String  @id @default(cuid())
+  cartId    String
+  cart      Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  quantity  Int     @default(1)
+  variant   String?
+}
+
+model Wishlist {
+  id        String       @id @default(cuid())
+  userId    String       @unique
+  user      User         @relation(fields: [userId], references: [id])
+  items     WishlistItem[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model WishlistItem {
+  id          String   @id @default(cuid())
+  wishlistId  String
+  wishlist    Wishlist @relation(fields: [wishlistId], references: [id], onDelete: Cascade)
+  productId   String
+  createdAt   DateTime @default(now())
+}
+
+model Review {
   id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  source    String?
+  productId String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  rating    Int
+  comment   String?
   createdAt DateTime @default(now())
 }
 
-model SiteContent {
+model Page {
   id        String   @id @default(cuid())
-  section   String   @unique
-  title     String?
-  subtitle  String?
-  content   String?
-  isActive  Boolean  @default(true)
-  sortOrder Int      @default(0)
+  title     String
+  slug      String   @unique
+  content   String
+  status    String   @default("DRAFT")
+  productId String   @unique
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model ShippingMethod {
+model ShippingRate {
   id           String   @id @default(cuid())
-  name         String   // e.g., "Standard Shipping", "DHL Express"
-  code         String   @unique  // e.g., "STANDARD", "DHL"
-  description  String?
-  baseCost     Float    @default(0)   // Base cost in USD
-  costPerKg    Float    @default(0)   // Cost per kg
-  freeThreshold Float   @default(0)   // Free shipping when order >= this amount
-  minWeight    Float    @default(0)   // Minimum weight in kg
-  maxWeight    Float    @default(0)   // Maximum weight in kg (0 = unlimited)
-  estimatedDays String? // e.g., "7-15 days"
+  countryCode  String   @unique
+  countryName  String
+  baseCost     Float    @default(0)
+  costPerKg    Float    @default(0)
+  freeThreshold Float   @default(0)
+  estimatedDays String?
   isActive     Boolean  @default(true)
-  sortOrder    Int      @default(0)
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
 
-model CustomPage {
-  id          String   @id @default(cuid())
-  title       String
-  slug        String   @unique
-  excerpt     String?  // Short description for SEO and listings
-  content     String   // HTML content
-  featuredImage String? // Featured image URL
-  template    String   @default("default") // Page template: default, full-width, sidebar, landing
-  metaTitle   String?
-  metaDesc    String?
-  status      String   @default("draft") // draft, published, scheduled
-  publishAt   DateTime? // Scheduled publish time
-  isActive    Boolean  @default(false) // Alias for status=published for backward compatibility
-  sortOrder   Int      @default(0)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model SiteSetting {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  value     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
