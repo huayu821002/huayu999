@@ -86,7 +86,13 @@ export async function GET() {
       name: p.name,
       sales: p._count.cartItems,
       revenue: `$${(p.price * p._count.cartItems).toFixed(0)}`,
-      image: p.images ? JSON.parse(p.images)[0] : null,
+      image: (() => {
+        if (!p.images) return null
+        try {
+          const parsed = JSON.parse(p.images)
+          return Array.isArray(parsed) ? parsed[0] : parsed
+        } catch { return p.images }
+      })(),
     }))
 
     return NextResponse.json({

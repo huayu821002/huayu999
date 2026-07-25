@@ -257,7 +257,7 @@ export default function AdminDashboard() {
                       <Link key={product.id} href={`/products/${product.id}`} className="flex items-center gap-4 hover:bg-joy-gray-50 -mx-2 px-2 py-2 rounded-lg transition-colors">
                         <div className="w-10 h-10 rounded-lg bg-joy-gray-100 overflow-hidden flex-shrink-0">
                           {product.image ? (
-                            <img src={JSON.parse(product.image)[0]} alt="" className="w-full h-full object-cover" />
+                            <img src={product.image} alt="" className="w-full h-full object-cover" />
                           ) : (
                             <div className="w-full h-full flex items-center justify-center text-joy-gray-300">
                               <Icons.Package size={20} />
