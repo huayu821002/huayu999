@@ -211,8 +211,8 @@ export default function AdminSettingsPage() {
   }
 
   const handlePageSubmit = async () => {
-    if (!pageForm.title || !pageForm.slug || !pageForm.content) {
-      alert('Title, slug, and content are required')
+    if (!pageForm.title || !pageForm.slug) {
+      alert('Title and slug are required')
       return
     }
     setIsSaving(true)
@@ -230,9 +230,12 @@ export default function AdminSettingsPage() {
         fetchCustomPages()
         alert(editingPage ? 'Page updated!' : 'Page created!')
       } else {
-        alert(data.error || 'Failed to save')
+        alert('Error: ' + (data.error || 'Unknown error'))
       }
-    } catch { alert('Failed to save') }
+    } catch (err) { 
+      console.error('Submit error:', err)
+      alert('Failed to save: ' + String(err))
+    }
     setIsSaving(false)
   }
 
@@ -632,13 +635,72 @@ export default function AdminSettingsPage() {
               
               {/* Content */}
               <div className="space-y-4">
-                <h3 className="font-medium text-joy-gray-900">Page Content (HTML) *</h3>
-                <textarea
-                  className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange min-h-[250px] font-mono text-sm"
-                  placeholder="<h2>Your Content</h2><p>Write your page content here with HTML formatting...</p>"
-                  value={pageForm.content}
-                  onChange={e => setPageForm({...pageForm, content: e.target.value})}
-                />
+                <div className="flex items-center justify-between">
+                  <h3 className="font-medium text-joy-gray-900">Page Content (HTML) *</h3>
+                  <div className="flex gap-2">
+                    <input
+                      type="file"
+                      id="imageUpload"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0]
+                        if (!file) return
+                        const formData = new FormData()
+                        formData.append('file', file)
+                        try {
+                          const res = await fetch('/api/upload', { method: 'POST', body: formData })
+                          const data = await res.json()
+                          if (data.success) {
+                            const imgTag = `<img src="${data.url}" alt="${file.name}" style="max-width:100%;height:auto;" />`
+                            setPageForm({...pageForm, content: pageForm.content + imgTag})
+                          } else {
+                            alert(data.error || 'Upload failed')
+                          }
+                        } catch { alert('Upload failed') }
+                        e.target.value = ''
+                      }}
+                    />
+                    <label
+                      htmlFor="imageUpload"
+                      className="px-3 py-1.5 bg-joy-gray-100 hover:bg-joy-gray-200 rounded-lg text-sm font-medium text-joy-gray-700 cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Icons.Package size={16} /> Upload Image
+                    </label>
+                  </div>
+                </div>
+                
+                {/* Simple WYSIWYG Toolbar */}
+                <div className="border-2 border-joy-gray-200 rounded-xl overflow-hidden focus-within:border-joy-orange">
+                  <div className="bg-joy-gray-50 px-3 py-2 flex flex-wrap gap-1 border-b border-joy-gray-200">
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<h2></h2>'})} className="px-2 py-1 text-sm font-bold hover:bg-joy-gray-200 rounded">H2</button>
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<h3></h3>'})} className="px-2 py-1 text-sm font-bold hover:bg-joy-gray-200 rounded">H3</button>
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<p></p>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">P</button>
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<strong></strong>'})} className="px-2 py-1 text-sm font-bold hover:bg-joy-gray-200 rounded">B</button>
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<em></em>'})} className="px-2 py-1 text-sm italic hover:bg-joy-gray-200 rounded">I</button>
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<ul><li></li></ul>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">• List</button>
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<ol><li></li></ol>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">1. List</button>
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<a href=""></a>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">Link</button>
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<hr/>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">HR</button>
+                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<blockquote></blockquote>'})} className="px-2 py-1 text-sm italic hover:bg-joy-gray-200 rounded">Quote</button>
+                  </div>
+                  <textarea
+                    className="w-full px-4 py-3 min-h-[250px] font-mono text-sm border-0 focus:ring-0"
+                    placeholder="<h2>Your Content</h2>&#10;<p>Write your page content here with HTML formatting...</p>&#10;&#10;<p>Use the toolbar above or write HTML directly.</p>"
+                    value={pageForm.content}
+                    onChange={e => setPageForm({...pageForm, content: e.target.value})}
+                  />
+                </div>
+                
+                {/* Content Preview */}
+                {pageForm.content && (
+                  <div className="mt-4">
+                    <h4 className="text-sm font-medium text-joy-gray-700 mb-2">Preview:</h4>
+                    <div className="border rounded-xl p-4 bg-white">
+                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: pageForm.content }} />
+                    </div>
+                  </div>
+                )}
               </div>
               
               {/* SEO */}

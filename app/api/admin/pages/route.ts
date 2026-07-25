@@ -18,8 +18,8 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { title, slug, excerpt, content, featuredImage, template, metaTitle, metaDesc, status, sortOrder } = body
 
-    if (!title || !slug || !content) {
-      return NextResponse.json({ success: false, error: 'Title, slug, and content are required' }, { status: 400 })
+    if (!title || !slug) {
+      return NextResponse.json({ success: false, error: 'Title and slug are required' }, { status: 400 })
     }
 
     // Check if slug already exists
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
         title,
         slug,
         excerpt: excerpt || null,
-        content,
+        content: content || '',
         featuredImage: featuredImage || null,
         template: template || 'default',
         metaTitle: metaTitle || null,
@@ -47,8 +47,10 @@ export async function POST(request: Request) {
     })
 
     return NextResponse.json({ success: true, data: page })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create page error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to create page' }, { status: 500 })
+    // Return detailed error message
+    const errorMessage = error?.message || 'Failed to create page'
+    return NextResponse.json({ success: false, error: errorMessage }, { status: 500 })
   }
 }
