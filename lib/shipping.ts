@@ -268,6 +268,8 @@ export interface ShippingOption {
   isActive: boolean
   freeThreshold: number
 }
+
+export function calculateTotalWeight(items: { weight?: number | null; quantity: number }[]): number {
   return items.reduce((total, item) => {
     const weight = item.weight || 0
     return total + (weight * item.quantity)
