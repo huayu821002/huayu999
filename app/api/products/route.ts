@@ -6,7 +6,6 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const search = searchParams.get('search')
-    const featured = searchParams.get('featured')
 
     const where: Record<string, unknown> = {}
 
@@ -20,11 +19,6 @@ export async function GET(request: Request) {
         { description: { contains: search } },
         { sku: { contains: search } },
       ]
-    }
-
-    // Filter by featured flag
-    if (featured === 'true') {
-      where.isFeatured = true
     }
 
     const products = await prisma.product.findMany({
@@ -45,40 +39,30 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, data: productsWithCategory })
   } catch (error: any) {
     console.error('Products API error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
 
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const {
-      name, slug, description, price, comparePrice, costPrice,
-      weight, images, sku, barcode, inventory,
-      categoryId, status
-    } = body
+    const { name, slug, description, price, images, sku, categoryId, status } = body
 
     const product = await prisma.product.create({
       data: {
         name,
         slug: slug || name.toLowerCase().replace(/\s+/g, '-'),
         description,
-        price: parseFloat(price),
-        comparePrice: comparePrice ? parseFloat(comparePrice) : null,
-        costPrice: costPrice ? parseFloat(costPrice) : null,
-        weight: weight ? parseFloat(weight) : null,
+        price: parseFloat(price) || 0,
         images: typeof images === 'string' ? images : JSON.stringify(images),
         sku,
-        barcode,
-        inventory: parseInt(inventory) || 0,
         categoryId,
         status: status || 'ACTIVE',
       },
     })
-
     return NextResponse.json({ success: true, data: product })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create product error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to create product' })
+    return NextResponse.json({ success: false, error: error.message })
   }
 }
