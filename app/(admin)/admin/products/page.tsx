@@ -205,7 +205,14 @@ export default function AdminProductsPage() {
   }
 
   const parseImages = (imgStr: string): string[] => {
-    try { return JSON.parse(imgStr) } catch { return imgStr ? [imgStr] : [] }
+    if (!imgStr) return []
+    try { 
+      const parsed = JSON.parse(imgStr)
+      return Array.isArray(parsed) ? parsed : [parsed]
+    } catch { 
+      // Not JSON, treat as comma-separated URLs
+      return imgStr.split(',').map(s => s.trim()).filter(Boolean)
+    }
   }
 
   const COMMON_ATTRIBUTES = ['Color', 'Size', 'Material', 'Style', 'Weight', 'Dimensions']
