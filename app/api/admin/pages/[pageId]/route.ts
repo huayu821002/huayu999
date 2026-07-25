@@ -6,7 +6,7 @@ export async function GET(
   { params }: { params: { pageId: string } }
 ) {
   try {
-    const page = await prisma.customPage.findUnique({
+    const page = await prisma.page.findUnique({
       where: { id: params.pageId },
     })
     if (!page) {
@@ -29,7 +29,7 @@ export async function PUT(
 
     // Check if new slug conflicts with another page
     if (slug) {
-      const existing = await prisma.customPage.findFirst({
+      const existing = await prisma.page.findFirst({
         where: { slug, NOT: { id: params.pageId } },
       })
       if (existing) {
@@ -57,7 +57,7 @@ export async function PUT(
       updateData.publishAt = new Date(publishAt)
     }
 
-    const page = await prisma.customPage.update({
+    const page = await prisma.page.update({
       where: { id: params.pageId },
       data: updateData,
     })
@@ -74,7 +74,7 @@ export async function DELETE(
   { params }: { params: { pageId: string } }
 ) {
   try {
-    await prisma.customPage.delete({ where: { id: params.pageId } })
+    await prisma.page.delete({ where: { id: params.pageId } })
     return NextResponse.json({ success: true })
   } catch (error) {
     console.error('Delete page error:', error)
