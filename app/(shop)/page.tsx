@@ -51,16 +51,9 @@ export default function HomePage() {
     }
   }
 
-  const fetchSiteContent = async () => {
-    try {
-      const res = await fetch('/api/admin/site-content')
-      const data = await res.json()
-      if (data.success && data.data) {
-        const contentMap: Record<string, SiteContent> = {}
-        data.data.forEach((item: SiteContent) => { contentMap[item.key] = item })
-        setSiteContent(contentMap)
-      }
-    } catch (err) { console.error('Failed to fetch site content:', err) }
+    const fetchSiteContent = async () => {
+    // Site content API no longer exists, use defaults
+    setSiteContent({})
   }
 
   const sc = (key: string) => siteContent[key]?.value
