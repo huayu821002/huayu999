@@ -12,7 +12,15 @@ import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import { cn } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
-import type { Product, Category } from '@/types'
+import type { Product } from '@/types'
+
+interface Category {
+  id: string
+  name: string
+  slug: string
+  parentId: string | null
+  children?: Category[]
+}
 
 const SORT_OPTIONS = [
   { value: 'featured', label: 'Featured' },
@@ -21,6 +29,157 @@ const SORT_OPTIONS = [
   { value: 'price-high', label: 'Price: High to Low' },
   { value: 'trending', label: 'Trending' },
 ]
+
+function buildCategoryTree(categories: Category[]): Category[] {
+  const map: Record<string, Category> = {}
+  const roots: Category[] = []
+  
+  // Initialize all categories
+  categories.forEach(cat => {
+    map[cat.id] = { ...cat, children: [] }
+  })
+  
+  // Build tree
+  categories.forEach(cat => {
+    if (cat.parentId && map[cat.parentId]) {
+      map[cat.parentId].children!.push(map[cat.id])
+    } else {
+      roots.push(map[cat.id])
+    }
+  })
+  
+  return roots
+}
+
+function CategorySidebar({ 
+  categories, 
+  selectedCategory, 
+  onSelectCategory,
+  expandedCats,
+  onToggleExpand,
+}: {
+  categories: Category[]
+  selectedCategory: string | null
+  onSelectCategory: (slug: string | null) => void
+  expandedCats: Set<string>
+  onToggleExpand: (id: string) => void
+}) {
+  const roots = buildCategoryTree(categories)
+  
+  return (
+    <div className="bg-white rounded-xl border border-joy-gray-100 p-4">
+      <h3 className="font-semibold text-joy-gray-900 mb-4">Categories</h3>
+      <div className="space-y-1">
+        {/* All Products */}
+        <button
+          onClick={() => onSelectCategory(null)}
+          className={cn(
+            'w-full text-left px-3 py-2.5 rounded-lg text-sm font-medium transition-colors flex items-center gap-2',
+            !selectedCategory 
+              ? 'bg-joy-orange text-white' 
+              : 'hover:bg-joy-gray-50 text-joy-gray-700'
+          )}
+        >
+          <span className="w-5 text-center">≡</span>
+          All Products
+        </button>
+        
+        {/* Category Tree */}
+        {roots.map(cat => (
+          <CategoryItem 
+            key={cat.id} 
+            category={cat} 
+            selectedCategory={selectedCategory}
+            onSelectCategory={onSelectCategory}
+            expandedCats={expandedCats}
+            onToggleExpand={onToggleExpand}
+            level={0}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
+function CategoryItem({
+  category,
+  selectedCategory,
+  onSelectCategory,
+  expandedCats,
+  onToggleExpand,
+  level,
+}: {
+  category: Category
+  selectedCategory: string | null
+  onSelectCategory: (slug: string | null) => void
+  expandedCats: Set<string>
+  onToggleExpand: (id: string) => void
+  level: number
+}) {
+  const hasChildren = category.children && category.children.length > 0
+  const isExpanded = expandedCats.has(category.id)
+  const isSelected = selectedCategory === category.slug
+  
+  return (
+    <div>
+      <div 
+        className={cn(
+          'w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors flex items-center gap-2',
+          isSelected 
+            ? 'bg-joy-orange text-white' 
+            : 'hover:bg-joy-gray-50 text-joy-gray-700',
+          level > 0 && 'ml-4 border-l-2 border-joy-gray-100'
+        )}
+      >
+        {hasChildren && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleExpand(category.id)
+            }}
+            className="p-0.5 hover:bg-black/10 rounded"
+          >
+            <Icons.ChevronRight 
+              size={16} 
+              className={cn('transition-transform', isExpanded && 'rotate-90')} 
+            />
+          </button>
+        )}
+        {!hasChildren && <span className="w-5" />}
+        <button 
+          onClick={() => onSelectCategory(category.slug)}
+          className="flex-1 font-medium"
+        >
+          {category.name}
+        </button>
+        {hasChildren && (
+          <span className={cn(
+            'text-xs px-1.5 py-0.5 rounded',
+            isSelected ? 'bg-white/20' : 'bg-joy-gray-100'
+          )}>
+            {category.children!.length}
+          </span>
+        )}
+      </div>
+      
+      {hasChildren && isExpanded && (
+        <div className="mt-1 space-y-1">
+          {category.children!.map(child => (
+            <CategoryItem 
+              key={child.id} 
+              category={child} 
+              selectedCategory={selectedCategory}
+              onSelectCategory={onSelectCategory}
+              expandedCats={expandedCats}
+              onToggleExpand={onToggleExpand}
+              level={level + 1}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
 
 function ProductsContent() {
   const searchParams = useSearchParams()
@@ -33,6 +192,7 @@ function ProductsContent() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortBy, setSortBy] = useState('featured')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
+  const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
 
   const activeCategory = searchParams.get('category') || selectedCategory
 
@@ -64,7 +224,7 @@ function ProductsContent() {
           id: c.id,
           name: c.name,
           slug: c.slug,
-          productCount: 0,
+          parentId: c.parentId || null,
         })))
       }
     } catch (err) {
@@ -72,16 +232,52 @@ function ProductsContent() {
     }
   }
 
+  const toggleExpand = (catId: string) => {
+    setExpandedCats(prev => {
+      const next = new Set(prev)
+      if (next.has(catId)) {
+        next.delete(catId)
+      } else {
+        next.add(catId)
+      }
+      return next
+    })
+  }
+
+  // Get all category slugs under the selected category (including children)
+  const getCategorySlugs = (slug: string | null): string[] => {
+    if (!slug) return []
+    
+    const cat = categories.find(c => c.slug === slug)
+    if (!cat) return [slug]
+    
+    const slugs = [slug]
+    const addChildren = (parentId: string) => {
+      categories
+        .filter(c => c.parentId === parentId)
+        .forEach(child => {
+          slugs.push(child.slug)
+          addChildren(child.id)
+        })
+    }
+    addChildren(cat.id)
+    return slugs
+  }
+
+  const activeCategorySlugs = getCategorySlugs(activeCategory)
+
   const filteredProducts = products.filter(p => {
-    if (activeCategory && p.category?.slug !== activeCategory) return false
-    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
+    if (activeCategory && p.category?.slug && !activeCategorySlugs.includes(p.category.slug)) {
+      return false
+    }
+    if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+      return false
+    }
     return true
   })
 
   const sortedProducts = [...filteredProducts].sort((a, b) => {
     switch (sortBy) {
-      case 'newest':
-        return 0 // Sorting by date not available without createdAt
       case 'price-low':
         return a.price - b.price
       case 'price-high':
@@ -94,9 +290,11 @@ function ProductsContent() {
     }
   })
 
-  const currentCategoryName = activeCategory 
-    ? categories.find(c => c.slug === activeCategory)?.name || 'Products'
-    : 'All Products'
+  const getCategoryName = () => {
+    if (!activeCategory) return 'All Products'
+    const cat = categories.find(c => c.slug === activeCategory)
+    return cat?.name || 'Products'
+  }
 
   return (
     <>
@@ -104,7 +302,7 @@ function ProductsContent() {
       <div className="bg-joy-gray-50 border-b border-joy-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-8">
           <h1 className="font-display text-3xl font-bold text-joy-gray-900 mb-2">
-            {currentCategoryName}
+            {getCategoryName()}
           </h1>
           <p className="text-joy-gray-600">
             {filteredProducts.length} products available
@@ -114,37 +312,18 @@ function ProductsContent() {
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
-          {/* Sidebar Filters */}
+          {/* Sidebar */}
           <aside className={cn(
-            'lg:w-64 flex-shrink-0',
+            'lg:w-72 flex-shrink-0',
             isFilterOpen ? 'block' : 'hidden lg:block'
           )}>
-            <div className="bg-white rounded-xl border border-joy-gray-100 p-4 mb-6">
-              <h3 className="font-semibold text-joy-gray-900 mb-4">Categories</h3>
-              <div className="space-y-2">
-                <button
-                  onClick={() => setSelectedCategory(null)}
-                  className={cn(
-                    'w-full text-left px-3 py-2 rounded-lg text-sm transition-colors',
-                    !activeCategory ? 'bg-joy-orange text-white' : 'hover:bg-joy-gray-50'
-                  )}
-                >
-                  All Products
-                </button>
-                {categories.map((cat) => (
-                  <button
-                    key={cat.id}
-                    onClick={() => setSelectedCategory(cat.slug)}
-                    className={cn(
-                      'w-full text-left px-3 py-2 rounded-lg text-sm flex items-center justify-between transition-colors',
-                      activeCategory === cat.slug ? 'bg-joy-orange text-white' : 'hover:bg-joy-gray-50'
-                    )}
-                  >
-                    <span>{cat.name}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
+            <CategorySidebar 
+              categories={categories}
+              selectedCategory={activeCategory}
+              onSelectCategory={setSelectedCategory}
+              expandedCats={expandedCats}
+              onToggleExpand={toggleExpand}
+            />
           </aside>
 
           {/* Main Content */}
@@ -158,7 +337,7 @@ function ProductsContent() {
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full sm:w-80 pl-10 pr-4 py-2.5 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none focus:ring-2 focus:ring-joy-orange/20 text-sm"
+                  className="w-full sm:w-80 pl-10 pr-4 py-2.5 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none text-sm"
                 />
               </div>
 
