@@ -243,6 +243,27 @@ export default function AdminProductsPage() {
             </div>
             <div className="flex items-center gap-4">
               <Link href="/admin/dashboard"><Button variant="secondary">Back to Dashboard</Button></Link>
+              <input type="file" accept=".csv" id="csvImport" className="hidden" onChange={async (e) => {
+                const file = e.target.files?.[0]
+                if (!file) return
+                const formData = new FormData()
+                formData.append('file', file)
+                try {
+                  const res = await fetch('/api/admin/products/import', { method: 'POST', body: formData })
+                  const data = await res.json()
+                  if (data.success !== undefined) {
+                    alert(`Imported: ${data.success}, Failed: ${data.failed}\n${data.errors?.slice(0,3).join('\n') || ''}`)
+                    fetchProducts()
+                  } else {
+                    alert(data.error || 'Import failed')
+                  }
+                } catch { alert('Import failed') }
+                e.target.value = ''
+              }} />
+              <label htmlFor="csvImport" className="cursor-pointer inline-flex items-center justify-center rounded-xl border-2 border-joy-gray-200 bg-white px-4 py-2.5 text-sm font-medium text-joy-gray-700 hover:bg-joy-gray-50 transition-colors">
+                <Icons.Package size={18} className="mr-2" />Import CSV
+              </label>
+              <Button variant="secondary" onClick={() => window.open('/api/admin/products/import', '_blank')}><Icons.Download size={18} className="mr-2" />Export CSV</Button>
               <Button onClick={openAdd}><Icons.Plus size={18} className="mr-2" />Add Product</Button>
             </div>
           </div>
