@@ -234,30 +234,7 @@ export function getShippingMethods(countryCode: string): ShippingMethod[] {
   }))
 }
 
-// Calculate shipping cost based on weight and selected method
-export function calculateShipping(
-  countryCode: string,
-  totalWeight: number,
-  subtotal: number,
-  shippingMethodCode: string
-): number {
-  const methods = getShippingMethods(countryCode)
-  const method = methods.find(m => m.code === shippingMethodCode)
-  
-  if (!method) {
-    return 0
-  }
-
-  // Check free shipping threshold
-  if (method.freeThreshold > 0 && subtotal >= method.freeThreshold) {
-    return 0
-  }
-
-  // Calculate cost: base + (weight * costPerKg)
-  const weightCost = totalWeight * method.costPerKg
-  return method.baseCost + weightCost
-}
-
+// ShippingOption interface for the ShippingSelect component
 export interface ShippingOption {
   id: string
   name: string
@@ -272,6 +249,7 @@ export interface ShippingOption {
   description?: string
 }
 
+// Calculate total weight from items
 export function calculateTotalWeight(items: { weight?: number | null; quantity: number }[]): number {
   return items.reduce((total, item) => {
     const weight = item.weight || 0
