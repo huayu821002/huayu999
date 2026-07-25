@@ -12,7 +12,7 @@ export async function GET() {
     // Create CSV header - only fields that exist in schema
     const headers = [
       'name', 'slug', 'sku', 'description', 'price', 'comparePrice', 'costPrice',
-      'inventory', 'weight', 'category', 'images', 'status'
+      'inventory', 'weight', 'category', 'images', 'isActive'
     ]
 
     // Create CSV rows
@@ -110,7 +110,7 @@ export async function POST(request: Request) {
             weight: row.weight ? parseFloat(row.weight) : null,
             images,
             categoryId,
-            status: row.status || 'ACTIVE',
+            isActive: row.isActive !== undefined ? isActive : true,
           }
         })
         results.imported++
