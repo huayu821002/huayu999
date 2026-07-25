@@ -72,7 +72,6 @@ model Product {
   category    Category?   @relation("ProductToCategory", fields: [categoryId], references: [id])
   inventory   Int         @default(0)
   lowStockAlert Int      @default(10)
-  trackInventory Boolean  @default(true)
   minOrderQty  Int        @default(1)
   isActive    Boolean     @default(true)
   isFeatured  Boolean     @default(false)
