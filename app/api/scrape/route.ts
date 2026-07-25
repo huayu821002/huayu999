@@ -200,7 +200,7 @@ function extractImages(html: string): string[] {
   })
 
   // Deduplicate and filter
-  const unique = [...new Set(images)].filter(img => {
+  const unique = Array.from(new Set(images)).filter(img => {
     return img.startsWith('http') && !img.includes('data:')
   })
 
