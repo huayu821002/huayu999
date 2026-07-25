@@ -258,8 +258,16 @@ export function calculateShipping(
   return method.baseCost + weightCost
 }
 
-// Calculate total weight from items
-export function calculateTotalWeight(items: { weight?: number | null; quantity: number }[]): number {
+export interface ShippingOption {
+  id: string
+  name: string
+  code: string
+  baseCost: number
+  costPerKg: number
+  estimatedDays: string
+  isActive: boolean
+  freeThreshold: number
+}
   return items.reduce((total, item) => {
     const weight = item.weight || 0
     return total + (weight * item.quantity)
