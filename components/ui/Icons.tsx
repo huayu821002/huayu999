@@ -63,4 +63,5 @@ export const Icons = {
   Lock: LucideIcons.Lock,
   Sparkles: LucideIcons.Sparkles,
   TrendUp: TrendUpIcon,
+  Download: LucideIcons.Download,
 }
