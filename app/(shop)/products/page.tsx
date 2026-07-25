@@ -245,6 +245,7 @@ function ProductsContent() {
       sku: product.sku || '',
       price: product.price,
       quantity: qty,
+      weight: product.weight || 0.5,
       image: images[0],
     }
   }).filter(Boolean) as any[]

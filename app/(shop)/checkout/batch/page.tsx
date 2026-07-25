@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import Image from 'next/image'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { Button } from '@/components/ui/Button'
@@ -11,6 +10,9 @@ import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
+import { AddressSelect } from '@/components/shop/AddressSelect'
+import { ShippingSelect } from '@/components/shop/ShippingSelect'
+import { ShippingOption } from '@/lib/shipping'
 
 interface BatchOrderItem {
   productId: string
@@ -18,7 +20,16 @@ interface BatchOrderItem {
   sku: string
   price: number
   quantity: number
+  weight?: number | null
   image?: string
+}
+
+interface AddressData {
+  country: string
+  state: string
+  city: string
+  street: string
+  zip: string
 }
 
 export default function BatchCheckoutPage() {
@@ -35,48 +46,67 @@ export default function BatchCheckoutPage() {
     email: '',
     phone: '',
     company: '',
-    address: '',
-    city: '',
-    state: '',
-    zip: '',
-    country: 'United States',
-    notes: '',
   })
+  
+  // Address with cascading dropdowns
+  const [address, setAddress] = useState<AddressData>({
+    country: '',
+    state: '',
+    city: '',
+    street: '',
+    zip: '',
+  })
+  
+  // Shipping
+  const [selectedShipping, setSelectedShipping] = useState<ShippingOption | null>(null)
 
   useEffect(() => {
     const stored = localStorage.getItem('batchOrder')
     if (stored) {
-      setItems(JSON.parse(stored))
+      try {
+        setItems(JSON.parse(stored))
+      } catch {
+        router.push('/products')
+      }
     } else {
       router.push('/products')
     }
   }, [router])
 
+  // Calculate totals
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
-  const shipping = subtotal > 500 ? 0 : 29.99
-  const total = subtotal + shipping
+  const shippingCost = selectedShipping?.isFree ? 0 : (selectedShipping?.cost || 0)
+  const total = subtotal + shippingCost
 
   const handleSubmitOrder = async () => {
+    // Validation
     if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
-      alert('Please fill in required fields: Name, Email, Phone')
+      alert('Please fill in: Name, Email, Phone')
+      return
+    }
+    if (!address.country || !address.state || !address.city || !address.street) {
+      alert('Please complete your shipping address')
+      return
+    }
+    if (!selectedShipping) {
+      alert('Please select a shipping method')
       return
     }
 
     setIsSubmitting(true)
     
     try {
-      // Format customer info as shipping address string
+      // Format shipping address
       const shippingAddress = JSON.stringify({
         name: customerInfo.name,
         email: customerInfo.email,
         phone: customerInfo.phone,
         company: customerInfo.company,
-        address: customerInfo.address,
-        city: customerInfo.city,
-        state: customerInfo.state,
-        zip: customerInfo.zip,
-        country: customerInfo.country,
-        notes: customerInfo.notes,
+        street: address.street,
+        city: address.city,
+        state: address.state,
+        country: address.country,
+        zip: address.zip,
       })
 
       const orderData = {
@@ -86,10 +116,11 @@ export default function BatchCheckoutPage() {
           price: item.price,
         })),
         subtotal,
-        shippingCost: shipping,
+        shippingCost,
         total,
         shippingAddress,
         currency: 'USD',
+        shippingMethod: selectedShipping.name,
       }
 
       const res = await fetch('/api/orders', {
@@ -175,15 +206,18 @@ export default function BatchCheckoutPage() {
           <p className="text-joy-gray-600 mb-8">Review your order and submit</p>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Order Items */}
-            <div className="lg:col-span-2 space-y-4">
+            {/* Left Column - Form */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Order Items */}
               <div className="bg-white rounded-2xl shadow-sm p-6">
-                <h2 className="font-semibold text-lg text-joy-gray-900 mb-4">Order Items ({items.length})</h2>
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-4">
+                  Order Items ({items.length})
+                </h2>
                 
                 <div className="space-y-4">
                   {items.map((item) => (
                     <div key={item.productId} className="flex items-center gap-4 p-4 bg-joy-gray-50 rounded-xl">
-                      <div className="w-20 h-20 bg-white rounded-lg overflow-hidden flex-shrink-0">
+                      <div className="w-16 h-16 bg-white rounded-lg overflow-hidden flex-shrink-0">
                         {item.image ? (
                           <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
                         ) : (
@@ -196,11 +230,10 @@ export default function BatchCheckoutPage() {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-joy-gray-900 line-clamp-1">{item.name}</h3>
                         <p className="text-sm text-joy-gray-400">SKU: {item.sku || 'N/A'}</p>
-                        <div className="flex items-center gap-4 mt-2 text-sm">
-                          <span className="text-joy-gray-600">
-                            {formatCurrency(item.price, currency)} × {item.quantity}
-                          </span>
-                        </div>
+                        <p className="text-sm text-joy-gray-600 mt-1">
+                          {formatCurrency(item.price, currency)} × {item.quantity} pcs
+                          {item.weight && <span className="text-joy-gray-400 ml-2">| Weight: {item.weight}kg</span>}
+                        </p>
                       </div>
                       
                       <div className="text-right">
@@ -213,10 +246,9 @@ export default function BatchCheckoutPage() {
                 </div>
               </div>
 
-              {/* Customer Info */}
+              {/* Contact Info */}
               <div className="bg-white rounded-2xl shadow-sm p-6">
-                <h2 className="font-semibold text-lg text-joy-gray-900 mb-4">Customer Information</h2>
-                
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-4">Contact Information</h2>
                 <div className="grid sm:grid-cols-2 gap-4">
                   <Input 
                     label="Name *"
@@ -244,65 +276,50 @@ export default function BatchCheckoutPage() {
                     onChange={(e) => setCustomerInfo({ ...customerInfo, company: e.target.value })}
                     placeholder="Company name (optional)"
                   />
-                  <Input 
-                    label="Address *"
-                    value={customerInfo.address}
-                    onChange={(e) => setCustomerInfo({ ...customerInfo, address: e.target.value })}
-                    placeholder="Street address"
-                    className="sm:col-span-2"
-                  />
-                  <Input 
-                    label="City *"
-                    value={customerInfo.city}
-                    onChange={(e) => setCustomerInfo({ ...customerInfo, city: e.target.value })}
-                  />
-                  <Input 
-                    label="State/Province"
-                    value={customerInfo.state}
-                    onChange={(e) => setCustomerInfo({ ...customerInfo, state: e.target.value })}
-                  />
-                  <Input 
-                    label="ZIP/Postal Code"
-                    value={customerInfo.zip}
-                    onChange={(e) => setCustomerInfo({ ...customerInfo, zip: e.target.value })}
-                  />
-                  <Input 
-                    label="Country"
-                    value={customerInfo.country}
-                    onChange={(e) => setCustomerInfo({ ...customerInfo, country: e.target.value })}
-                  />
-                  <div className="sm:col-span-2">
-                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Order Notes</label>
-                    <textarea
-                      value={customerInfo.notes}
-                      onChange={(e) => setCustomerInfo({ ...customerInfo, notes: e.target.value })}
-                      placeholder="Special instructions or notes..."
-                      className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none text-sm"
-                      rows={3}
-                    />
-                  </div>
                 </div>
+              </div>
+
+              {/* Shipping Address with Cascading Dropdowns */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-4">Shipping Address</h2>
+                <AddressSelect value={address} onChange={setAddress} />
+              </div>
+
+              {/* Shipping Method */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-4">Shipping Method</h2>
+                <ShippingSelect
+                  items={items}
+                  subtotal={subtotal}
+                  country={address.country}
+                  value={selectedShipping?.id || ''}
+                  onChange={setSelectedShipping}
+                />
               </div>
             </div>
 
-            {/* Order Summary */}
+            {/* Right Column - Summary */}
             <div className="lg:col-span-1">
               <div className="bg-white rounded-2xl shadow-sm p-6 sticky top-32">
                 <h2 className="font-semibold text-lg text-joy-gray-900 mb-4">Order Summary</h2>
                 
                 <div className="space-y-3 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-joy-gray-600">Subtotal</span>
+                    <span className="text-joy-gray-600">Subtotal ({items.reduce((s, i) => s + i.quantity, 0)} items)</span>
                     <span className="font-medium">{formatCurrency(subtotal, currency)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-joy-gray-600">Shipping</span>
                     <span className="font-medium">
-                      {shipping === 0 ? 'FREE' : formatCurrency(shipping, currency)}
+                      {selectedShipping?.isFree ? (
+                        <span className="text-joy-green">FREE</span>
+                      ) : (
+                        formatCurrency(shippingCost, currency)
+                      )}
                     </span>
                   </div>
-                  {shipping > 0 && (
-                    <p className="text-xs text-joy-green">Free shipping on orders over $500</p>
+                  {selectedShipping?.isFree && (
+                    <div className="text-xs text-joy-green">Free shipping applied!</div>
                   )}
                   <div className="border-t pt-3 flex justify-between">
                     <span className="font-semibold text-joy-gray-900">Total</span>
