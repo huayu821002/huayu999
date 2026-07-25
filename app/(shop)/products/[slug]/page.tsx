@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, getPriceByTier, convertPrice } from '@/lib/utils'
 import { useCartStore, useWishlistStore } from '@/lib/store'
+import { parseProductImages, parseImageUrl } from '@/lib/imageUtils'
 
 interface ProductVariant {
   id: string

@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, convertPrice } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
+import { parseProductImages } from '@/lib/imageUtils'
 import type { Currency } from '@/types'
 
 const STEPS = ['Cart', 'Shipping', 'Payment', 'Confirm']
@@ -184,7 +185,7 @@ export default function CheckoutPage() {
                     {items.map((item) => (
                       <div key={item.id} className="flex gap-4 p-4 bg-joy-gray-50 rounded-xl">
                         <div className="w-20 h-20 rounded-lg overflow-hidden bg-white">
-                          <img src={item.product.images[0] || '/placeholder.png'} alt={item.product.name} className="w-full h-full object-cover" />
+                          <img src={parseProductImages(item.product.images)[0] || '/placeholder.png'} alt={item.product.name} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1">
                           <h3 className="font-medium text-joy-gray-900">{item.product.name}</h3>
@@ -326,7 +327,7 @@ export default function CheckoutPage() {
                   {items.slice(0, 3).map((item) => (
                     <div key={item.id} className="flex gap-3">
                       <div className="w-14 h-14 rounded-lg overflow-hidden bg-joy-gray-100 flex-shrink-0">
-                        <img src={item.product.images[0] || '/placeholder.png'} alt={item.product.name} className="w-full h-full object-cover" />
+                        <img src={parseProductImages(item.product.images)[0] || '/placeholder.png'} alt={item.product.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-joy-gray-900 truncate">{item.product.name}</p>

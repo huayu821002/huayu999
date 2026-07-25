@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Icons } from '@/components/ui/Icons'
 import { getWhatsAppLink, getTikTokShareLink } from '@/lib/utils'
+import { parseProductImages } from '@/lib/imageUtils'
 
 const WHATSAPP_NUMBER = '12025551234' // Replace with actual number
 
@@ -130,7 +131,7 @@ export function CartFloatingButton() {
               <div key={item.id} className="flex items-center gap-3">
                 <div className="w-12 h-12 rounded-lg bg-joy-gray-100 overflow-hidden flex-shrink-0">
                   <img
-                    src={item.product.images[0] || '/placeholder.png'}
+                    src={parseProductImages(item.product.images)[0] || '/placeholder.png'}
                     alt={item.product.name}
                     className="w-full h-full object-cover"
                   />

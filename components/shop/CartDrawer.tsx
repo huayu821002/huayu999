@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { cn, formatCurrency, convertPrice } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
+import { parseProductImages } from '@/lib/imageUtils'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
 
@@ -101,7 +102,7 @@ export function CartDrawer() {
                   {/* Product Image */}
                   <div className="w-20 h-20 rounded-lg overflow-hidden bg-white flex-shrink-0">
                     <img
-                      src={item.product.images[0] || '/placeholder.png'}
+                      src={parseProductImages(item.product.images)[0] || '/placeholder.png'}
                       alt={item.product.name}
                       className="w-full h-full object-cover"
                     />

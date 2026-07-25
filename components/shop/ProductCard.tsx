@@ -23,8 +23,24 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
   const { addItem } = useCartStore()
   const { isInWishlist, toggleItem } = useWishlistStore()
   
+  // Parse images - can be JSON array string or already an array
+  const images: string[] = (() => {
+    if (!product.images) return []
+    if (Array.isArray(product.images)) return product.images
+    try { return JSON.parse(product.images as string) } catch { return [product.images] }
+  })()
+  
   const inWishlist = isInWishlist(product.id)
-  const hasModelImage = !!product.modelImage
+  // Parse modelImage - can be JSON string or direct URL
+  const modelImage: string | null = (() => {
+    if (!product.modelImage) return null
+    if (typeof product.modelImage === 'string') {
+      try { return JSON.parse(product.modelImage) } catch { return product.modelImage }
+    }
+    return product.modelImage
+  })()
+  
+  const hasModelImage = !!modelImage
   const hasDiscount = product.comparePrice && product.comparePrice > product.price
   const discountPercent = hasDiscount 
     ? Math.round((1 - product.price / product.comparePrice!) * 100) 
@@ -61,7 +77,7 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
         <div className="product-card-image">
           {/* Main Image */}
           <img
-            src={product.images[0] || '/placeholder.png'}
+            src={images[0] || '/placeholder.png'}
             alt={product.name}
             className={cn(
               'w-full h-full object-cover transition-transform duration-500',
@@ -72,7 +88,7 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
           {/* Hover Model Image (for accessories with size sensitivity) */}
           {hasModelImage && (
             <img
-              src={product.modelImage}
+              src={modelImage}
               alt={`${product.name} - Model view`}
               className={cn(
                 'absolute inset-0 w-full h-full object-cover transition-opacity duration-300',
