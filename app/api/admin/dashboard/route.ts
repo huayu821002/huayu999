@@ -35,7 +35,7 @@ export async function GET() {
       
       // Top products by order items (simplified - just get products with most cart items)
       prisma.product.findMany({
-        where: { isActive: true },
+        where: { status: 'ACTIVE' },
         take: 5,
         orderBy: { createdAt: 'desc' },
         select: {
