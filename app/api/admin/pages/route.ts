@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, slug, content, metaTitle, metaDesc, isActive, sortOrder } = body
+    const { title, slug, excerpt, content, featuredImage, template, metaTitle, metaDesc, status, sortOrder } = body
 
     if (!title || !slug || !content) {
       return NextResponse.json({ success: false, error: 'Title, slug, and content are required' }, { status: 400 })
@@ -28,14 +28,20 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'A page with this slug already exists' }, { status: 400 })
     }
 
+    const isPublished = status === 'published'
+
     const page = await prisma.customPage.create({
       data: {
         title,
         slug,
+        excerpt: excerpt || null,
         content,
-        metaTitle,
-        metaDesc,
-        isActive: isActive !== false,
+        featuredImage: featuredImage || null,
+        template: template || 'default',
+        metaTitle: metaTitle || null,
+        metaDesc: metaDesc || null,
+        status: status || 'draft',
+        isActive: isPublished,
         sortOrder: sortOrder || 0,
       },
     })

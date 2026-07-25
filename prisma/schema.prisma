@@ -195,10 +195,15 @@ model CustomPage {
   id          String   @id @default(cuid())
   title       String
   slug        String   @unique
+  excerpt     String?  // Short description for SEO and listings
   content     String   // HTML content
+  featuredImage String? // Featured image URL
+  template    String   @default("default") // Page template: default, full-width, sidebar, landing
   metaTitle   String?
   metaDesc    String?
-  isActive    Boolean  @default(true)
+  status      String   @default("draft") // draft, published, scheduled
+  publishAt   DateTime? // Scheduled publish time
+  isActive    Boolean  @default(false) // Alias for status=published for backward compatibility
   sortOrder   Int      @default(0)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

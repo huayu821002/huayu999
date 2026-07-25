@@ -72,7 +72,8 @@ export default function AdminSettingsPage() {
   const [showPageModal, setShowPageModal] = useState(false)
   const [editingPage, setEditingPage] = useState<any | null>(null)
   const [pageForm, setPageForm] = useState({
-    title: '', slug: '', content: '', metaTitle: '', metaDesc: '', isActive: true, sortOrder: '0'
+    title: '', slug: '', excerpt: '', content: '', featuredImage: '', template: 'default',
+    metaTitle: '', metaDesc: '', status: 'draft', isActive: false, sortOrder: '0'
   })
 
   useEffect(() => {
@@ -136,6 +137,15 @@ export default function AdminSettingsPage() {
     } catch (err) { console.error(err) }
   }
 
+  const openAddPage = () => {
+    setEditingPage(null)
+    setPageForm({
+      title: '', slug: '', excerpt: '', content: '', featuredImage: '', template: 'default',
+      metaTitle: '', metaDesc: '', status: 'draft', isActive: false, sortOrder: '0'
+    })
+    setShowPageModal(true)
+  }
+
   if (isLoading) return <div className="min-h-screen bg-joy-gray-50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" /></div>
   if (!isAdmin) return null
 
@@ -182,21 +192,18 @@ export default function AdminSettingsPage() {
     } catch { alert('Failed to delete') }
   }
 
-  // Custom Pages handlers
-  const openAddPage = () => {
-    setEditingPage(null)
-    setPageForm({ title: '', slug: '', content: '', metaTitle: '', metaDesc: '', isActive: true, sortOrder: '0' })
-    setShowPageModal(true)
-  }
-
   const openEditPage = (page: any) => {
     setEditingPage(page)
     setPageForm({
       title: page.title,
       slug: page.slug,
+      excerpt: page.excerpt || '',
       content: page.content,
+      featuredImage: page.featuredImage || '',
+      template: page.template || 'default',
       metaTitle: page.metaTitle || '',
       metaDesc: page.metaDesc || '',
+      status: page.status || 'draft',
       isActive: page.isActive,
       sortOrder: String(page.sortOrder || '0'),
     })
@@ -429,7 +436,7 @@ export default function AdminSettingsPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h2 className="font-semibold text-lg text-joy-gray-900">Custom Pages</h2>
-                    <p className="text-sm text-joy-gray-500 mt-1">Create and manage custom content pages</p>
+                    <p className="text-sm text-joy-gray-500 mt-1">WordPress-style page management with templates and SEO</p>
                   </div>
                   <Button onClick={openAddPage}><Icons.Plus size={18} className="mr-2" />Add New Page</Button>
                 </div>
@@ -442,6 +449,7 @@ export default function AdminSettingsPage() {
                         <tr>
                           <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Title</th>
                           <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Slug</th>
+                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Template</th>
                           <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Status</th>
                           <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Actions</th>
                         </tr>
@@ -449,16 +457,28 @@ export default function AdminSettingsPage() {
                       <tbody className="divide-y divide-joy-gray-100">
                         {customPages.map(page => (
                           <tr key={page.id} className="hover:bg-joy-gray-50">
-                            <td className="px-4 py-3 font-medium text-joy-gray-900">{page.title}</td>
+                            <td className="px-4 py-3 font-medium text-joy-gray-900">
+                              <div>{page.title}</div>
+                              {page.excerpt && <div className="text-xs text-joy-gray-500 mt-0.5 truncate max-w-[200px]">{page.excerpt}</div>}
+                            </td>
                             <td className="px-4 py-3 font-mono text-sm text-joy-gray-600">/{page.slug}</td>
                             <td className="px-4 py-3">
-                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${page.isActive ? 'bg-joy-green/10 text-joy-green' : 'bg-joy-gray-100 text-joy-gray-600'}`}>
-                                {page.isActive ? 'Active' : 'Inactive'}
+                              <span className="px-2 py-1 rounded-full text-xs font-medium bg-joy-gray-100 text-joy-gray-600 capitalize">
+                                {page.template || 'default'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium capitalize ${
+                                page.status === 'published' ? 'bg-joy-green/10 text-joy-green' : 
+                                page.status === 'scheduled' ? 'bg-joy-orange/10 text-joy-orange' :
+                                'bg-joy-gray-100 text-joy-gray-600'
+                              }`}>
+                                {page.status || 'draft'}
                               </span>
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
-                                <a href={`/pages/${page.slug}`} target="_blank" className="p-2 hover:bg-joy-gray-100 rounded-lg" title="View">
+                                <a href={`/${page.slug}`} target="_blank" className="p-2 hover:bg-joy-gray-100 rounded-lg" title="View Page">
                                   <Icons.ExternalLink size={16} className="text-joy-gray-500" />
                                 </a>
                                 <button onClick={() => openEditPage(page)} className="p-2 hover:bg-joy-gray-100 rounded-lg" title="Edit">
@@ -564,35 +584,114 @@ export default function AdminSettingsPage() {
       {showPageModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowPageModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-auto">
             <div className="px-6 py-4 border-b border-joy-gray-100 flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-joy-gray-900">{editingPage ? 'Edit Page' : 'Add New Page'}</h2>
+              <div>
+                <h2 className="font-display text-lg font-bold text-joy-gray-900">{editingPage ? 'Edit Page' : 'Add New Page'}</h2>
+                <p className="text-sm text-joy-gray-500">WordPress-style page editor</p>
+              </div>
               <button onClick={() => setShowPageModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
             </div>
-            <div className="p-6 space-y-4">
-              <Input label="Page Title *" placeholder="e.g., Privacy Policy" value={pageForm.title} onChange={e => setPageForm({...pageForm, title: e.target.value})} />
-              <Input label="URL Slug *" placeholder="privacy-policy" value={pageForm.slug} onChange={e => setPageForm({...pageForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')})} />
-              <div>
-                <label className="block text-sm font-medium text-joy-gray-700 mb-2">Page Content (HTML) *</label>
+            
+            <div className="p-6 space-y-6">
+              {/* Basic Info */}
+              <div className="space-y-4">
+                <h3 className="font-medium text-joy-gray-900">Basic Information</h3>
+                <Input label="Page Title *" placeholder="e.g., Privacy Policy" value={pageForm.title} onChange={e => setPageForm({...pageForm, title: e.target.value})} />
+                <Input label="URL Slug *" placeholder="privacy-policy" value={pageForm.slug} onChange={e => setPageForm({...pageForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')})} />
+                <Input label="Excerpt (Short Description)" placeholder="Brief description for SEO and listings" value={pageForm.excerpt} onChange={e => setPageForm({...pageForm, excerpt: e.target.value})} />
+              </div>
+              
+              {/* Featured Image */}
+              <div className="space-y-4">
+                <h3 className="font-medium text-joy-gray-900">Featured Image</h3>
+                <Input label="Featured Image URL" placeholder="https://example.com/image.jpg" value={pageForm.featuredImage} onChange={e => setPageForm({...pageForm, featuredImage: e.target.value})} />
+              </div>
+              
+              {/* Template */}
+              <div className="space-y-4">
+                <h3 className="font-medium text-joy-gray-900">Page Template</h3>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                  {[
+                    { value: 'default', label: 'Default', desc: 'Standard layout' },
+                    { value: 'full-width', label: 'Full Width', desc: 'No max-width' },
+                    { value: 'sidebar', label: 'With Sidebar', desc: 'Quick links sidebar' },
+                    { value: 'landing', label: 'Landing', desc: 'Hero + content' },
+                  ].map(t => (
+                    <button
+                      key={t.value}
+                      onClick={() => setPageForm({...pageForm, template: t.value})}
+                      className={`p-3 rounded-xl border-2 text-left transition-all ${pageForm.template === t.value ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}
+                    >
+                      <div className="font-medium text-sm text-joy-gray-900">{t.label}</div>
+                      <div className="text-xs text-joy-gray-500">{t.desc}</div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+              
+              {/* Content */}
+              <div className="space-y-4">
+                <h3 className="font-medium text-joy-gray-900">Page Content (HTML) *</h3>
                 <textarea
-                  className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange min-h-[200px] font-mono text-sm"
+                  className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange min-h-[250px] font-mono text-sm"
                   placeholder="<h2>Your Content</h2><p>Write your page content here with HTML formatting...</p>"
                   value={pageForm.content}
                   onChange={e => setPageForm({...pageForm, content: e.target.value})}
                 />
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="Meta Title (SEO)" placeholder="Page title for search engines" value={pageForm.metaTitle} onChange={e => setPageForm({...pageForm, metaTitle: e.target.value})} />
-                <Input label="Meta Description (SEO)" placeholder="Brief description for search results" value={pageForm.metaDesc} onChange={e => setPageForm({...pageForm, metaDesc: e.target.value})} />
+              
+              {/* SEO */}
+              <div className="space-y-4 bg-joy-gray-50 rounded-xl p-4">
+                <h3 className="font-medium text-joy-gray-900">SEO Settings</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <Input label="Meta Title" placeholder="Page title for search engines" value={pageForm.metaTitle} onChange={e => setPageForm({...pageForm, metaTitle: e.target.value})} />
+                  <Input label="Meta Description" placeholder="Brief description for search results" value={pageForm.metaDesc} onChange={e => setPageForm({...pageForm, metaDesc: e.target.value})} />
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <input type="checkbox" id="pageIsActive" checked={pageForm.isActive} onChange={e => setPageForm({...pageForm, isActive: e.target.checked})} className="rounded" />
-                <label htmlFor="pageIsActive" className="text-sm text-joy-gray-700">Active (visible on site)</label>
+              
+              {/* Publish Status */}
+              <div className="space-y-4">
+                <h3 className="font-medium text-joy-gray-900">Publish Settings</h3>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="statusDraft" 
+                      name="pageStatus" 
+                      value="draft"
+                      checked={pageForm.status === 'draft'}
+                      onChange={() => setPageForm({...pageForm, status: 'draft', isActive: false})}
+                      className="rounded"
+                    />
+                    <label htmlFor="statusDraft" className="text-sm text-joy-gray-700">Draft</label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <input 
+                      type="radio" 
+                      id="statusPublished" 
+                      name="pageStatus" 
+                      value="published"
+                      checked={pageForm.status === 'published'}
+                      onChange={() => setPageForm({...pageForm, status: 'published', isActive: true})}
+                      className="rounded"
+                    />
+                    <label htmlFor="statusPublished" className="text-sm text-joy-gray-700">Published</label>
+                  </div>
+                </div>
+                <p className="text-sm text-joy-gray-500">
+                  {pageForm.status === 'draft' 
+                    ? 'Page is saved but not visible on the site.' 
+                    : 'Page is live and visible on the site.'}
+                </p>
               </div>
             </div>
+            
             <div className="px-6 py-4 border-t border-joy-gray-100 flex justify-end gap-3">
               <Button variant="secondary" onClick={() => setShowPageModal(false)}>Cancel</Button>
-              <Button onClick={handlePageSubmit} isLoading={isSaving}>{editingPage ? 'Update Page' : 'Create Page'}</Button>
+              <Button onClick={handlePageSubmit} isLoading={isSaving}>
+                {pageForm.status === 'published' ? 'Publish Page' : 'Save Draft'}
+              </Button>
             </div>
           </div>
         </div>

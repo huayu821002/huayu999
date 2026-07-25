@@ -6,8 +6,15 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    const page = await prisma.customPage.findUnique({
-      where: { slug: params.slug, isActive: true },
+    // Only show published pages publicly
+    const page = await prisma.customPage.findFirst({
+      where: { 
+        slug: params.slug,
+        OR: [
+          { status: 'published' },
+          { isActive: true }
+        ]
+      },
     })
     if (!page) {
       return NextResponse.json({ success: false, error: 'Page not found' }, { status: 404 })
