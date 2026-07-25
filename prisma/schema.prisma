@@ -56,20 +56,32 @@ model Product {
   name        String
   slug        String      @unique
   description String?
+  shortDesc   String?
   price       Float
   comparePrice Float?
   costPrice   Float?
+  wholesalePrice Float?
+  vipPrice    Float?
   sku         String      @unique
   barcode     String?
   weight      Float?
+  dimensions  String?
   images      String?
+  modelImage  String?
   categoryId  String?
   category    Category?   @relation("ProductToCategory", fields: [categoryId], references: [id])
   inventory   Int         @default(0)
+  lowStockAlert Int      @default(10)
   trackInventory Boolean  @default(true)
-  status      String      @default("ACTIVE")
-  isWholesale Boolean    @default(false)
-  wholesalePrices String?
+  minOrderQty  Int        @default(1)
+  isActive    Boolean     @default(true)
+  isFeatured  Boolean     @default(false)
+  isTrending  Boolean     @default(false)
+  isNew       Boolean     @default(false)
+  isWholesale Boolean     @default(false)
+  tags        String?
+  sizeChart   String?
+  compliance  String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
   orderItems  OrderItem[]
