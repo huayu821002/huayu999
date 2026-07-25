@@ -45,29 +45,35 @@ export async function POST(request: Request) {
     const random = Math.random().toString(36).substring(2, 6).toUpperCase()
     const orderNumber = `JH-${timestamp}-${random}`
 
+    // Safely parse numbers with defaults
+    const parseNum = (val: any, defaultVal = 0): number => {
+      const parsed = parseFloat(val)
+      return isNaN(parsed) ? defaultVal : parsed
+    }
+
     const order = await prisma.order.create({
       data: {
         orderNumber,
-        userId,
-        items: JSON.stringify(items),
-        subtotal: parseFloat(subtotal),
-        shippingCost: parseFloat(shippingCost),
-        tax: parseFloat(tax),
-        discount: parseFloat(discount) || 0,
-        total: parseFloat(total),
+        userId: userId || null,
+        items: JSON.stringify(items || []),
+        subtotal: parseNum(subtotal),
+        shippingCost: parseNum(shippingCost),
+        tax: parseNum(tax),
+        discount: parseNum(discount),
+        total: parseNum(total),
         currency: currency || 'USD',
-        shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress),
+        shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress || {}),
         billingAddress: billingAddress ? (typeof billingAddress === 'string' ? billingAddress : JSON.stringify(billingAddress)) : null,
-        paymentMethod,
+        paymentMethod: paymentMethod || 'BATCH_ORDER',
         status: 'PENDING',
       },
     })
 
     return NextResponse.json({ success: true, data: order })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Create order error:', error)
     return NextResponse.json(
-      { success: false, error: 'Failed to create order' },
+      { success: false, error: 'Failed to create order', details: error?.message, code: error?.code },
       { status: 500 }
     )
   }
