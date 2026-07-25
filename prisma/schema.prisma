@@ -190,7 +190,6 @@ model ShippingRate {
   updatedAt    DateTime @updatedAt
 }
 
-
 model SiteSetting {
   id        String   @id @default(cuid())
   key       String   @unique
