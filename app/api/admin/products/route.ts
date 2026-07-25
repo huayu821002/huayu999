@@ -23,13 +23,34 @@ export async function GET(request: Request) {
       ]
     }
 
-    const products = await prisma.product.findMany({
-      where,
-      include: { category: true },
-      orderBy: { createdAt: 'desc' },
-    })
+    // First try without include to isolate the issue
+    let products
+    try {
+      products = await prisma.product.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+      })
+    } catch (innerError: any) {
+      console.error('Query without include failed:', innerError)
+      return NextResponse.json({ success: false, error: 'Query failed', details: innerError?.message }, { status: 500 })
+    }
 
-    return NextResponse.json({ success: true, data: products, count: products.length })
+    // Try to fetch categories separately
+    let categories: any[] = []
+    try {
+      categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
+    } catch (innerError: any) {
+      console.error('Category query failed:', innerError)
+    }
+
+    // Merge category data manually
+    const categoryMap = new Map(categories.map(c => [c.id, c]))
+    const productsWithCategory = products.map(p => ({
+      ...p,
+      category: p.categoryId ? categoryMap.get(p.categoryId) || null : null
+    }))
+
+    return NextResponse.json({ success: true, data: productsWithCategory, count: products.length })
   } catch (error: any) {
     console.error('Admin products GET error:', error)
     return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code, stack: error?.stack }, { status: 500 })
