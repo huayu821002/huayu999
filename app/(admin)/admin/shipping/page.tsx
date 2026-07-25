@@ -93,12 +93,21 @@ export default function ShippingSettingsPage() {
       // Fetch templates from settings
       const settingsRes = await fetch('/api/admin/settings')
       const settingsData = await settingsRes.json()
-      if (settingsData.success && settingsData.data) {
+      console.log('Settings response:', settingsData)
+      if (settingsData && settingsData.data) {
         const templatesSetting = settingsData.data.find((s: any) => s.key === 'shipping_templates')
-        setTemplates(templatesSetting ? JSON.parse(templatesSetting.value) : [])
+        console.log('Templates setting:', templatesSetting)
+        if (templatesSetting && templatesSetting.value) {
+          setTemplates(JSON.parse(templatesSetting.value))
+        } else {
+          setTemplates([])
+        }
+      } else {
+        setTemplates([])
       }
     } catch (error) {
       console.error('Failed to fetch:', error)
+      setTemplates([])
     } finally {
       setLoading(false)
     }
