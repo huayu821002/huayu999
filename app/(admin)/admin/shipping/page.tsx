@@ -24,10 +24,6 @@ interface ShippingRate {
   templateId?: string
 }
 
-interface SiteSettings {
-  shipping_templates: ShippingTemplate[]
-}
-
 const allCountries = [
   { code: 'US', name: 'United States' },
   { code: 'CA', name: 'Canada' },
@@ -84,30 +80,31 @@ export default function ShippingSettingsPage() {
   const [editingItem, setEditingItem] = useState<any>(null)
 
   const fetchData = async () => {
+    setLoading(true)
     try {
       // Fetch rates
       const ratesRes = await fetch('/api/admin/shipping')
       const ratesData = await ratesRes.json()
       setRates(Array.isArray(ratesData) ? ratesData : [])
 
-      // Fetch templates from settings
+      // Fetch templates from settings API
       const settingsRes = await fetch('/api/admin/settings')
       const settingsData = await settingsRes.json()
-      console.log('Settings response:', settingsData)
+      
+      let loadedTemplates: ShippingTemplate[] = []
       if (settingsData && settingsData.data) {
         const templatesSetting = settingsData.data.find((s: any) => s.key === 'shipping_templates')
-        console.log('Templates setting:', templatesSetting)
         if (templatesSetting && templatesSetting.value) {
-          setTemplates(JSON.parse(templatesSetting.value))
-        } else {
-          setTemplates([])
+          try {
+            loadedTemplates = JSON.parse(templatesSetting.value)
+          } catch (e) {
+            console.error('Failed to parse templates:', e)
+          }
         }
-      } else {
-        setTemplates([])
       }
+      setTemplates(loadedTemplates)
     } catch (error) {
       console.error('Failed to fetch:', error)
-      setTemplates([])
     } finally {
       setLoading(false)
     }
@@ -117,9 +114,33 @@ export default function ShippingSettingsPage() {
     fetchData()
   }, [])
 
-  const saveTemplates = async (newTemplates: ShippingTemplate[]) => {
+  const handleSaveTemplate = async () => {
+    if (!editingItem.name) {
+      alert('Please enter template name')
+      return
+    }
+    
+    setSaving(true)
     try {
-      await fetch('/api/admin/settings', {
+      let newTemplates: ShippingTemplate[]
+      if (editingItem.id) {
+        newTemplates = templates.map(t => t.id === editingItem.id ? { ...t, ...editingItem } : t)
+      } else {
+        const newTemplate: ShippingTemplate = {
+          id: Date.now().toString(),
+          name: editingItem.name,
+          baseCost: editingItem.baseCost || 0,
+          costPerKg: editingItem.costPerKg || 0,
+          freeThreshold: editingItem.freeThreshold || 0,
+          estimatedDays: editingItem.estimatedDays || null,
+          isActive: editingItem.isActive !== false,
+          sortOrder: editingItem.sortOrder || 0
+        }
+        newTemplates = [...templates, newTemplate]
+      }
+      
+      // Save to settings API
+      const res = await fetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -127,36 +148,17 @@ export default function ShippingSettingsPage() {
           value: JSON.stringify(newTemplates)
         })
       })
-      setTemplates(newTemplates)
-    } catch (error) {
-      console.error('Failed to save templates:', error)
-    }
-  }
-
-  const handleSaveTemplate = async () => {
-    setSaving(true)
-    try {
-      let newTemplates: ShippingTemplate[]
-      if (editingItem.id) {
-        // Update existing
-        newTemplates = templates.map(t => t.id === editingItem.id ? { ...t, ...editingItem } : t)
+      
+      if (res.ok) {
+        setTemplates(newTemplates)
+        setShowModal(false)
+        setEditingItem(null)
       } else {
-        // Create new
-        const newTemplate: ShippingTemplate = {
-          id: Date.now().toString(),
-          name: editingItem.name,
-          baseCost: editingItem.baseCost,
-          costPerKg: editingItem.costPerKg,
-          freeThreshold: editingItem.freeThreshold,
-          estimatedDays: editingItem.estimatedDays,
-          isActive: editingItem.isActive,
-          sortOrder: editingItem.sortOrder || 0
-        }
-        newTemplates = [...templates, newTemplate]
+        alert('Failed to save template')
       }
-      await saveTemplates(newTemplates)
-      setShowModal(false)
-      setEditingItem(null)
+    } catch (error) {
+      console.error('Failed to save:', error)
+      alert('Failed to save template')
     } finally {
       setSaving(false)
     }
@@ -164,25 +166,57 @@ export default function ShippingSettingsPage() {
 
   const handleDeleteTemplate = async (id: string) => {
     if (!confirm('Delete this template?')) return
+    
     const newTemplates = templates.filter(t => t.id !== id)
-    await saveTemplates(newTemplates)
+    try {
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          key: 'shipping_templates',
+          value: JSON.stringify(newTemplates)
+        })
+      })
+      if (res.ok) {
+        setTemplates(newTemplates)
+      }
+    } catch (error) {
+      console.error('Failed to delete:', error)
+    }
   }
 
   const handleSaveRate = async () => {
+    if (!editingItem.countryCode) {
+      alert('Please select a country')
+      return
+    }
+    
     setSaving(true)
     try {
       const res = await fetch('/api/admin/shipping', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(editingItem),
+        body: JSON.stringify({
+          countryCode: editingItem.countryCode,
+          countryName: editingItem.countryName,
+          baseCost: editingItem.baseCost || 0,
+          costPerKg: editingItem.costPerKg || 0,
+          freeThreshold: editingItem.freeThreshold || 0,
+          estimatedDays: editingItem.estimatedDays || null,
+          isActive: editingItem.isActive !== false
+        })
       })
+      
       if (res.ok) {
-        await fetchData()
+        await fetchData() // Refresh data
         setShowModal(false)
         setEditingItem(null)
+      } else {
+        alert('Failed to save country rate')
       }
     } catch (error) {
-      console.error('Failed to save rate:', error)
+      console.error('Failed to save:', error)
+      alert('Failed to save country rate')
     } finally {
       setSaving(false)
     }
@@ -202,7 +236,15 @@ export default function ShippingSettingsPage() {
 
   const openTemplateModal = (template?: ShippingTemplate) => {
     setModalType('template')
-    setEditingItem(template || { name: '', baseCost: 0, costPerKg: 0, freeThreshold: 0, estimatedDays: '', isActive: true, sortOrder: 0 })
+    setEditingItem(template || { 
+      name: '', 
+      baseCost: 0, 
+      costPerKg: 0, 
+      freeThreshold: 0, 
+      estimatedDays: '', 
+      isActive: true, 
+      sortOrder: 0 
+    })
     setShowModal(true)
   }
 
@@ -269,7 +311,7 @@ export default function ShippingSettingsPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h3 className="font-medium text-joy-gray-900">Shipping Templates</h3>
-                <p className="text-sm text-joy-gray-500">Create reusable templates like "Europe Standard" or "Asia Economy"</p>
+                <p className="text-sm text-joy-gray-500">Create reusable templates like "Europe Standard"</p>
               </div>
               <button
                 onClick={() => openTemplateModal()}
@@ -381,7 +423,7 @@ export default function ShippingSettingsPage() {
               {modalType === 'template' ? (
                 <>
                   <div>
-                    <label className="block text-sm font-medium text-joy-gray-700 mb-1">Template Name</label>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-1">Template Name *</label>
                     <input type="text" value={editingItem.name} onChange={e => setEditingItem({...editingItem, name: e.target.value})}
                       placeholder="e.g., Europe Standard" className="w-full border border-joy-gray-200 rounded-lg px-3 py-2" />
                   </div>
@@ -442,7 +484,7 @@ export default function ShippingSettingsPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="isActive" checked={editingItem.isActive}
+                <input type="checkbox" id="isActive" checked={editingItem.isActive !== false}
                   onChange={e => setEditingItem({...editingItem, isActive: e.target.checked})}
                   className="w-4 h-4 text-joy-orange" />
                 <label htmlFor="isActive" className="text-sm text-joy-gray-700">Active</label>
@@ -452,8 +494,11 @@ export default function ShippingSettingsPage() {
             <div className="flex justify-end gap-3 mt-6">
               <button onClick={() => { setShowModal(false); setEditingItem(null) }}
                 className="px-4 py-2 text-sm text-joy-gray-600 hover:bg-joy-gray-50 rounded-lg">Cancel</button>
-              <button onClick={modalType === 'template' ? handleSaveTemplate : handleSaveRate}
-                disabled={saving} className="px-4 py-2 text-sm bg-joy-orange text-white rounded-lg hover:bg-orange-600 disabled:opacity-50">
+              <button 
+                onClick={modalType === 'template' ? handleSaveTemplate : handleSaveRate}
+                disabled={saving} 
+                className="px-4 py-2 text-sm bg-joy-orange text-white rounded-lg hover:bg-orange-600 disabled:opacity-50"
+              >
                 {saving ? 'Saving...' : 'Save'}
               </button>
             </div>
