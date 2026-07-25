@@ -31,13 +31,23 @@ export async function GET(request: Request) {
       where.isFeatured = true
     }
 
+    // Fetch products without include to avoid serialization issues
     const products = await prisma.product.findMany({
       where,
-      include: { category: true },
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ success: true, data: products })
+    // Fetch categories separately
+    const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
+    const categoryMap = new Map(categories.map(c => [c.id, c]))
+
+    // Merge category data manually
+    const productsWithCategory = products.map(p => ({
+      ...p,
+      category: p.categoryId ? categoryMap.get(p.categoryId) || null : null
+    }))
+
+    return NextResponse.json({ success: true, data: productsWithCategory })
   } catch (error: any) {
     console.error('Products API error:', error)
     return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code }, { status: 500 })
