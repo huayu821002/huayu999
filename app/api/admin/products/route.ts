@@ -23,7 +23,7 @@ export async function GET(request: Request) {
       })
     } catch (innerError: any) {
       console.error('Query without include failed:', innerError)
-      return NextResponse.json({ success: false, error: 'Query failed', details: innerError?.message }, { isActive: 500 })
+      return NextResponse.json({ success: false, error: 'Query failed', details: innerError?.message }, { status: 500 })
     }
 
     // Try to fetch categories separately
@@ -44,7 +44,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, data: productsWithCategory, count: products.length })
   } catch (error: any) {
     console.error('Admin products GET error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message }, { isActive: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message }, { status: 500 })
   }
 }
 
@@ -78,6 +78,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, data: product })
   } catch (error: any) {
     console.error('Admin products POST error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to create product', details: error?.message }, { isActive: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to create product', details: error?.message }, { status: 500 })
   }
 }
