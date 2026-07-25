@@ -6,6 +6,14 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const search = searchParams.get('search') || ''
 
+    // Test database connection first
+    try {
+      await prisma.$connect()
+    } catch (dbError: any) {
+      console.error('Database connection error:', dbError)
+      return NextResponse.json({ success: false, error: 'Database connection failed', details: dbError?.message }, { status: 500 })
+    }
+
     const where: Record<string, unknown> = {}
     if (search) {
       where.OR = [
@@ -21,10 +29,10 @@ export async function GET(request: Request) {
       orderBy: { createdAt: 'desc' },
     })
 
-    return NextResponse.json({ success: true, data: products })
+    return NextResponse.json({ success: true, data: products, count: products.length })
   } catch (error: any) {
     console.error('Admin products GET error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code, stack: error?.stack }, { status: 500 })
   }
 }
 
