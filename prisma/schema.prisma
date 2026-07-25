@@ -77,7 +77,6 @@ model Product {
   isFeatured  Boolean     @default(false)
   isTrending  Boolean     @default(false)
   isNew       Boolean     @default(false)
-  isWholesale Boolean     @default(false)
   tags        String?
   sizeChart   String?
   compliance  String?
