@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 
 export async function GET() {
   try {
-    const pages = await prisma.customPage.findMany({
+    const pages = await prisma.page.findMany({
       orderBy: [{ sortOrder: 'asc' }, { createdAt: 'desc' }],
     })
     return NextResponse.json({ success: true, data: pages })
@@ -23,14 +23,14 @@ export async function POST(request: Request) {
     }
 
     // Check if slug already exists
-    const existing = await prisma.customPage.findUnique({ where: { slug } })
+    const existing = await prisma.page.findUnique({ where: { slug } })
     if (existing) {
       return NextResponse.json({ success: false, error: 'A page with this slug already exists' }, { status: 400 })
     }
 
     const isPublished = status === 'published'
 
-    const page = await prisma.customPage.create({
+    const page = await prisma.page.create({
       data: {
         title,
         slug,
