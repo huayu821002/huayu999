@@ -6,6 +6,9 @@ export async function GET(request: Request) {
     const { searchParams } = new URL(request.url)
     const category = searchParams.get('category')
     const search = searchParams.get('search')
+    const featured = searchParams.get('featured')
+    const trending = searchParams.get('trending')
+    const isNew = searchParams.get('new')
 
     const where: Record<string, unknown> = {}
 
@@ -19,6 +22,18 @@ export async function GET(request: Request) {
         { description: { contains: search } },
         { sku: { contains: search } },
       ]
+    }
+
+    if (featured === 'true') {
+      where.isFeatured = true
+    }
+
+    if (trending === 'true') {
+      where.isTrending = true
+    }
+
+    if (isNew === 'true') {
+      where.isNew = true
     }
 
     // Fetch products
