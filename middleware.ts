@@ -24,6 +24,14 @@ const TIMEZONE_CURRENCY_MAP: Record<string, string> = {
 
 export function middleware(request: NextRequest) {
   const response = NextResponse.next()
+  const pathname = request.nextUrl.pathname
+
+  // Rewrite info page URLs to /info/[slug]
+  const INFO_SLUGS = ['shipping', 'returns', 'privacy', 'terms', 'dropshipping', 'faq', 'about', 'contact']
+  const slug = INFO_SLUGS.find(s => pathname === `/${s}` || pathname === `/${s}/`)
+  if (slug) {
+    return NextResponse.rewrite(new URL(`/info/${slug}`, request.url))
+  }
 
   // Get preferred currency from timezone header (set by edge function or browser)
   const timezone = request.headers.get('x-timezone') || 

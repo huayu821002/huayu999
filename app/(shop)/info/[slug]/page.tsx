@@ -19,7 +19,7 @@ interface CustomPage {
   metaDesc: string | null
 }
 
-export default function CustomPageView() {
+export default function InfoPage() {
   const params = useParams()
   const [page, setPage] = useState<CustomPage | null>(null)
   const [isLoading, setIsLoading] = useState(true)
@@ -36,6 +36,12 @@ export default function CustomPageView() {
       const data = await res.json()
       if (data.success) {
         setPage(data.data)
+        // Update document title for SEO
+        if (data.data.metaTitle) {
+          document.title = data.data.metaTitle
+        } else {
+          document.title = `${data.data.title} - Fiestaflare`
+        }
       } else {
         setError(data.error || 'Page not found')
       }
@@ -80,17 +86,33 @@ export default function CustomPageView() {
       <CartDrawer />
       <FloatingButtons />
       <main className="pt-[calc(4rem+36px)]">
+        {/* SEO Meta Tags would go in Head component */}
+        
         {/* Hero */}
         <section className="bg-gradient-to-br from-joy-gray-900 via-joy-gray-800 to-joy-gray-900 text-white py-16 lg:py-20">
           <div className="max-w-4xl mx-auto px-4 text-center">
             <h1 className="font-display text-4xl md:text-5xl font-bold mb-4">
               {page.title}
             </h1>
+            {page.metaDesc && (
+              <p className="text-lg text-joy-gray-300 max-w-2xl mx-auto">
+                {page.metaDesc}
+              </p>
+            )}
           </div>
         </section>
 
+        {/* Breadcrumb */}
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <nav className="flex items-center gap-2 text-sm text-joy-gray-500">
+            <Link href="/" className="hover:text-joy-orange">Home</Link>
+            <Icons.ChevronRight size={14} />
+            <span className="text-joy-gray-900">{page.title}</span>
+          </nav>
+        </div>
+
         {/* Content */}
-        <section className="py-16">
+        <section className="py-8 pb-16">
           <div className="max-w-4xl mx-auto px-4">
             <div 
               className="prose prose-lg max-w-none"
