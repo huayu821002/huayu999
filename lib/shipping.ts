@@ -88,6 +88,56 @@ const shippingZones: Record<string, ShippingRate[]> = {
     { name: 'Express to Australia', baseCost: 34.99, costPerKg: 9.99, estimatedDays: '5-7 days', freeThreshold: 399 },
   ],
   
+  // South America
+  'BR': [
+    { name: 'Standard to Brazil', baseCost: 17.99, costPerKg: 5.99, estimatedDays: '12-18 days', freeThreshold: 249 },
+    { name: 'Express to Brazil', baseCost: 39.99, costPerKg: 11.99, estimatedDays: '6-8 days', freeThreshold: 399 },
+  ],
+  'AR': [
+    { name: 'Standard to Argentina', baseCost: 17.99, costPerKg: 5.99, estimatedDays: '12-18 days', freeThreshold: 249 },
+    { name: 'Express to Argentina', baseCost: 39.99, costPerKg: 11.99, estimatedDays: '6-8 days', freeThreshold: 399 },
+  ],
+  'CO': [
+    { name: 'Standard to Colombia', baseCost: 17.99, costPerKg: 5.99, estimatedDays: '12-18 days', freeThreshold: 249 },
+    { name: 'Express to Colombia', baseCost: 39.99, costPerKg: 11.99, estimatedDays: '6-8 days', freeThreshold: 399 },
+  ],
+  'PE': [
+    { name: 'Standard to Peru', baseCost: 19.99, costPerKg: 6.49, estimatedDays: '14-20 days', freeThreshold: 299 },
+    { name: 'Express to Peru', baseCost: 44.99, costPerKg: 12.99, estimatedDays: '7-10 days', freeThreshold: 449 },
+  ],
+  'CL': [
+    { name: 'Standard to Chile', baseCost: 17.99, costPerKg: 5.99, estimatedDays: '12-18 days', freeThreshold: 249 },
+    { name: 'Express to Chile', baseCost: 39.99, costPerKg: 10.99, estimatedDays: '6-8 days', freeThreshold: 399 },
+  ],
+  'EC': [
+    { name: 'Standard to Ecuador', baseCost: 19.99, costPerKg: 6.49, estimatedDays: '14-20 days', freeThreshold: 299 },
+    { name: 'Express to Ecuador', baseCost: 44.99, costPerKg: 12.99, estimatedDays: '7-10 days', freeThreshold: 449 },
+  ],
+  'VE': [
+    { name: 'Standard to Venezuela', baseCost: 19.99, costPerKg: 6.49, estimatedDays: '14-20 days', freeThreshold: 299 },
+    { name: 'Express to Venezuela', baseCost: 44.99, costPerKg: 12.99, estimatedDays: '7-10 days', freeThreshold: 449 },
+  ],
+  'BO': [
+    { name: 'Standard to Bolivia', baseCost: 19.99, costPerKg: 6.49, estimatedDays: '14-20 days', freeThreshold: 299 },
+    { name: 'Express to Bolivia', baseCost: 44.99, costPerKg: 12.99, estimatedDays: '7-10 days', freeThreshold: 449 },
+  ],
+  'PY': [
+    { name: 'Standard to Paraguay', baseCost: 19.99, costPerKg: 6.49, estimatedDays: '14-20 days', freeThreshold: 299 },
+    { name: 'Express to Paraguay', baseCost: 44.99, costPerKg: 12.99, estimatedDays: '7-10 days', freeThreshold: 449 },
+  ],
+  'UY': [
+    { name: 'Standard to Uruguay', baseCost: 19.99, costPerKg: 6.49, estimatedDays: '14-20 days', freeThreshold: 299 },
+    { name: 'Express to Uruguay', baseCost: 44.99, costPerKg: 12.99, estimatedDays: '7-10 days', freeThreshold: 449 },
+  ],
+  'GY': [
+    { name: 'Standard to Guyana', baseCost: 22.99, costPerKg: 7.49, estimatedDays: '16-22 days', freeThreshold: 349 },
+    { name: 'Express to Guyana', baseCost: 49.99, costPerKg: 14.99, estimatedDays: '8-12 days', freeThreshold: 499 },
+  ],
+  'SR': [
+    { name: 'Standard to Suriname', baseCost: 22.99, costPerKg: 7.49, estimatedDays: '16-22 days', freeThreshold: 349 },
+    { name: 'Express to Suriname', baseCost: 49.99, costPerKg: 14.99, estimatedDays: '8-12 days', freeThreshold: 499 },
+  ],
+
   // India
   'IN': [
     { name: 'Standard to India', baseCost: 14.99, costPerKg: 4.49, estimatedDays: '10-14 days', freeThreshold: 199 },
