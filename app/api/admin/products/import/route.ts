@@ -67,36 +67,52 @@ export async function POST(request: Request) {
     }
 
     const text = await file.text()
-    const lines = text.split('\n').filter(line => line.trim())
+    const lines = text.split(/\r?\n/).filter(line => line.trim())
 
     if (lines.length < 2) {
       return NextResponse.json({ success: false, error: 'File is empty or has no data rows' }, { status: 400 })
     }
 
-    // Parse header row
-    const header = lines[0].split(',').map(h => h.replace(/"/g, '').trim())
+    // Parse header row - remove quotes
+    const header = parseCSVLine(lines[0])
+    const expectedColumns = 18 // Based on our export format
 
     // Parse data rows
     const results = { success: 0, failed: 0, errors: [] as string[] }
 
     for (let i = 1; i < lines.length; i++) {
-      const values = parseCSVLine(lines[i])
+      const line = lines[i].trim()
+      if (!line) continue // Skip empty lines
+
+      const values = parseCSVLine(line)
+      
+      // If column count doesn't match, try to handle it gracefully
       if (values.length !== header.length) {
-        results.failed++
-        results.errors.push(`Row ${i}: Column count mismatch`)
-        continue
+        // Maybe it's a partial row or extra commas - pad with empty strings
+        if (values.length > header.length) {
+          // Too many columns - trim extras
+          values.length = header.length
+        } else {
+          // Too few - this might be a real error
+          results.failed++
+          results.errors.push(`Row ${i}: Expected ${header.length} columns, got ${values.length}`)
+          continue
+        }
       }
 
       const row: Record<string, any> = {}
       header.forEach((h, idx) => {
-        row[h] = values[idx]
+        row[h] = values[idx] || ''
       })
 
       try {
+        // Generate slug if not provided
+        const slug = row.slug || row.name?.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '') + '-' + Date.now().toString(36) || `product-${i}-${Date.now()}`
+        
         await prisma.product.create({
           data: {
             name: row.name || `Product ${i}`,
-            slug: row.slug || row.name?.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36) || `product-${i}`,
+            slug: slug,
             sku: row.sku || null,
             description: row.description || null,
             shortDesc: row.shortDesc || null,
@@ -118,7 +134,10 @@ export async function POST(request: Request) {
         results.success++
       } catch (err: any) {
         results.failed++
-        results.errors.push(`Row ${i}: ${err?.message || 'Unknown error'}`)
+        const errorMsg = err?.message || 'Unknown error'
+        if (results.errors.length < 5) { // Only keep first 5 errors
+          results.errors.push(`Row ${i}: ${errorMsg}`)
+        }
       }
     }
 
@@ -129,7 +148,7 @@ export async function POST(request: Request) {
   }
 }
 
-// Helper to parse CSV line handling quoted values
+// Better CSV parser - handles various formats
 function parseCSVLine(line: string): string[] {
   const result: string[] = []
   let current = ''
@@ -161,5 +180,11 @@ function parseCSVLine(line: string): string[] {
   }
   result.push(current.trim())
 
-  return result.map(v => v.replace(/^"|"$/g, ''))
+  // Clean up quoted values
+  return result.map(v => {
+    if (v.startsWith('"') && v.endsWith('"')) {
+      return v.slice(1, -1).replace(/""/g, '"')
+    }
+    return v
+  })
 }
