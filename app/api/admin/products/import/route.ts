@@ -110,7 +110,7 @@ export async function POST(request: Request) {
             weight: row.weight ? parseFloat(row.weight) : null,
             images,
             categoryId,
-            isActive: row.isActive !== undefined ? isActive : true,
+            isActive: row.isActive !== undefined ? row.isActive : true,
           }
         })
         results.imported++
