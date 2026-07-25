@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useParams } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
@@ -11,88 +11,164 @@ import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, getPriceByTier, convertPrice } from '@/lib/utils'
 import { useCartStore, useWishlistStore } from '@/lib/store'
-import { SCENE_COLLECTIONS } from '@/types'
 
-// Mock product data - in production, fetch from DB
-const MOCK_PRODUCT = {
-  id: '1',
-  name: 'Yiwu Crystal Beaded Statement Necklace',
-  slug: 'yiwu-crystal-beaded-necklace',
-  description: `Elevate your inventory with this stunning crystal beaded statement necklace. 
+interface ProductVariant {
+  id: string
+  name: string
+  value: string
+  sku: string | null
+  price: number | null
+  inventory: number
+  image: string | null
+}
 
-Perfect for boutique owners and retailers looking for high-margin accessories. This piece features:
-
-• Premium quality crystals with brilliant sparkle
-• Adjustable length (16-22 inches)
-• Lead-free and nickel-free
-• Durable lobster claw clasp
-• Elegant gift box included
-
-Ideal for fashion-forward customers aged 18-45. Pairs beautifully with casual and formal attire.`,
-  shortDesc: 'Premium crystal beaded necklace with adjustable length',
-  price: 12.99,
-  comparePrice: 18.99,
-  wholesalePrice: 8.99,
-  vipPrice: 6.99,
-  minOrderQty: 3,
-  weight: 0.15,
-  dimensions: '25cm x 3cm',
-  images: [
-    'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=800',
-    'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800',
-    'https://images.unsplash.com/photo-1611591437281-460bfbe1220a?w=800',
-  ],
-  modelImage: 'https://images.unsplash.com/photo-1599643478518-a784e5dc4c8f?w=800',
-  sku: 'AC-001',
-  barcode: '8901234567890',
-  inventory: 150,
-  lowStockAlert: 10,
-  category: { id: '1', name: 'Accessories', slug: 'accessories' },
-  tags: [{ name: 'Bestseller' }, { name: 'Trending' }],
-  variants: [
-    { id: 'v1', name: 'Color', value: 'Gold', sku: 'AC-001-G', price: 12.99, inventory: 75 },
-    { id: 'v2', name: 'Color', value: 'Silver', sku: 'AC-001-S', price: 12.99, inventory: 60 },
-    { id: 'v3', name: 'Color', value: 'Rose Gold', sku: 'AC-001-RG', price: 14.99, inventory: 15 },
-  ],
-  compliance: [{ type: 'CPSIA', status: 'Compliant' }],
-  isTrending: true,
-  isFeatured: true,
-  createdAt: new Date('2024-01-15'),
+interface Product {
+  id: string
+  name: string
+  slug: string
+  description: string
+  shortDesc?: string
+  price: number
+  comparePrice?: number
+  costPrice?: number
+  wholesalePrice?: number
+  vipPrice?: number
+  minOrderQty: number
+  inventory: number
+  lowStockAlert?: number
+  weight?: number
+  dimensions?: string
+  images: string
+  modelImage?: string
+  sku?: string
+  barcode?: string
+  category: { id: string; name: string; slug: string } | null
+  tags?: string
+  variants: ProductVariant[]
+  compliance?: { type: string; status: string } | null
+  isTrending?: boolean
+  isFeatured?: boolean
+  createdAt?: string
 }
 
 export default function ProductDetailPage() {
   const params = useParams()
   const { currency } = useCartStore()
   const { isInWishlist, toggleItem } = useWishlistStore()
+  const [product, setProduct] = useState<Product | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null)
   const [quantity, setQuantity] = useState(3)
   const [isAdding, setIsAdding] = useState(false)
-  const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description')
+  const [activeTab, setActiveTab] = useState<'description' | 'specs'>('description')
 
-  const product = MOCK_PRODUCT
-  const inWishlist = isInWishlist(product.id)
+  // Parse images helper
+  const parseImages = (imgStr: string): string[] => {
+    try { return JSON.parse(imgStr) } catch { return imgStr ? [imgStr] : [] }
+  }
 
+  useEffect(() => {
+    fetchProduct()
+  }, [params.slug])
+
+  const fetchProduct = async () => {
+    try {
+      setIsLoading(true)
+      const res = await fetch(`/api/products/${params.slug}`)
+      const data = await res.json()
+      if (data.success) {
+        setProduct(data.data)
+        // Set default variant if exists
+        if (data.data.variants?.length > 0) {
+          setSelectedVariant(data.data.variants[0].id)
+        }
+      } else {
+        setError(data.error || 'Product not found')
+      }
+    } catch (err) {
+      console.error('Failed to fetch product:', err)
+      setError('Failed to load product')
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const handleAddToCart = async () => {
+    if (!product) return
+    setIsAdding(true)
+    const currentVariant = product.variants?.find(v => v.id === selectedVariant)
+    // Convert API product to cart-compatible format
+    const cartProduct = {
+      ...product,
+      images: parseImages(product.images),
+      sku: product.sku || '',
+    }
+    const cartVariant = currentVariant ? {
+      ...currentVariant,
+      sku: currentVariant.sku || undefined,
+    } : undefined
+    useCartStore.getState().addItem(cartProduct as any, quantity, cartVariant as any)
+    await new Promise(resolve => setTimeout(resolve, 500))
+    setIsAdding(false)
+  }
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <main className="pt-[calc(4rem+36px)]">
+          <div className="max-w-7xl mx-auto px-4 py-16">
+            <div className="animate-pulse space-y-8">
+              <div className="grid lg:grid-cols-2 gap-12">
+                <div className="aspect-square bg-joy-gray-200 rounded-2xl" />
+                <div className="space-y-4">
+                  <div className="h-8 bg-joy-gray-200 rounded w-3/4" />
+                  <div className="h-6 bg-joy-gray-200 rounded w-1/4" />
+                  <div className="h-32 bg-joy-gray-200 rounded" />
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Header />
+        <main className="pt-[calc(4rem+36px)]">
+          <div className="max-w-7xl mx-auto px-4 py-16 text-center">
+            <Icons.Package size={64} className="mx-auto mb-4 text-joy-gray-300" />
+            <h1 className="text-2xl font-bold text-joy-gray-900 mb-2">Product Not Found</h1>
+            <p className="text-joy-gray-500 mb-6">{error || 'The product you are looking for does not exist.'}</p>
+            <Link href="/products">
+              <Button>Browse Products</Button>
+            </Link>
+          </div>
+        </main>
+        <Footer />
+      </div>
+    )
+  }
+
+  const images = parseImages(product.images)
   const currentVariant = product.variants?.find(v => v.id === selectedVariant)
   const displayPrice = currentVariant?.price || product.price
   const priceByQty = getPriceByTier(displayPrice, quantity, currency)
 
-  const handleAddToCart = async () => {
-    setIsAdding(true)
-    // Add to cart logic
-    await new Promise(resolve => setTimeout(resolve, 500))
-    useCartStore.getState().addItem(product, quantity, currentVariant || undefined)
-    setIsAdding(false)
-  }
-
-  const relatedProducts = SCENE_COLLECTIONS.slice(0, 4)
+  const tags = product.tags ? JSON.parse(product.tags) : []
 
   return (
     <div className="min-h-screen bg-white">
       <Header />
       <CartDrawer />
       <FloatingButtons 
-        productUrl={`https://joyhubwholesale.com/products/${product.slug}`}
+        productUrl={`https://fiestaflare.com/products/${product.slug}`}
         productName={product.name}
       />
 
@@ -103,10 +179,14 @@ export default function ProductDetailPage() {
             <Link href="/" className="hover:text-joy-orange">Home</Link>
             <Icons.ChevronRight size={14} />
             <Link href="/products" className="hover:text-joy-orange">Products</Link>
-            <Icons.ChevronRight size={14} />
-            <Link href={`/products?category=${product.category.slug}`} className="hover:text-joy-orange">
-              {product.category.name}
-            </Link>
+            {product.category && (
+              <>
+                <Icons.ChevronRight size={14} />
+                <Link href={`/products?category=${product.category.slug}`} className="hover:text-joy-orange">
+                  {product.category.name}
+                </Link>
+              </>
+            )}
             <Icons.ChevronRight size={14} />
             <span className="text-joy-gray-900">{product.name}</span>
           </nav>
@@ -119,7 +199,7 @@ export default function ProductDetailPage() {
             <div>
               <div className="relative aspect-square rounded-2xl overflow-hidden bg-joy-gray-100 mb-4">
                 <img
-                  src={product.images[selectedImage] || '/placeholder.png'}
+                  src={images[selectedImage] || '/placeholder.png'}
                   alt={product.name}
                   className="w-full h-full object-cover"
                 />
@@ -144,18 +224,18 @@ export default function ProductDetailPage() {
                   onClick={() => toggleItem(product.id)}
                   className={cn(
                     'absolute top-4 right-4 w-12 h-12 rounded-full flex items-center justify-center transition-all',
-                    inWishlist
+                    isInWishlist(product.id)
                       ? 'bg-joy-pink text-white'
                       : 'bg-white/90 text-joy-gray-400 hover:text-joy-pink'
                   )}
                 >
-                  <Icons.Heart size={24} fill={inWishlist ? 'currentColor' : 'none'} />
+                  <Icons.Heart size={24} fill={isInWishlist(product.id) ? 'currentColor' : 'none'} />
                 </button>
               </div>
 
               {/* Thumbnails */}
               <div className="flex gap-3">
-                {product.images.map((img, i) => (
+                {images.map((img, i) => (
                   <button
                     key={i}
                     onClick={() => setSelectedImage(i)}
@@ -169,15 +249,15 @@ export default function ProductDetailPage() {
                 ))}
                 {product.modelImage && (
                   <button
-                    onClick={() => setSelectedImage(product.images.length)}
+                    onClick={() => setSelectedImage(images.length)}
                     className={cn(
                       'w-20 h-20 rounded-xl overflow-hidden border-2 transition-all flex items-center justify-center text-xs font-medium',
-                      selectedImage === product.images.length 
+                      selectedImage === images.length 
                         ? 'border-joy-orange bg-joy-orange/10 text-joy-orange' 
                         : 'border-joy-gray-200 hover:border-joy-gray-300'
                     )}
                   >
-                    Model View
+                    Model
                   </button>
                 )}
               </div>
@@ -187,17 +267,24 @@ export default function ProductDetailPage() {
             <div>
               {/* SKU & Category */}
               <div className="flex items-center gap-4 mb-2">
-                <span className="text-sm text-joy-gray-500">SKU: {product.sku}</span>
-                <span className="text-sm text-joy-gray-400">|</span>
-                <Link href={`/products?category=${product.category.slug}`} className="text-sm text-joy-orange hover:underline">
-                  {product.category.name}
-                </Link>
+                {product.sku && <span className="text-sm text-joy-gray-500">SKU: {product.sku}</span>}
+                {product.sku && <span className="text-sm text-joy-gray-400">|</span>}
+                {product.category && (
+                  <Link href={`/products?category=${product.category.slug}`} className="text-sm text-joy-orange hover:underline">
+                    {product.category.name}
+                  </Link>
+                )}
               </div>
 
               {/* Title */}
               <h1 className="font-display text-3xl font-bold text-joy-gray-900 mb-4">
                 {product.name}
               </h1>
+
+              {/* Short Description */}
+              {product.shortDesc && (
+                <p className="text-joy-gray-600 mb-4">{product.shortDesc}</p>
+              )}
 
               {/* Price Display */}
               <div className="bg-joy-gray-50 rounded-2xl p-6 mb-6">
@@ -255,7 +342,7 @@ export default function ProductDetailPage() {
                       <Icons.Plus size={18} />
                     </button>
                   </div>
-                  <span className="text-sm text-joy-gray-500">
+                  <span className={`text-sm ${product.inventory < 20 ? 'text-red-500 font-medium' : 'text-joy-gray-500'}`}>
                     {product.inventory} in stock
                   </span>
                 </div>
@@ -304,20 +391,9 @@ export default function ProductDetailPage() {
                   onClick={() => toggleItem(product.id)}
                 >
                   <Icons.Heart size={20} className="mr-2" />
-                  {inWishlist ? 'In Wishlist' : 'Add to Wishlist'}
+                  {isInWishlist(product.id) ? 'In Wishlist' : 'Add to Wishlist'}
                 </Button>
               </div>
-
-              {/* WhatsApp Inquiry */}
-              <a
-                href={`https://wa.me/12025551234?text=Hi! I'm interested in: ${encodeURIComponent(product.name)} (SKU: ${product.sku})`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center justify-center gap-2 w-full py-4 bg-[#25D366] text-white rounded-xl font-semibold hover:bg-[#20bd5a] transition-colors mb-6"
-              >
-                <Icons.WhatsApp size={24} />
-                Inquire via WhatsApp
-              </a>
 
               {/* Trust Badges */}
               <div className="grid grid-cols-2 gap-3 text-sm">
@@ -344,7 +420,7 @@ export default function ProductDetailPage() {
           {/* Product Details Tabs */}
           <div className="mt-16">
             <div className="flex border-b border-joy-gray-200">
-              {(['description', 'specs', 'reviews'] as const).map((tab) => (
+              {(['description', 'specs'] as const).map((tab) => (
                 <button
                   key={tab}
                   onClick={() => setActiveTab(tab)}
@@ -372,54 +448,53 @@ export default function ProductDetailPage() {
               {activeTab === 'specs' && (
                 <div className="grid md:grid-cols-2 gap-6">
                   <div className="space-y-4">
-                    <div className="flex justify-between py-3 border-b border-joy-gray-100">
-                      <span className="text-joy-gray-500">SKU</span>
-                      <span className="font-medium">{product.sku}</span>
-                    </div>
-                    <div className="flex justify-between py-3 border-b border-joy-gray-100">
-                      <span className="text-joy-gray-500">Barcode</span>
-                      <span className="font-medium">{product.barcode}</span>
-                    </div>
-                    <div className="flex justify-between py-3 border-b border-joy-gray-100">
-                      <span className="text-joy-gray-500">Category</span>
-                      <span className="font-medium">{product.category.name}</span>
-                    </div>
+                    {product.sku && (
+                      <div className="flex justify-between py-3 border-b border-joy-gray-100">
+                        <span className="text-joy-gray-500">SKU</span>
+                        <span className="font-medium">{product.sku}</span>
+                      </div>
+                    )}
+                    {product.barcode && (
+                      <div className="flex justify-between py-3 border-b border-joy-gray-100">
+                        <span className="text-joy-gray-500">Barcode</span>
+                        <span className="font-medium">{product.barcode}</span>
+                      </div>
+                    )}
+                    {product.category && (
+                      <div className="flex justify-between py-3 border-b border-joy-gray-100">
+                        <span className="text-joy-gray-500">Category</span>
+                        <span className="font-medium">{product.category.name}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between py-3 border-b border-joy-gray-100">
                       <span className="text-joy-gray-500">Min Order</span>
                       <span className="font-medium">{product.minOrderQty} pcs</span>
                     </div>
                   </div>
                   <div className="space-y-4">
-                    <div className="flex justify-between py-3 border-b border-joy-gray-100">
-                      <span className="text-joy-gray-500">Weight</span>
-                      <span className="font-medium">{product.weight} kg</span>
-                    </div>
-                    <div className="flex justify-between py-3 border-b border-joy-gray-100">
-                      <span className="text-joy-gray-500">Dimensions</span>
-                      <span className="font-medium">{product.dimensions}</span>
-                    </div>
+                    {product.weight && (
+                      <div className="flex justify-between py-3 border-b border-joy-gray-100">
+                        <span className="text-joy-gray-500">Weight</span>
+                        <span className="font-medium">{product.weight} kg</span>
+                      </div>
+                    )}
+                    {product.dimensions && (
+                      <div className="flex justify-between py-3 border-b border-joy-gray-100">
+                        <span className="text-joy-gray-500">Dimensions</span>
+                        <span className="font-medium">{product.dimensions}</span>
+                      </div>
+                    )}
                     <div className="flex justify-between py-3 border-b border-joy-gray-100">
                       <span className="text-joy-gray-500">Inventory</span>
                       <span className="font-medium">{product.inventory} units</span>
                     </div>
-                    <div className="flex justify-between py-3 border-b border-joy-gray-100">
-                      <span className="text-joy-gray-500">Compliance</span>
-                      <span className="font-medium">
-                        {product.compliance?.map(c => c.type).join(', ') || 'Standard'}
-                      </span>
-                    </div>
+                    {tags.length > 0 && (
+                      <div className="flex justify-between py-3 border-b border-joy-gray-100">
+                        <span className="text-joy-gray-500">Tags</span>
+                        <span className="font-medium">{Array.isArray(tags) ? tags.map((t: any) => t.name || t).join(', ') : tags}</span>
+                      </div>
+                    )}
                   </div>
-                </div>
-              )}
-
-              {activeTab === 'reviews' && (
-                <div className="text-center py-12">
-                  <div className="w-16 h-16 rounded-full bg-joy-gray-100 flex items-center justify-center mx-auto mb-4">
-                    <Icons.Star size={32} className="text-joy-gray-300" />
-                  </div>
-                  <h3 className="font-semibold text-joy-gray-900 mb-2">No reviews yet</h3>
-                  <p className="text-joy-gray-500 mb-4">Be the first to review this product</p>
-                  <Button variant="secondary">Write a Review</Button>
                 </div>
               )}
             </div>

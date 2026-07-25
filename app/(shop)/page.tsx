@@ -36,6 +36,7 @@ const TRUST_BADGES = [
 
 export default function ShopHomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
+  const [newArrivalProducts, setNewArrivalProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [siteContent, setSiteContent] = useState<Record<string, SiteContent>>({})
 
@@ -46,16 +47,29 @@ export default function ShopHomePage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/products?featured=true')
-      const data = await res.json()
-      if (data.success && data.data.length > 0) {
-        setFeaturedProducts(data.data.slice(0, 8))
+      // Fetch featured products
+      const featuredRes = await fetch('/api/products?featured=true')
+      const featuredData = await featuredRes.json()
+      if (featuredData.success && featuredData.data.length > 0) {
+        setFeaturedProducts(featuredData.data.slice(0, 8))
       } else {
         const allRes = await fetch('/api/products')
         const allData = await allRes.json()
         if (allData.success) {
           setFeaturedProducts(allData.data.slice(0, 8))
         }
+      }
+
+      // Fetch new arrivals (products created in last 30 days)
+      const allRes = await fetch('/api/products')
+      const allData = await allRes.json()
+      if (allData.success) {
+        const thirtyDaysAgo = new Date()
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
+        const newProducts = allData.data.filter((p: any) => 
+          p.createdAt && new Date(p.createdAt) >= thirtyDaysAgo
+        )
+        setNewArrivalProducts(newProducts.slice(0, 8))
       }
     } catch (err) {
       console.error('Failed to fetch products:', err)
@@ -83,6 +97,10 @@ export default function ShopHomePage() {
   try {
     if (sc('banners')?.content) banners = JSON.parse(sc('banners')!.content!)
   } catch {}
+
+  // Check if new arrivals section is enabled
+  const newArrivalEnabled = sc('new_arrivals')?.title !== 'false'
+  const showNewArrivals = newArrivalEnabled && newArrivalProducts.length > 0
 
   return (
     <div className="min-h-screen bg-white">
@@ -146,6 +164,47 @@ export default function ShopHomePage() {
             </div>
           </div>
         </section>
+
+        {/* New Arrivals Section */}
+        {showNewArrivals && (
+          <section className="py-16">
+            <div className="max-w-7xl mx-auto px-4">
+              <div className="flex items-center justify-between mb-8">
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-joy-orange text-white text-xs font-bold px-2 py-1 rounded-full animate-pulse">
+                      NEW
+                    </span>
+                    <h2 className="font-display text-2xl font-bold text-joy-gray-900">
+                      {sc('new_arrivals')?.title || 'New Arrivals'}
+                    </h2>
+                  </div>
+                  <p className="text-joy-gray-500 mt-1">
+                    {sc('new_arrivals')?.subtitle || 'Fresh from the factory - just landed!'}
+                  </p>
+                </div>
+                <Link href="/products?sort=newest">
+                  <Button variant="secondary">
+                    View All <Icons.ChevronRight size={18} className="ml-1" />
+                  </Button>
+                </Link>
+              </div>
+              {isLoading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+                  {[...Array(4)].map((_, i) => (
+                    <div key={i} className="bg-white rounded-2xl h-80 animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+                  {newArrivalProducts.map((product) => (
+                    <ProductCard key={product.id} product={product} isNew />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
 
         {/* Categories */}
         <section className="py-16">

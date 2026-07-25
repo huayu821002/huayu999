@@ -14,9 +14,10 @@ interface ProductCardProps {
   currency?: Currency
   showTierPrices?: boolean
   className?: string
+  isNew?: boolean
 }
 
-export function ProductCard({ product, currency = 'USD', showTierPrices = true, className }: ProductCardProps) {
+export function ProductCard({ product, currency = 'USD', showTierPrices = true, className, isNew }: ProductCardProps) {
   const [isHovered, setIsHovered] = useState(false)
   const [isAdding, setIsAdding] = useState(false)
   const { addItem } = useCartStore()
@@ -92,6 +93,13 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
             <div className="absolute top-3 right-3 bg-joy-orange text-white text-xs font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
               <Icons.Zap size={12} />
               Trending
+            </div>
+          )}
+
+          {/* New Badge */}
+          {isNew && (
+            <div className="absolute top-3 left-3 bg-joy-green text-white text-xs font-bold px-2.5 py-1 rounded-full animate-pulse">
+              NEW
             </div>
           )}
 
