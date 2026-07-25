@@ -158,69 +158,12 @@ export const countries: Country[] = [
     ],
   },
   {
-    code: 'VE',
-    name: 'Venezuela',
-    states: [
-      { code: 'DC', name: 'Distrito Capital', cities: ['Caracas'] },
-      { code: 'MG', name: 'Miranda', cities: ['Petare'] },
-      { code: 'ZG', name: 'Zulia', cities: ['Maracaibo'] },
-    ],
-  },
-  {
     code: 'CL',
     name: 'Chile',
     states: [
       { code: 'RM', name: 'Santiago', cities: ['Santiago'] },
       { code: 'VS', name: 'Valparaíso', cities: ['Valparaíso', 'Viña del Mar'] },
       { code: 'BI', name: 'Bío Bío', cities: ['Concepción'] },
-    ],
-  },
-  {
-    code: 'EC',
-    name: 'Ecuador',
-    states: [
-      { code: 'PICH', name: 'Pichincha', cities: ['Quito'] },
-      { code: 'GU', name: 'Guayas', cities: ['Guayaquil'] },
-      { code: 'TN', name: 'Tungurahua', cities: ['Ambato'] },
-    ],
-  },
-  {
-    code: 'BO',
-    name: 'Bolivia',
-    states: [
-      { code: 'LP', name: 'La Paz', cities: ['La Paz'] },
-      { code: 'SC', name: 'Santa Cruz', cities: ['Santa Cruz de la Sierra'] },
-      { code: 'CB', name: 'Cochabamba', cities: ['Cochabamba'] },
-    ],
-  },
-  {
-    code: 'PY',
-    name: 'Paraguay',
-    states: [
-      { code: 'ASU', name: 'Asunción', cities: ['Asunción'] },
-      { code: 'CE', name: 'Central', cities: ['Ciudad del Este'] },
-    ],
-  },
-  {
-    code: 'UY',
-    name: 'Uruguay',
-    states: [
-      { code: 'MO', name: 'Montevideo', cities: ['Montevideo'] },
-      { code: 'CA', name: 'Canelones', cities: ['Canelones'] },
-    ],
-  },
-  {
-    code: 'GY',
-    name: 'Guyana',
-    states: [
-      { code: 'GE', name: 'Georgetown', cities: ['Georgetown'] },
-    ],
-  },
-  {
-    code: 'SR',
-    name: 'Suriname',
-    states: [
-      { code: 'PM', name: 'Paramaribo', cities: ['Paramaribo'] },
     ],
   },
 
