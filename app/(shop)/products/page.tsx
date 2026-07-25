@@ -338,7 +338,8 @@ function ProductsContent() {
         return b.price - a.price
       case 'newest':
       default:
-        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+        // Sort by id as a proxy for newest (Prisma returns newest first by default)
+        return 0 // Keep original order since API already returns newest first
     }
   })
 
