@@ -46,7 +46,7 @@ export default function AdminSettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'shipping' | 'pages'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'pages' | 'shipping' | 'custom_pages'>('general')
 
   // Categories
   const [categories, setCategories] = useState<Category[]>([])
@@ -67,6 +67,14 @@ export default function AdminSettingsPage() {
     freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0'
   })
 
+  // Custom Pages
+  const [customPages, setCustomPages] = useState<any[]>([])
+  const [showPageModal, setShowPageModal] = useState(false)
+  const [editingPage, setEditingPage] = useState<any | null>(null)
+  const [pageForm, setPageForm] = useState({
+    title: '', slug: '', content: '', metaTitle: '', metaDesc: '', isActive: true, sortOrder: '0'
+  })
+
   useEffect(() => {
     const token = localStorage.getItem('token')
     const userStr = localStorage.getItem('user')
@@ -84,6 +92,7 @@ export default function AdminSettingsPage() {
     if (activeTab === 'categories') fetchCategories()
     if (activeTab === 'homepage' || activeTab === 'pages') fetchHomepageContent()
     if (activeTab === 'shipping') fetchShippingMethods()
+    if (activeTab === 'custom_pages') fetchCustomPages()
   }, [isAdmin, activeTab])
 
   const fetchCategories = async () => {
@@ -116,6 +125,14 @@ export default function AdminSettingsPage() {
       const res = await fetch('/api/admin/shipping-methods')
       const data = await res.json()
       if (data.success) setShippingMethods(data.data)
+    } catch (err) { console.error(err) }
+  }
+
+  const fetchCustomPages = async () => {
+    try {
+      const res = await fetch('/api/admin/pages')
+      const data = await res.json()
+      if (data.success) setCustomPages(data.data)
     } catch (err) { console.error(err) }
   }
 
@@ -165,6 +182,66 @@ export default function AdminSettingsPage() {
     } catch { alert('Failed to delete') }
   }
 
+  // Custom Pages handlers
+  const openAddPage = () => {
+    setEditingPage(null)
+    setPageForm({ title: '', slug: '', content: '', metaTitle: '', metaDesc: '', isActive: true, sortOrder: '0' })
+    setShowPageModal(true)
+  }
+
+  const openEditPage = (page: any) => {
+    setEditingPage(page)
+    setPageForm({
+      title: page.title,
+      slug: page.slug,
+      content: page.content,
+      metaTitle: page.metaTitle || '',
+      metaDesc: page.metaDesc || '',
+      isActive: page.isActive,
+      sortOrder: String(page.sortOrder || '0'),
+    })
+    setShowPageModal(true)
+  }
+
+  const handlePageSubmit = async () => {
+    if (!pageForm.title || !pageForm.slug || !pageForm.content) {
+      alert('Title, slug, and content are required')
+      return
+    }
+    setIsSaving(true)
+    try {
+      const url = editingPage ? `/api/admin/pages/${editingPage.id}` : '/api/admin/pages'
+      const method = editingPage ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(pageForm),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setShowPageModal(false)
+        fetchCustomPages()
+        alert(editingPage ? 'Page updated!' : 'Page created!')
+      } else {
+        alert(data.error || 'Failed to save')
+      }
+    } catch { alert('Failed to save') }
+    setIsSaving(false)
+  }
+
+  const handleDeletePage = async (id: string) => {
+    if (!confirm('Delete this page? This cannot be undone.')) return
+    try {
+      const res = await fetch(`/api/admin/pages/${id}`, { method: 'DELETE' })
+      if (res.ok) {
+        fetchCustomPages()
+        alert('Page deleted')
+      } else {
+        alert('Failed to delete')
+      }
+    } catch { alert('Failed to delete') }
+  }
+
   // Homepage handlers
   const handleHomepageSave = async (section: string) => {
     setIsSaving(true)
@@ -203,7 +280,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="flex border-b border-joy-gray-200 mb-6 overflow-x-auto">
-            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'pages', label: 'Pages' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }].map(tab => (
+            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'pages', label: 'Pages' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'custom_pages', label: 'Custom Pages' }].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
                 className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors whitespace-nowrap ${activeTab === tab.key ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'}`}>
                 {tab.label}
@@ -345,6 +422,63 @@ export default function AdminSettingsPage() {
             </div>
           )}
 
+          {/* Custom Pages Tab */}
+          {activeTab === 'custom_pages' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-semibold text-lg text-joy-gray-900">Custom Pages</h2>
+                    <p className="text-sm text-joy-gray-500 mt-1">Create and manage custom content pages</p>
+                  </div>
+                  <Button onClick={openAddPage}><Icons.Plus size={18} className="mr-2" />Add New Page</Button>
+                </div>
+                {customPages.length === 0 ? (
+                  <p className="text-center text-joy-gray-500 py-8">No custom pages yet. Create one to get started.</p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead className="bg-joy-gray-50">
+                        <tr>
+                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Title</th>
+                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Slug</th>
+                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Status</th>
+                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-joy-gray-100">
+                        {customPages.map(page => (
+                          <tr key={page.id} className="hover:bg-joy-gray-50">
+                            <td className="px-4 py-3 font-medium text-joy-gray-900">{page.title}</td>
+                            <td className="px-4 py-3 font-mono text-sm text-joy-gray-600">/{page.slug}</td>
+                            <td className="px-4 py-3">
+                              <span className={`px-2 py-1 rounded-full text-xs font-medium ${page.isActive ? 'bg-joy-green/10 text-joy-green' : 'bg-joy-gray-100 text-joy-gray-600'}`}>
+                                {page.isActive ? 'Active' : 'Inactive'}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-1">
+                                <a href={`/pages/${page.slug}`} target="_blank" className="p-2 hover:bg-joy-gray-100 rounded-lg" title="View">
+                                  <Icons.ExternalLink size={16} className="text-joy-gray-500" />
+                                </a>
+                                <button onClick={() => openEditPage(page)} className="p-2 hover:bg-joy-gray-100 rounded-lg" title="Edit">
+                                  <Icons.Copy size={16} className="text-joy-gray-500" />
+                                </button>
+                                <button onClick={() => handleDeletePage(page.id)} className="p-2 hover:bg-red-50 rounded-lg" title="Delete">
+                                  <Icons.Trash2 size={16} className="text-red-500" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
           {/* Shipping Tab */}
           {activeTab === 'shipping' && (
             <div className="space-y-6">
@@ -421,6 +555,44 @@ export default function AdminSettingsPage() {
             <div className="px-6 py-4 border-t border-joy-gray-100 flex justify-end gap-3">
               <Button variant="secondary" onClick={() => setShowCategoryModal(false)}>Cancel</Button>
               <Button onClick={handleCategorySubmit} isLoading={isSaving}>Save</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Custom Page Modal */}
+      {showPageModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowPageModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
+            <div className="px-6 py-4 border-b border-joy-gray-100 flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-joy-gray-900">{editingPage ? 'Edit Page' : 'Add New Page'}</h2>
+              <button onClick={() => setShowPageModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <Input label="Page Title *" placeholder="e.g., Privacy Policy" value={pageForm.title} onChange={e => setPageForm({...pageForm, title: e.target.value})} />
+              <Input label="URL Slug *" placeholder="privacy-policy" value={pageForm.slug} onChange={e => setPageForm({...pageForm, slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '-')})} />
+              <div>
+                <label className="block text-sm font-medium text-joy-gray-700 mb-2">Page Content (HTML) *</label>
+                <textarea
+                  className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange min-h-[200px] font-mono text-sm"
+                  placeholder="<h2>Your Content</h2><p>Write your page content here with HTML formatting...</p>"
+                  value={pageForm.content}
+                  onChange={e => setPageForm({...pageForm, content: e.target.value})}
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Meta Title (SEO)" placeholder="Page title for search engines" value={pageForm.metaTitle} onChange={e => setPageForm({...pageForm, metaTitle: e.target.value})} />
+                <Input label="Meta Description (SEO)" placeholder="Brief description for search results" value={pageForm.metaDesc} onChange={e => setPageForm({...pageForm, metaDesc: e.target.value})} />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="pageIsActive" checked={pageForm.isActive} onChange={e => setPageForm({...pageForm, isActive: e.target.checked})} className="rounded" />
+                <label htmlFor="pageIsActive" className="text-sm text-joy-gray-700">Active (visible on site)</label>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-joy-gray-100 flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setShowPageModal(false)}>Cancel</Button>
+              <Button onClick={handlePageSubmit} isLoading={isSaving}>{editingPage ? 'Update Page' : 'Create Page'}</Button>
             </div>
           </div>
         </div>

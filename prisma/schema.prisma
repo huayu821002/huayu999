@@ -190,3 +190,16 @@ model ShippingMethod {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 }
+
+model CustomPage {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  content     String   // HTML content
+  metaTitle   String?
+  metaDesc    String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
