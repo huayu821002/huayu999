@@ -256,16 +256,25 @@ export default function AdminProductsPage() {
 
   const addImage = (url: string, index: number) => {
     const currentImages = parseImages(form.images)
-    // Ensure array is long enough
-    while (currentImages.length <= index) currentImages.push('')
-    currentImages[index] = url
-    setForm({...form, images: JSON.stringify(currentImages.filter(Boolean))})
+    // Ensure array has at least index+1 slots (max 5)
+    while (currentImages.length < index + 1) {
+      currentImages.push('')
+    }
+    // Cap at 5 slots
+    if (index < 5) {
+      currentImages[index] = url
+    }
+    // Keep all slots (including empty) to preserve index positions
+    setForm({...form, images: JSON.stringify(currentImages.slice(0, 5))})
   }
 
   const removeImage = (index: number) => {
     const currentImages = parseImages(form.images)
-    currentImages.splice(index, 1)
-    setForm({...form, images: JSON.stringify(currentImages)})
+    // Set to empty string instead of splicing to preserve slot positions
+    if (index < currentImages.length) {
+      currentImages[index] = ''
+    }
+    setForm({...form, images: JSON.stringify(currentImages.slice(0, 5))})
   }
 
   const COMMON_ATTRIBUTES = ['Color', 'Size', 'Material', 'Style', 'Weight', 'Dimensions']
