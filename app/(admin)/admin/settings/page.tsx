@@ -661,7 +661,7 @@ export default function AdminSettingsPage() {
 
               {/* Footer Section */}
               <div className="bg-white rounded-2xl shadow-sm p-6">
-                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2 flex items-center gap-2"><Icons.FileText size={20} className="text-joy-orange" />Footer Settings</h2>
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2 flex items-center gap-2"><Icons.Sparkles size={20} className="text-joy-orange" />Footer Settings</h2>
                 <p className="text-sm text-joy-gray-500 mb-6">Edit the bottom footer content</p>
                 
                 <div className="space-y-6">
