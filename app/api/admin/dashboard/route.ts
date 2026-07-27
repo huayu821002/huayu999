@@ -34,7 +34,7 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { name: true } },
-        items: { select: { quantity: true } },
+        orderItems: { select: { quantity: true } },
       },
     })
 
@@ -54,7 +54,7 @@ export async function GET() {
       id: o.id,
       orderNumber: o.orderNumber,
       customer: o.user?.name || 'Unknown',
-      items: o.items.reduce((sum, i) => sum + i.quantity, 0),
+      items: o.orderItems.reduce((sum, i) => sum + i.quantity, 0),
       total: o.total,
       status: o.status,
       createdAt: o.createdAt.toISOString(),
