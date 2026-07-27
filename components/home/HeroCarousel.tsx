@@ -65,7 +65,7 @@ export function HeroCarousel() {
   const currentBanner = banners[currentIndex]
 
   return (
-    <div className="relative w-full h-64 sm:h-80 md:h-96 lg:h-[28rem] overflow-hidden bg-joy-gray-900">
+    <div className="relative w-full h-64 sm:h-80 md:h-96 lg:h-[600px] overflow-hidden bg-joy-gray-900">
       {/* Slides */}
       {banners.map((banner, index) => (
         <div
