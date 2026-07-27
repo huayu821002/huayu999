@@ -23,17 +23,7 @@ const HOMEPAGE_SECTIONS = [
   { key: 'trust_badges', label: 'Trust Badges' },
 ]
 
-const PAGE_SECTIONS = [
-  { key: 'about_hero', label: 'About - Hero Title' },
-  { key: 'about_content', label: 'About - Main Content (HTML)', multiline: true },
-  { key: 'about_story', label: 'About - Company Story' },
-  { key: 'about_values', label: 'About - Values (JSON array)' },
-  { key: 'about_cta', label: 'About - CTA Section' },
-  { key: 'contact_hero', label: 'Contact - Hero Title' },
-  { key: 'contact_form', label: 'Contact - Form Title' },
-  { key: 'contact_info', label: 'Contact - Info (JSON: email,whatsapp,phone,address,hours)' },
-  { key: 'contact_extra', label: 'Contact - Extra Content (HTML)' },
-]
+const PAGE_SECTIONS = []
 
 export default function AdminSettingsPage() {
   const router = useRouter()
@@ -573,64 +563,7 @@ export default function AdminSettingsPage() {
           {activeTab === 'pages' && (
             <div className="space-y-6">
               <div className="bg-white rounded-2xl shadow-sm p-6">
-                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2">Page Content Editor</h2>
-                <p className="text-sm text-joy-gray-500 mb-6">Edit About Us and Contact Us page content. Changes appear immediately on the storefront.</p>
-                
-                {PAGE_SECTIONS.map(section => (
-                  <div key={section.key} className="mb-6 pb-6 border-b border-joy-gray-100 last:border-0">
-                    <h3 className="font-medium text-joy-gray-900 mb-3">{section.label}</h3>
-                    <div className="space-y-3">
-                      <Input 
-                        label="Title"
-                        placeholder="Section title"
-                        value={homepageForm[section.key]?.title || ''}
-                        onChange={e => setHomepageForm({
-                          ...homepageForm,
-                          [section.key]: { ...homepageForm[section.key], title: e.target.value }
-                        })}
-                      />
-                      <Input 
-                        label="Subtitle"
-                        placeholder="Section subtitle"
-                        value={homepageForm[section.key]?.subtitle || ''}
-                        onChange={e => setHomepageForm({
-                          ...homepageForm,
-                          [section.key]: { ...homepageForm[section.key], subtitle: e.target.value }
-                        })}
-                      />
-                      {section.multiline ? (
-                        <div>
-                          <label className="block text-sm font-medium text-joy-gray-700 mb-2">Content (HTML supported)</label>
-                          <textarea
-                            className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange min-h-[120px] font-mono text-sm"
-                            placeholder="<p>Your HTML content here...</p>"
-                            value={homepageForm[section.key]?.content || ''}
-                            onChange={e => setHomepageForm({
-                              ...homepageForm,
-                              [section.key]: { ...homepageForm[section.key], content: e.target.value }
-                            })}
-                          />
-                        </div>
-                      ) : (
-                        <Input
-                          label="Content"
-                          placeholder="Content or JSON data"
-                          value={homepageForm[section.key]?.content || ''}
-                          onChange={e => setHomepageForm({
-                            ...homepageForm,
-                            [section.key]: { ...homepageForm[section.key], content: e.target.value }
-                          })}
-                        />
-                      )}
-                    </div>
-                  </div>
-                ))}
-                
-                <div className="flex justify-end">
-                  <Button onClick={() => handleSaveHomepage(PAGE_SECTIONS.map(s => s.key))} isLoading={isSaving}>
-                    Save Page Content
-                  </Button>
-                </div>
+                <p className="text-center text-joy-gray-500 py-8">Page content editing is disabled.</p>
               </div>
             </div>
           )}
