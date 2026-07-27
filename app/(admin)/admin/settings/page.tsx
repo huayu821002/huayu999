@@ -81,7 +81,7 @@ export default function AdminSettingsPage() {
   const [footerSettings, setFooterSettings] = useState<any>(null)
 
   // Category Settings
-  const [categoryForm, setCategoryForm] = useState<any[]>([
+  const [homepageCategoryForm, setHomepageCategoryForm] = useState<any[]>([
     { id: 'cat-1', name: 'Accessories', slug: 'accessories', image: '' },
     { id: 'cat-2', name: 'Pet Supplies', slug: 'pet-supplies', image: '' },
     { id: 'cat-3', name: 'Home Decor', slug: 'home-decor', image: '' },
@@ -196,7 +196,7 @@ export default function AdminSettingsPage() {
       const res = await fetch('/api/admin/categories')
       const data = await res.json()
       if (data.success && data.data) {
-        setCategoryForm(data.data)
+        setHomepageCategoryForm(data.data)
       }
     } catch (err) { console.error(err) }
   }
@@ -207,7 +207,7 @@ export default function AdminSettingsPage() {
       const res = await fetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(categoryForm)
+        body: JSON.stringify(homepageCategoryForm)
       })
       if (res.ok) {
         alert('Categories saved successfully!')
@@ -484,20 +484,20 @@ export default function AdminSettingsPage() {
                   <Button size="sm" onClick={saveCategories} isLoading={isSaving}>Save All</Button>
                 </div>
                 <div className="space-y-4">
-                  {categoryForm.map((cat, idx) => (
+                  {homepageCategoryForm.map((cat, idx) => (
                     <div key={cat.id} className="border border-joy-gray-200 rounded-xl p-4">
                       <div className="grid grid-cols-4 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-joy-gray-700 mb-1">Name</label>
-                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.name} onChange={e => { const updated = [...categoryForm]; updated[idx].name = e.target.value; setCategoryForm(updated); }} />
+                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.name} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].name = e.target.value; setHomepageCategoryForm(updated); }} />
                         </div>
                         <div>
                           <label className="block text-sm font-medium text-joy-gray-700 mb-1">Slug</label>
-                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.slug} onChange={e => { const updated = [...categoryForm]; updated[idx].slug = e.target.value; setCategoryForm(updated); }} />
+                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.slug} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].slug = e.target.value; setHomepageCategoryForm(updated); }} />
                         </div>
                         <div className="col-span-2">
                           <label className="block text-sm font-medium text-joy-gray-700 mb-1">Image URL</label>
-                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.image} onChange={e => { const updated = [...categoryForm]; updated[idx].image = e.target.value; setCategoryForm(updated); }} />
+                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.image} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].image = e.target.value; setHomepageCategoryForm(updated); }} />
                         </div>
                       </div>
                     </div>
