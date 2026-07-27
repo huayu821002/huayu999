@@ -180,10 +180,10 @@ model Page {
   id        String   @id @default(cuid())
   title     String
   slug      String   @unique
-  content   String
+  content   String?
   status    String   @default("DRAFT")
-  productId String   @unique
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String?
+  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

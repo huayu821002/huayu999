@@ -32,7 +32,7 @@ export async function POST(request: Request) {
       data: {
         title,
         slug,
-        content: content || '',
+        content: content || null,
         status: status || 'DRAFT',
         productId: productId || null,
       },
