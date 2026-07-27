@@ -272,26 +272,6 @@ export function Header() {
         </div>
       )}
 
-      {/* Logistics Progress Bar - Only on Home */}
-      {pathname === '/' && (
-        <div className="hidden lg:block bg-joy-gray-50 border-t border-joy-gray-100">
-          <div className="max-w-7xl mx-auto px-4 py-3">
-            <div className="flex items-center justify-center gap-8 text-sm">
-              <div className="flex items-center gap-2">
-                <Icons.Truck size={18} className="text-joy-orange" />
-                <span className="text-joy-gray-700">North America: <span className="font-semibold text-joy-gray-900">7-10 Days</span></span>
-              </div>
-              <div className="flex items-center gap-2">
-                <Icons.Truck size={18} className="text-joy-pink" />
-                <span className="text-joy-gray-700">South America: <span className="font-semibold text-joy-gray-900">15-20 Days</span></span>
-              </div>
-              <div className="logistics-bar w-32 h-2 bg-joy-gray-200 rounded-full overflow-hidden">
-                <div className="logistics-fill w-3/4" />
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-    </header>
+          </header>
   )
 }
