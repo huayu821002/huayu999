@@ -6,20 +6,20 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    // Only show published pages publicly (check both cases)
-    const page = await prisma.page.findFirst({
-      where: { 
-        slug: params.slug,
-        OR: [
-          { status: 'PUBLISHED' },
-          { status: 'Published' },
-          { status: 'published' },
-        ],
-      },
+    const page = await prisma.page.findUnique({
+      where: { slug: params.slug },
     })
+    
     if (!page) {
       return NextResponse.json({ success: false, error: 'Page not found' }, { status: 404 })
     }
+    
+    // Only show published pages
+    const isPublished = page.status?.toUpperCase() === 'PUBLISHED'
+    if (!isPublished) {
+      return NextResponse.json({ success: false, error: 'Page not found' }, { status: 404 })
+    }
+    
     return NextResponse.json({ success: true, data: page })
   } catch (error) {
     console.error('Page API error:', error)
