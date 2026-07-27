@@ -97,7 +97,7 @@ export default function AdminBanners() {
 
   const updateBanner = (index: number, field: keyof Banner, value: string | number) => {
     const newBanners = [...banners]
-    newBanners[index][field] = value
+    ;(newBanners[index] as Banner)[field] = value as never
     setBanners(newBanners)
   }
 
