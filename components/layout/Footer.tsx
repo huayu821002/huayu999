@@ -3,7 +3,13 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Icons } from '@/components/ui/Icons'
-import { TRUST_BADGES } from '@/types'
+
+const defaultTrustBadges = [
+  { icon: 'ShieldCheck', title: 'Quality Assured', desc: 'Every product inspected before shipping' },
+  { icon: 'Truck', title: 'Global Shipping', desc: '150+ countries supported' },
+  { icon: 'Package', title: 'Low Minimums', desc: 'Order from just 3 units' },
+  { icon: 'RefreshCw', title: 'Easy Returns', desc: '30-day hassle-free returns' },
+]
 
 const defaultFooterSettings = {
   logo: { text: 'Fiestaflare', image: '' },
@@ -49,30 +55,45 @@ const defaultFooterSettings = {
   }
 }
 
-const SOCIAL_LINKS = [
-  { href: 'https://instagram.com', icon: Icons.Instagram, label: 'Instagram' },
-  { href: 'https://facebook.com', icon: Icons.Facebook, label: 'Facebook' },
-  { href: 'https://twitter.com', icon: Icons.Twitter, label: 'Twitter' },
-  { href: 'https://youtube.com', icon: Icons.Youtube, label: 'YouTube' },
-  { href: 'https://tiktok.com', icon: Icons.TikTok, label: 'TikTok' },
-]
+const SOCIAL_ICONS: Record<string, any> = {
+  Instagram: Icons.Instagram,
+  Facebook: Icons.Facebook,
+  Twitter: Icons.Twitter,
+  Youtube: Icons.Youtube,
+  TikTok: Icons.TikTok,
+}
 
 export function Footer() {
   const [footerSettings, setFooterSettings] = useState(defaultFooterSettings)
+  const [trustBadges, setTrustBadges] = useState(defaultTrustBadges)
+  const [footerPromo, setFooterPromo] = useState({ title: '', subtitle: '', social: [] as string[] })
 
   useEffect(() => {
-    const fetchFooterSettings = async () => {
+    const fetchSettings = async () => {
       try {
-        const res = await fetch('/api/site/header-footer')
-        const data = await res.json()
-        if (data.success && data.data.footer) {
-          setFooterSettings(data.data.footer)
+        // Fetch header-footer settings
+        const hfRes = await fetch('/api/site/header-footer')
+        const hfData = await hfRes.json()
+        if (hfData.success && hfData.data.footer) {
+          setFooterSettings(hfData.data.footer)
+        }
+        
+        // Fetch homepage blocks (trust badges)
+        const hbRes = await fetch('/api/site/homepage-blocks')
+        const hbData = await hbRes.json()
+        if (hbData.success && hbData.data) {
+          if (hbData.data.trustBadges) {
+            setTrustBadges(hbData.data.trustBadges)
+          }
+          if (hbData.data.footerPromo) {
+            setFooterPromo(hbData.data.footerPromo)
+          }
         }
       } catch (err) {
-        console.error('Failed to fetch footer settings:', err)
+        console.error('Failed to fetch settings:', err)
       }
     }
-    fetchFooterSettings()
+    fetchSettings()
   }, [])
 
   const columns = footerSettings.columns || defaultFooterSettings.columns
@@ -83,17 +104,19 @@ export function Footer() {
       <div className="bg-gradient-to-r from-joy-orange via-joy-pink to-joy-green">
         <div className="max-w-7xl mx-auto px-4 py-6">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-8">
-            {TRUST_BADGES.map((badge) => (
-              <div key={badge.text} className="flex items-center gap-3 text-white">
+            {trustBadges.map((badge: any, idx: number) => (
+              <div key={idx} className="flex items-center gap-3 text-white">
                 <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center flex-shrink-0">
-                  {badge.icon === 'Truck' && <Icons.Truck size={20} />}
-                  {badge.icon === 'RefreshCw' && <Icons.RefreshCw size={20} />}
                   {badge.icon === 'ShieldCheck' && <Icons.ShieldCheck size={20} />}
+                  {badge.icon === 'Truck' && <Icons.Truck size={20} />}
+                  {badge.icon === 'Package' && <Icons.Package size={20} />}
+                  {badge.icon === 'RefreshCw' && <Icons.RefreshCw size={20} />}
                   {badge.icon === 'MessageCircle' && <Icons.MessageCircle size={20} />}
+                  {badge.icon === 'Star' && <Icons.Star size={20} />}
                 </div>
                 <div className="min-w-0">
-                  <div className="font-semibold text-sm">{badge.text}</div>
-                  <div className="text-xs text-white/80">{badge.subtext}</div>
+                  <div className="font-semibold text-sm">{badge.title}</div>
+                  <div className="text-xs text-white/80">{badge.desc}</div>
                 </div>
               </div>
             ))}
@@ -111,7 +134,7 @@ export function Footer() {
                 F
               </div>
               <div className="font-display font-bold text-xl text-white">
-                Fiestaflare
+                {footerSettings.logo?.text || 'Fiestaflare'}
               </div>
             </Link>
             <p className="text-sm text-joy-gray-400 mb-4">
@@ -119,18 +142,26 @@ export function Footer() {
             </p>
             {/* Social Links */}
             <div className="flex gap-3">
-              {SOCIAL_LINKS.map((social) => (
-                <a
-                  key={social.label}
-                  href={social.href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-full bg-joy-gray-800 flex items-center justify-center hover:bg-joy-orange transition-colors"
-                  aria-label={social.label}
-                >
-                  <social.icon size={16} />
-                </a>
-              ))}
+              {footerPromo.social?.map((social: string) => {
+                const IconComponent = SOCIAL_ICONS[social]
+                if (!IconComponent) return null
+                return (
+                  <a
+                    key={social}
+                    href={social === 'Instagram' ? 'https://instagram.com' : 
+                          social === 'Facebook' ? 'https://facebook.com' :
+                          social === 'Twitter' ? 'https://twitter.com' :
+                          social === 'YouTube' ? 'https://youtube.com' :
+                          social === 'TikTok' ? 'https://tiktok.com' : '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-9 h-9 rounded-full bg-joy-gray-800 flex items-center justify-center hover:bg-joy-orange transition-colors"
+                    aria-label={social}
+                  >
+                    <IconComponent size={16} />
+                  </a>
+                )
+              })}
             </div>
           </div>
 

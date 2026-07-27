@@ -28,6 +28,13 @@ const defaultCategories = [
   { id: 'cat-4', name: 'Gifts', slug: 'gifts', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400', count: 0 },
 ]
 
+const defaultTrustBadges = [
+  { icon: 'ShieldCheck', title: 'Quality Assured', desc: 'Every product inspected before shipping' },
+  { icon: 'Truck', title: 'Global Shipping', desc: '150+ countries supported' },
+  { icon: 'Package', title: 'Low Minimums', desc: 'Order from just 3 units' },
+  { icon: 'RefreshCw', title: 'Easy Returns', desc: '30-day hassle-free returns' },
+]
+
 const TRUST_BADGES = [
   { icon: Icons.ShieldCheck, title: 'Quality Assured', desc: 'Every product inspected before shipping' },
   { icon: Icons.Truck, title: 'Global Shipping', desc: '150+ countries supported' },
@@ -41,11 +48,13 @@ export default function ShopHomePage() {
   const [isLoading, setIsLoading] = useState(true)
   const [siteContent, setSiteContent] = useState<Record<string, SiteContent>>({})
   const [categories, setCategories] = useState(defaultCategories)
+  const [trustBadges, setTrustBadges] = useState(defaultTrustBadges)
 
   useEffect(() => {
     fetchProducts()
     fetchSiteContent()
     fetchCategories()
+    fetchHomepageBlocks()
   }, [])
 
   const fetchCategories = async () => {
@@ -57,6 +66,20 @@ export default function ShopHomePage() {
       }
     } catch (err) {
       console.error('Failed to fetch categories:', err)
+    }
+  }
+
+  const fetchHomepageBlocks = async () => {
+    try {
+      const res = await fetch('/api/site/homepage-blocks')
+      const data = await res.json()
+      if (data.success && data.data) {
+        if (data.data.trustBadges) {
+          setTrustBadges(data.data.trustBadges)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch homepage blocks:', err)
     }
   }
 
@@ -128,10 +151,15 @@ export default function ShopHomePage() {
         <section className="bg-joy-gray-50 py-8 border-b">
           <div className="max-w-7xl mx-auto px-4">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              {TRUST_BADGES.map((badge) => (
+              {trustBadges.map((badge: any) => (
                 <div key={badge.title} className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-joy-orange/10 flex items-center justify-center flex-shrink-0">
-                    <badge.icon size={20} className="text-joy-orange" />
+                    {badge.icon === 'ShieldCheck' && <Icons.ShieldCheck size={20} className="text-joy-orange" />}
+                    {badge.icon === 'Truck' && <Icons.Truck size={20} className="text-joy-orange" />}
+                    {badge.icon === 'Package' && <Icons.Package size={20} className="text-joy-orange" />}
+                    {badge.icon === 'RefreshCw' && <Icons.RefreshCw size={20} className="text-joy-orange" />}
+                    {badge.icon === 'MessageCircle' && <Icons.MessageCircle size={20} className="text-joy-orange" />}
+                    {badge.icon === 'Star' && <Icons.Star size={20} className="text-joy-orange" />}
                   </div>
                   <div>
                     <p className="font-semibold text-sm text-joy-gray-900">{badge.title}</p>

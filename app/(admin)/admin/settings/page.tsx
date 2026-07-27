@@ -88,6 +88,15 @@ export default function AdminSettingsPage() {
     { id: 'cat-4', name: 'Gifts', slug: 'gifts', image: '' },
   ])
 
+  // Trust Badge Settings
+  const [trustBadgeForm, setTrustBadgeForm] = useState<any[]>([
+    { icon: 'ShieldCheck', title: 'Quality Assured', desc: 'Every product inspected before shipping' },
+    { icon: 'Truck', title: 'Global Shipping', desc: '150+ countries supported' },
+    { icon: 'Package', title: 'Low Minimums', desc: 'Order from just 3 units' },
+    { icon: 'RefreshCw', title: 'Easy Returns', desc: '30-day hassle-free returns' },
+  ])
+  const [footerPromoForm, setFooterPromoForm] = useState<any>({ social: ['Instagram', 'Facebook', 'Twitter', 'YouTube', 'TikTok'] })
+
   useEffect(() => {
     const token = localStorage.getItem('token')
     const userStr = localStorage.getItem('user')
@@ -107,7 +116,10 @@ export default function AdminSettingsPage() {
     if (activeTab === 'shipping') fetchShippingMethods()
     if (activeTab === 'custom_pages') fetchCustomPages()
     if (activeTab === 'header_footer') fetchHeaderFooter()
-    if (activeTab === 'homepage') fetchCategories()
+    if (activeTab === 'homepage') {
+      fetchCategories()
+      fetchTrustBadges()
+    }
   }, [isAdmin, activeTab])
 
   const fetchCategories = async () => {
@@ -203,6 +215,34 @@ export default function AdminSettingsPage() {
         alert('Failed to save categories')
       }
     } catch (err) { console.error(err); alert('Failed to save categories') }
+    finally { setIsSaving(false) }
+  }
+
+  const fetchTrustBadges = async () => {
+    try {
+      const res = await fetch('/api/admin/homepage-blocks')
+      const data = await res.json()
+      if (data.success && data.data) {
+        if (data.data.trustBadges) setTrustBadgeForm(data.data.trustBadges)
+        if (data.data.footerPromo) setFooterPromoForm(data.data.footerPromo)
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  const saveTrustBadges = async () => {
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/admin/homepage-blocks', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ trustBadges: trustBadgeForm, footerPromo: footerPromoForm })
+      })
+      if (res.ok) {
+        alert('Trust badges and footer promo saved successfully!')
+      } else {
+        alert('Failed to save')
+      }
+    } catch (err) { console.error(err); alert('Failed to save') }
     finally { setIsSaving(false) }
   }
 
@@ -462,6 +502,74 @@ export default function AdminSettingsPage() {
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+
+              {/* Trust Badges Section */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-semibold text-lg text-joy-gray-900">Trust Badges</h2>
+                    <p className="text-sm text-joy-gray-500 mt-1">Edit icons below carousel and in footer</p>
+                  </div>
+                  <Button size="sm" onClick={saveTrustBadges} isLoading={isSaving}>Save All</Button>
+                </div>
+                <div className="space-y-4">
+                  {trustBadgeForm.map((badge, idx) => (
+                    <div key={idx} className="border border-joy-gray-200 rounded-xl p-4">
+                      <div className="grid grid-cols-4 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-joy-gray-700 mb-1">Icon</label>
+                          <select className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={badge.icon} onChange={e => { const updated = [...trustBadgeForm]; updated[idx].icon = e.target.value; setTrustBadgeForm(updated); }}>
+                            <option value="ShieldCheck">ShieldCheck</option>
+                            <option value="Truck">Truck</option>
+                            <option value="Package">Package</option>
+                            <option value="RefreshCw">RefreshCw</option>
+                            <option value="MessageCircle">MessageCircle</option>
+                            <option value="Star">Star</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-joy-gray-700 mb-1">Title</label>
+                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={badge.title} onChange={e => { const updated = [...trustBadgeForm]; updated[idx].title = e.target.value; setTrustBadgeForm(updated); }} />
+                        </div>
+                        <div className="col-span-2">
+                          <label className="block text-sm font-medium text-joy-gray-700 mb-1">Description</label>
+                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={badge.desc} onChange={e => { const updated = [...trustBadgeForm]; updated[idx].desc = e.target.value; setTrustBadgeForm(updated); }} />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Footer Promo Section */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-semibold text-lg text-joy-gray-900">Footer Social Links</h2>
+                    <p className="text-sm text-joy-gray-500 mt-1">Edit footer social media icons</p>
+                  </div>
+                  <Button size="sm" onClick={saveTrustBadges} isLoading={isSaving}>Save All</Button>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Enabled Social Platforms</label>
+                    <div className="flex flex-wrap gap-2">
+                      {['Instagram', 'Facebook', 'Twitter', 'YouTube', 'TikTok'].map(social => (
+                        <label key={social} className="flex items-center gap-2 px-3 py-2 border border-joy-gray-200 rounded-lg cursor-pointer hover:bg-joy-gray-50">
+                          <input type="checkbox" checked={footerPromoForm.social.includes(social)} onChange={e => {
+                            if (e.target.checked) {
+                              setFooterPromoForm({ ...footerPromoForm, social: [...footerPromoForm.social, social] })
+                            } else {
+                              setFooterPromoForm({ ...footerPromoForm, social: footerPromoForm.social.filter((s: string) => s !== social) })
+                            }
+                          }} className="rounded" />
+                          <span className="text-sm">{social}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
