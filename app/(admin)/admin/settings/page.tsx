@@ -482,7 +482,7 @@ export default function AdminSettingsPage() {
                             </td>
                             <td className="px-4 py-3">
                               <div className="flex items-center gap-1">
-                                <a href={`/${page.slug}`} target="_blank" className="p-2 hover:bg-joy-gray-100 rounded-lg" title="View Page">
+                                <a href={`/info/${page.slug}`} target="_blank" className="p-2 hover:bg-joy-gray-100 rounded-lg" title="View Page">
                                   <Icons.ExternalLink size={16} className="text-joy-gray-500" />
                                 </a>
                                 <button onClick={() => openEditPage(page)} className="p-2 hover:bg-joy-gray-100 rounded-lg" title="Edit">
