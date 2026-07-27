@@ -1073,6 +1073,10 @@ export const countries: Country[] = [
   },
 ]
 
+export function getCountryByCode(code: string): Country | undefined {
+  return countries.find(c => c.code === code)
+}
+
 export function getStatesByCountry(countryCode: string): State[] {
   const country = getCountryByCode(countryCode)
   return country?.states || []
