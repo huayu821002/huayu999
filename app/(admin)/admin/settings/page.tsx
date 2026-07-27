@@ -46,7 +46,7 @@ export default function AdminSettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'pages' | 'shipping' | 'custom_pages'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'pages' | 'shipping' | 'custom_pages' | 'header_footer'>('general')
 
   // Categories
   const [categories, setCategories] = useState<Category[]>([])
@@ -76,6 +76,10 @@ export default function AdminSettingsPage() {
     metaTitle: '', metaDesc: '', status: 'draft', isActive: false, sortOrder: '0'
   })
 
+  // Header & Footer Settings
+  const [headerSettings, setHeaderSettings] = useState<any>(null)
+  const [footerSettings, setFooterSettings] = useState<any>(null)
+
   useEffect(() => {
     const token = localStorage.getItem('token')
     const userStr = localStorage.getItem('user')
@@ -94,6 +98,7 @@ export default function AdminSettingsPage() {
     if (activeTab === 'homepage' || activeTab === 'pages') fetchHomepageContent()
     if (activeTab === 'shipping') fetchShippingMethods()
     if (activeTab === 'custom_pages') fetchCustomPages()
+    if (activeTab === 'header_footer') fetchHeaderFooter()
   }, [isAdmin, activeTab])
 
   const fetchCategories = async () => {
@@ -135,6 +140,34 @@ export default function AdminSettingsPage() {
       const data = await res.json()
       if (data.success) setCustomPages(data.data)
     } catch (err) { console.error(err) }
+  }
+
+  const fetchHeaderFooter = async () => {
+    try {
+      const res = await fetch('/api/admin/header-footer')
+      const data = await res.json()
+      if (data.success) {
+        setHeaderSettings(data.data.header)
+        setFooterSettings(data.data.footer)
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  const saveHeaderFooter = async () => {
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/admin/header-footer', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ header: headerSettings, footer: footerSettings })
+      })
+      if (res.ok) {
+        alert('保存成功！')
+      } else {
+        alert('保存失败')
+      }
+    } catch (err) { console.error(err); alert('保存失败') }
+    finally { setIsSaving(false) }
   }
 
   const openAddPage = () => {
@@ -291,7 +324,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="flex border-b border-joy-gray-200 mb-6 overflow-x-auto">
-            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'pages', label: 'Pages' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'custom_pages', label: 'Custom Pages' }].map(tab => (
+            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'pages', label: 'Pages' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'custom_pages', label: 'Custom Pages' }, { key: 'header_footer', label: 'Header & Footer' }].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
                 className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors whitespace-nowrap ${activeTab === tab.key ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'}`}>
                 {tab.label}
@@ -550,6 +583,139 @@ export default function AdminSettingsPage() {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Header & Footer Tab */}
+          {activeTab === 'header_footer' && headerSettings && footerSettings && (
+            <div className="space-y-6">
+              {/* Header Section */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2 flex items-center gap-2"><Icons.Menu size={20} className="text-joy-orange" />Header Settings</h2>
+                <p className="text-sm text-joy-gray-500 mb-6">Edit the top navigation bar content</p>
+                
+                <div className="space-y-6">
+                  {/* Promo Banner */}
+                  <div className="border border-joy-gray-200 rounded-xl p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-medium text-joy-gray-900">Promo Banner</h3>
+                      <label className="flex items-center gap-2 cursor-pointer">
+                        <input type="checkbox" checked={headerSettings.promoBanner?.enabled} onChange={e => setHeaderSettings({...headerSettings, promoBanner: {...headerSettings.promoBanner, enabled: e.target.checked}})} className="rounded" />
+                        <span className="text-sm text-joy-gray-600">Show Banner</span>
+                      </label>
+                    </div>
+                    {headerSettings.promoBanner?.enabled && (
+                      <textarea
+                        className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange min-h-[80px]"
+                        placeholder="Promo banner text (HTML supported)"
+                        value={headerSettings.promoBanner?.text || ''}
+                        onChange={e => setHeaderSettings({...headerSettings, promoBanner: {...headerSettings.promoBanner, text: e.target.value}})}
+                      />
+                    )}
+                  </div>
+
+                  {/* Logo */}
+                  <div className="border border-joy-gray-200 rounded-xl p-5">
+                    <h3 className="font-medium text-joy-gray-900 mb-4">Logo</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-joy-gray-700 mb-2">Logo Type</label>
+                        <select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" value={headerSettings.logo?.type || 'text'} onChange={e => setHeaderSettings({...headerSettings, logo: {...headerSettings.logo, type: e.target.value}})}>
+                          <option value="text">Text Logo</option>
+                          <option value="image">Image Logo</option>
+                        </select>
+                      </div>
+                      {headerSettings.logo?.type === 'text' ? (
+                        <div>
+                          <label className="block text-sm font-medium text-joy-gray-700 mb-2">Logo Text</label>
+                          <input type="text" className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" value={headerSettings.logo?.text || ''} onChange={e => setHeaderSettings({...headerSettings, logo: {...headerSettings.logo, text: e.target.value}})} />
+                        </div>
+                      ) : (
+                        <div>
+                          <label className="block text-sm font-medium text-joy-gray-700 mb-2">Image URL</label>
+                          <input type="text" className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="https://..." value={headerSettings.logo?.image || ''} onChange={e => setHeaderSettings({...headerSettings, logo: {...headerSettings.logo, image: e.target.value}})} />
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Navigation Links */}
+                  <div className="border border-joy-gray-200 rounded-xl p-5">
+                    <h3 className="font-medium text-joy-gray-900 mb-4">Navigation Links</h3>
+                    <div className="space-y-3">
+                      {(headerSettings.navLinks || []).map((link: any, idx: number) => (
+                        <div key={idx} className="flex items-center gap-3">
+                          <input type="text" placeholder="Label" className="flex-1 px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={link.label} onChange={e => { const links = [...headerSettings.navLinks]; links[idx] = {...links[idx], label: e.target.value}; setHeaderSettings({...headerSettings, navLinks: links}); }} />
+                          <input type="text" placeholder="/products" className="flex-1 px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={link.href} onChange={e => { const links = [...headerSettings.navLinks]; links[idx] = {...links[idx], href: e.target.value}; setHeaderSettings({...headerSettings, navLinks: links}); }} />
+                          <button onClick={() => { const links = headerSettings.navLinks.filter((_: any, i: number) => i !== idx); setHeaderSettings({...headerSettings, navLinks: links}); }} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Icons.Trash2 size={16} /></button>
+                        </div>
+                      ))}
+                      <button onClick={() => setHeaderSettings({...headerSettings, navLinks: [...(headerSettings.navLinks || []), { label: 'New Link', href: '/' }]})} className="w-full py-2 border-2 border-dashed border-joy-gray-300 rounded-lg text-sm text-joy-gray-500 hover:border-joy-orange hover:text-joy-orange">
+                        + Add Link
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer Section */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2 flex items-center gap-2"><Icons.Footprints size={20} className="text-joy-orange" />Footer Settings</h2>
+                <p className="text-sm text-joy-gray-500 mb-6">Edit the bottom footer content</p>
+                
+                <div className="space-y-6">
+                  {/* Footer Columns */}
+                  <div className="border border-joy-gray-200 rounded-xl p-5">
+                    <h3 className="font-medium text-joy-gray-900 mb-4">Footer Columns</h3>
+                    <div className="space-y-4">
+                      {(footerSettings.columns || []).map((col: any, idx: number) => (
+                        <div key={idx} className="border border-joy-gray-100 rounded-lg p-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <input type="text" className="flex-1 px-3 py-2 rounded-lg border border-joy-gray-200 text-sm font-medium" placeholder="Column Title" value={col.title} onChange={e => { const columns = [...footerSettings.columns]; columns[idx] = {...columns[idx], title: e.target.value}; setFooterSettings({...footerSettings, columns}); }} />
+                            <button onClick={() => { const columns = footerSettings.columns.filter((_: any, i: number) => i !== idx); setFooterSettings({...footerSettings, columns}); }} className="p-2 hover:bg-red-50 rounded-lg text-red-500"><Icons.Trash2 size={16} /></button>
+                          </div>
+                          <div className="space-y-2 pl-4">
+                            {(col.links || []).map((link: any, linkIdx: number) => (
+                              <div key={linkIdx} className="flex items-center gap-2">
+                                <input type="text" placeholder="Label" className="flex-1 px-2 py-1 rounded border border-joy-gray-200 text-sm" value={link.label} onChange={e => { const columns = [...footerSettings.columns]; const links = [...columns[idx].links]; links[linkIdx] = {...links[linkIdx], label: e.target.value}; columns[idx] = {...columns[idx], links}; setFooterSettings({...footerSettings, columns}); }} />
+                                <input type="text" placeholder="/page" className="flex-1 px-2 py-1 rounded border border-joy-gray-200 text-sm" value={link.href} onChange={e => { const columns = [...footerSettings.columns]; const links = [...columns[idx].links]; links[linkIdx] = {...links[linkIdx], href: e.target.value}; columns[idx] = {...columns[idx], links}; setFooterSettings({...footerSettings, columns}); }} />
+                                <button onClick={() => { const columns = [...footerSettings.columns]; const links = columns[idx].links.filter((_: any, i: number) => i !== linkIdx); columns[idx] = {...columns[idx], links}; setFooterSettings({...footerSettings, columns}); }} className="p-1 hover:bg-red-50 rounded text-red-400"><Icons.X size={14} /></button>
+                              </div>
+                            ))}
+                            <button onClick={() => { const columns = [...footerSettings.columns]; const links = [...(columns[idx].links || []), { label: 'Link', href: '/' }]; columns[idx] = {...columns[idx], links}; setFooterSettings({...footerSettings, columns}); }} className="text-sm text-joy-orange hover:underline">+ Add Link</button>
+                          </div>
+                        </div>
+                      ))}
+                      <button onClick={() => setFooterSettings({...footerSettings, columns: [...(footerSettings.columns || []), { title: 'New Column', links: [] }]})} className="w-full py-2 border-2 border-dashed border-joy-gray-300 rounded-lg text-sm text-joy-gray-500 hover:border-joy-orange hover:text-joy-orange">
+                        + Add Column
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Contact & Copyright */}
+                  <div className="border border-joy-gray-200 rounded-xl p-5">
+                    <h3 className="font-medium text-joy-gray-900 mb-4">Contact & Copyright</h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-joy-gray-700 mb-2">Contact Email</label>
+                        <input type="email" className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="contact@example.com" value={footerSettings.contact?.email || ''} onChange={e => setFooterSettings({...footerSettings, contact: {...footerSettings.contact, email: e.target.value}})} />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-joy-gray-700 mb-2">Contact Phone</label>
+                        <input type="text" className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="+1 234 567 8900" value={footerSettings.contact?.phone || ''} onChange={e => setFooterSettings({...footerSettings, contact: {...footerSettings.contact, phone: e.target.value}})} />
+                      </div>
+                    </div>
+                    <div className="mt-4">
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">Copyright Text (HTML supported)</label>
+                      <textarea className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange min-h-[60px]" placeholder="© 2024 Your Store. All rights reserved." value={footerSettings.copyright || ''} onChange={e => setFooterSettings({...footerSettings, copyright: e.target.value})} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={saveHeaderFooter} isLoading={isSaving}>Save Header & Footer</Button>
               </div>
             </div>
           )}
