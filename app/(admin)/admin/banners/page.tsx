@@ -53,10 +53,17 @@ export default function AdminBanners() {
 
   const fetchBanners = async () => {
     try {
-      const res = await fetch('/api/admin/banners')
+      // Fetch banners from settings API
+      const res = await fetch('/api/admin/settings?key=homepage_banners')
       const data = await res.json()
-      if (data.success) {
-        setBanners(data.data.length > 0 ? data.data : [createEmptyBanner()])
+      if (data.success && data.data) {
+        const bannerSetting = data.data.find((s: any) => s.key === 'homepage_banners')
+        if (bannerSetting && bannerSetting.value) {
+          const parsed = JSON.parse(bannerSetting.value)
+          setBanners(parsed.length > 0 ? parsed : [createEmptyBanner()])
+        } else {
+          setBanners([createEmptyBanner()])
+        }
       }
     } catch (err) {
       console.error('Failed to fetch banners:', err)
@@ -129,17 +136,18 @@ export default function AdminBanners() {
     setIsSaving(true)
     try {
       const validBanners = banners.filter(b => b.image)
-      const res = await fetch('/api/admin/banners', {
-        method: 'PUT',
+      // Use the existing settings API to save banners
+      const res = await fetch('/api/admin/settings', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ banners: validBanners })
+        body: JSON.stringify({ key: 'homepage_banners', value: JSON.stringify(validBanners) })
       })
       const data = await res.json()
       if (data.success) {
         alert('保存成功！')
-        setBanners(data.data.length > 0 ? data.data : [createEmptyBanner()])
+        setBanners(validBanners.length > 0 ? validBanners : [createEmptyBanner()])
       } else {
-        alert('保存失败: ' + data.error)
+        alert('保存失败: ' + (data.error || '未知错误'))
       }
     } catch (err) {
       console.error('Save error:', err)
