@@ -65,7 +65,7 @@ export function HeroCarousel() {
   const currentBanner = banners[currentIndex]
 
   return (
-    <div className="relative w-full h-[60vh] min-h-[400px] max-h-[600px] overflow-hidden bg-joy-gray-900">
+    <div className="relative w-full h-64 sm:h-80 md:h-96 lg:h-[28rem] overflow-hidden bg-joy-gray-900">
       {/* Slides */}
       {banners.map((banner, index) => (
         <div
@@ -87,18 +87,18 @@ export function HeroCarousel() {
             <div className="max-w-7xl mx-auto px-4 w-full">
               <div className="max-w-2xl">
                 {banner.title && (
-                  <h1 className="font-display text-3xl md:text-5xl lg:text-6xl font-bold text-white mb-4 leading-tight">
+                  <h1 className="font-display text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2 sm:mb-4 leading-tight">
                     {banner.title}
                   </h1>
                 )}
                 {banner.subtitle && (
-                  <p className="text-lg md:text-xl text-white/90 mb-8 max-w-xl">
+                  <p className="text-sm sm:text-base md:text-lg text-white/90 mb-4 sm:mb-6 max-w-xl">
                     {banner.subtitle}
                   </p>
                 )}
                 {banner.buttonText && (
                   <Link href={banner.buttonLink || banner.link || '/'}>
-                    <Button size="lg" className="bg-joy-orange hover:bg-joy-orange/90 text-white border-0">
+                    <Button size="md" className="bg-joy-orange hover:bg-joy-orange/90 text-white border-0 text-sm sm:text-base">
                       {banner.buttonText}
                     </Button>
                   </Link>
