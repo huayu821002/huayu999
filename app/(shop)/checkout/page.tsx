@@ -34,6 +34,7 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
   const [error, setError] = useState('')
+  const [shippingErrors, setShippingErrors] = useState<Record<string, string>>({})
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([])
   const [selectedShipping, setSelectedShipping] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<'PAYPAL' | 'STRIPE' | 'BANK_TRANSFER'>('PAYPAL')
@@ -86,6 +87,39 @@ export default function CheckoutPage() {
 
   const updateShipping = (field: keyof ShippingForm, value: string) => {
     setShippingForm(prev => ({ ...prev, [field]: value }))
+    // Clear error when user starts typing
+    if (shippingErrors[field]) {
+      setShippingErrors(prev => ({ ...prev, [field]: '' }))
+    }
+  }
+
+  const validateShippingForm = () => {
+    const errors: Record<string, string> = {}
+    
+    if (!shippingForm.firstName.trim()) errors.firstName = 'First name is required'
+    if (!shippingForm.lastName.trim()) errors.lastName = 'Last name is required'
+    if (!shippingForm.email.trim()) {
+      errors.email = 'Email is required'
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(shippingForm.email)) {
+      errors.email = 'Please enter a valid email address'
+    }
+    if (!shippingForm.phone.trim()) {
+      errors.phone = 'Phone number is required'
+    } else if (!/^[\d\s\-\+\(\)]+$/.test(shippingForm.phone) || shippingForm.phone.replace(/\D/g, '').length < 8) {
+      errors.phone = 'Please enter a valid phone number'
+    }
+    if (!shippingForm.address.trim()) errors.address = 'Address is required'
+    if (!shippingForm.city.trim()) errors.city = 'City is required'
+    if (!shippingForm.state.trim()) errors.state = 'State/Province is required'
+    if (!shippingForm.zip.trim()) {
+      errors.zip = 'ZIP/Postal code is required'
+    } else if (!/^[\d\s\-a-zA-Z]+$/.test(shippingForm.zip)) {
+      errors.zip = 'Please enter a valid ZIP/Postal code'
+    }
+    if (!shippingForm.country) errors.country = 'Please select a country'
+    
+    setShippingErrors(errors)
+    return Object.keys(errors).length === 0
   }
 
   const handlePlaceOrder = async () => {
@@ -211,23 +245,48 @@ export default function CheckoutPage() {
                 <div className="bg-white rounded-2xl shadow-sm p-6 space-y-6">
                   <h2 className="font-semibold text-xl text-joy-gray-900">Shipping Information</h2>
                   <div className="grid grid-cols-2 gap-4">
-                    <Input label="First Name *" placeholder="John" value={shippingForm.firstName} onChange={e => updateShipping('firstName', e.target.value)} />
-                    <Input label="Last Name *" placeholder="Smith" value={shippingForm.lastName} onChange={e => updateShipping('lastName', e.target.value)} />
+                    <div>
+                      <Input label="First Name *" placeholder="John" value={shippingForm.firstName} onChange={e => updateShipping('firstName', e.target.value)} className={shippingErrors.firstName ? 'border-red-500' : ''} />
+                      {shippingErrors.firstName && <p className="text-red-500 text-xs mt-1">{shippingErrors.firstName}</p>}
+                    </div>
+                    <div>
+                      <Input label="Last Name *" placeholder="Smith" value={shippingForm.lastName} onChange={e => updateShipping('lastName', e.target.value)} className={shippingErrors.lastName ? 'border-red-500' : ''} />
+                      {shippingErrors.lastName && <p className="text-red-500 text-xs mt-1">{shippingErrors.lastName}</p>}
+                    </div>
                   </div>
-                  <Input label="Email *" type="email" placeholder="john@example.com" value={shippingForm.email} onChange={e => updateShipping('email', e.target.value)} />
-                  <Input label="Phone *" type="tel" placeholder="+1 (555) 000-0000" value={shippingForm.phone} onChange={e => updateShipping('phone', e.target.value)} />
-                  <Input label="Address *" placeholder="123 Main St" value={shippingForm.address} onChange={e => updateShipping('address', e.target.value)} />
+                  <div>
+                    <Input label="Email *" type="email" placeholder="john@example.com" value={shippingForm.email} onChange={e => updateShipping('email', e.target.value)} className={shippingErrors.email ? 'border-red-500' : ''} />
+                    {shippingErrors.email && <p className="text-red-500 text-xs mt-1">{shippingErrors.email}</p>}
+                  </div>
+                  <div>
+                    <Input label="Phone *" type="tel" placeholder="+1 (555) 000-0000" value={shippingForm.phone} onChange={e => updateShipping('phone', e.target.value)} className={shippingErrors.phone ? 'border-red-500' : ''} />
+                    {shippingErrors.phone && <p className="text-red-500 text-xs mt-1">{shippingErrors.phone}</p>}
+                  </div>
+                  <div>
+                    <Input label="Address *" placeholder="123 Main St" value={shippingForm.address} onChange={e => updateShipping('address', e.target.value)} className={shippingErrors.address ? 'border-red-500' : ''} />
+                    {shippingErrors.address && <p className="text-red-500 text-xs mt-1">{shippingErrors.address}</p>}
+                  </div>
                   <div className="grid grid-cols-3 gap-4">
-                    <Input label="City *" placeholder="New York" value={shippingForm.city} onChange={e => updateShipping('city', e.target.value)} />
-                    <Input label="State *" placeholder="NY" value={shippingForm.state} onChange={e => updateShipping('state', e.target.value)} />
-                    <Input label="ZIP *" placeholder="10001" value={shippingForm.zip} onChange={e => updateShipping('zip', e.target.value)} />
+                    <div>
+                      <Input label="City *" placeholder="New York" value={shippingForm.city} onChange={e => updateShipping('city', e.target.value)} className={shippingErrors.city ? 'border-red-500' : ''} />
+                      {shippingErrors.city && <p className="text-red-500 text-xs mt-1">{shippingErrors.city}</p>}
+                    </div>
+                    <div>
+                      <Input label="State *" placeholder="NY" value={shippingForm.state} onChange={e => updateShipping('state', e.target.value)} className={shippingErrors.state ? 'border-red-500' : ''} />
+                      {shippingErrors.state && <p className="text-red-500 text-xs mt-1">{shippingErrors.state}</p>}
+                    </div>
+                    <div>
+                      <Input label="ZIP *" placeholder="10001" value={shippingForm.zip} onChange={e => updateShipping('zip', e.target.value)} className={shippingErrors.zip ? 'border-red-500' : ''} />
+                      {shippingErrors.zip && <p className="text-red-500 text-xs mt-1">{shippingErrors.zip}</p>}
+                    </div>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-joy-gray-700 mb-2">Country / Region *</label>
-                    <select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none" value={shippingForm.country} onChange={e => updateShipping('country', e.target.value)}>
+                    <select className={`w-full px-4 py-3 rounded-xl border-2 focus:border-joy-orange focus:outline-none ${shippingErrors.country ? 'border-red-500' : 'border-joy-gray-200'}`} value={shippingForm.country} onChange={e => updateShipping('country', e.target.value)}>
                       <option value="">Select Country / Region</option>
                       {countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                     </select>
+                    {shippingErrors.country && <p className="text-red-500 text-xs mt-1">{shippingErrors.country}</p>}
                   </div>
 
                   {/* Shipping Options */}
@@ -262,7 +321,7 @@ export default function CheckoutPage() {
 
                   <div className="flex gap-4">
                     <Button variant="secondary" onClick={() => setCurrentStep(1)}>Back</Button>
-                    <Button onClick={() => setCurrentStep(3)} className="flex-1" size="lg">
+                    <Button onClick={() => { if (validateShippingForm()) setCurrentStep(3) }} className="flex-1" size="lg">
                       Continue to Payment <Icons.ChevronRight size={18} className="ml-1" />
                     </Button>
                   </div>
