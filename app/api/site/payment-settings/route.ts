@@ -8,7 +8,7 @@ export async function GET() {
       where: { key: 'payment_settings' }
     })
     
-    let settings = getDefaultPaymentSettings()
+    let settings = getDefaultPublicSettings()
     
     if (setting?.value) {
       settings = JSON.parse(setting.value)
