@@ -313,6 +313,13 @@ export default function AdminDashboard() {
               <h3 className="font-semibold text-joy-gray-900">Shipping</h3>
               <p className="text-sm text-joy-gray-500">Rates by country</p>
             </Link>
+            <Link href="/admin/banners" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="w-12 h-12 rounded-xl bg-joy-pink/10 flex items-center justify-center mb-4 group-hover:bg-joy-pink/20 transition-colors">
+                <Icons.Image size={24} className="text-joy-pink" />
+              </div>
+              <h3 className="font-semibold text-joy-gray-900">Banners</h3>
+              <p className="text-sm text-joy-gray-500">Homepage carousel</p>
+            </Link>
           </div>
         </div>
       </main>

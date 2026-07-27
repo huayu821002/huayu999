@@ -9,6 +9,7 @@ import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { CartDrawer } from '@/components/shop/CartDrawer'
 import { SubscribeModal } from '@/components/shop/SubscribeModal'
 import { ProductCard } from '@/components/shop/ProductCard'
+import { HeroCarousel } from '@/components/home/HeroCarousel'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import type { Product } from '@/types'
@@ -131,20 +132,8 @@ export default function ShopHomePage() {
           </div>
         </section>
 
-        {/* Banners (if set in admin) */}
-        {banners.length > 0 && (
-          <section className="py-8 bg-joy-gray-50">
-            <div className="max-w-7xl mx-auto px-4">
-              <div className="grid grid-cols-2 gap-4">
-                {banners.map((banner, i) => (
-                  <Link key={i} href={banner.link || '/products'} className="relative rounded-2xl overflow-hidden aspect-[3/1]">
-                    <Image src={banner.image} alt={banner.alt} fill className="object-cover" />
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </section>
-        )}
+        {/* Hero Carousel */}
+        <HeroCarousel />
 
         {/* Trust Badges */}
         <section className="bg-joy-gray-50 py-8 border-b">

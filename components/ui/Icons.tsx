@@ -37,6 +37,7 @@ export const Icons = {
   Star: LucideIcons.Star,
   Globe: LucideIcons.Globe,
   Package: LucideIcons.Package,
+  Image: LucideIcons.Image,
   Scale: LucideIcons.Scale,
   Zap: LucideIcons.Zap,
   Check: LucideIcons.Check,
