@@ -6,11 +6,15 @@ export async function GET(
   { params }: { params: { slug: string } }
 ) {
   try {
-    // Only show published pages publicly
+    // Only show published pages publicly (check both cases)
     const page = await prisma.page.findFirst({
       where: { 
         slug: params.slug,
-        status: 'PUBLISHED',
+        OR: [
+          { status: 'PUBLISHED' },
+          { status: 'Published' },
+          { status: 'published' },
+        ],
       },
     })
     if (!page) {
