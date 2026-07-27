@@ -18,8 +18,8 @@ export async function POST(request: Request) {
     const body = await request.json()
     const { title, slug, content, status, productId } = body
 
-    if (!title || !slug || !productId) {
-      return NextResponse.json({ success: false, error: 'Title, slug, and productId are required' }, { status: 400 })
+    if (!title || !slug) {
+      return NextResponse.json({ success: false, error: 'Title and slug are required' }, { status: 400 })
     }
 
     // Check if slug already exists
@@ -34,7 +34,7 @@ export async function POST(request: Request) {
         slug,
         content: content || '',
         status: status || 'DRAFT',
-        productId,
+        productId: productId || null,
       },
     })
 
