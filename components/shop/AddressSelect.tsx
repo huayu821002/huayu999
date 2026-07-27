@@ -80,7 +80,7 @@ export function AddressSelect({ value, onChange, compact = false }: AddressSelec
             compact ? 'px-3 py-2 text-sm' : 'px-4 py-3'
           )}
         >
-          <option value="">Select Country</option>
+          <option value="">Select Country / Region</option>
           {countries.map((country) => (
             <option key={country.code} value={country.code}>
               {country.name}

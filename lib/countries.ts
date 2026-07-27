@@ -871,7 +871,7 @@ export const countries: Country[] = [
   },
   {
     code: 'TW',
-    name: 'Taiwan',
+    name: '中国台湾',
     states: [
       { code: 'TPE', name: 'Taipei', cities: ['Taipei', 'New Taipei', 'Taoyuan', 'Keelung', 'Yilan'] },
       { code: 'TNN', name: 'Tainan', cities: ['Tainan', 'Anping', 'Anshan', 'Xinhua'] },
@@ -882,9 +882,16 @@ export const countries: Country[] = [
   },
   {
     code: 'HK',
-    name: 'Hong Kong',
+    name: '中国香港',
     states: [
-      { code: 'HK', name: 'Hong Kong', cities: ['Hong Kong Island', 'Kowloon', 'New Territories'] },
+      { code: 'HK', name: '中国香港', cities: ['Hong Kong Island', 'Kowloon', 'New Territories'] },
+    ],
+  },
+  {
+    code: 'MO',
+    name: '中国澳门',
+    states: [
+      { code: 'MO', name: '中国澳门', cities: ['Macau Peninsula', 'Taipa', 'Coloane'] },
     ],
   },
   {
