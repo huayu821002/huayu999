@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, slug, content, status } = body
+    const { title, slug, content, status, excerpt, featuredImage, template, metaTitle, metaDesc } = body
 
     if (!title || !slug) {
       return NextResponse.json({ success: false, error: 'Title and slug are required' }, { status: 400 })
@@ -33,6 +33,11 @@ export async function POST(request: Request) {
         title,
         slug,
         content: content || null,
+        excerpt: excerpt || null,
+        featuredImage: featuredImage || null,
+        template: template || 'default',
+        metaTitle: metaTitle || null,
+        metaDesc: metaDesc || null,
         status: status || 'DRAFT',
       },
     })
