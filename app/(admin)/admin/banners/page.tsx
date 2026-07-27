@@ -12,6 +12,10 @@ interface Banner {
   link: string
   alt: string
   duration: number
+  title: string
+  subtitle: string
+  buttonText: string
+  buttonLink: string
 }
 
 export default function AdminBanners() {
@@ -66,7 +70,11 @@ export default function AdminBanners() {
     image: '',
     link: '',
     alt: '',
-    duration: 5000
+    duration: 5000,
+    title: '',
+    subtitle: '',
+    buttonText: '',
+    buttonLink: ''
   })
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
@@ -158,7 +166,7 @@ export default function AdminBanners() {
         <div className="max-w-5xl mx-auto px-4 py-8">
           <div className="mb-8">
             <h1 className="font-display text-3xl font-bold text-joy-gray-900">首页轮播图管理</h1>
-            <p className="text-joy-gray-600 mt-1">设置首页通栏轮播广告，最多5张图片</p>
+            <p className="text-joy-gray-600 mt-1">设置首页通栏轮播广告，最多5张图片，支持文字叠加</p>
           </div>
 
           <div className="space-y-6">
@@ -180,7 +188,7 @@ export default function AdminBanners() {
                 <div className="grid md:grid-cols-2 gap-6">
                   {/* Image Upload */}
                   <div>
-                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">图片</label>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">背景图片 *</label>
                     <div className="border-2 border-dashed border-joy-gray-200 rounded-xl p-4 text-center">
                       {banner.image ? (
                         <div className="relative">
@@ -201,42 +209,75 @@ export default function AdminBanners() {
                     </div>
                   </div>
 
-                  {/* Settings */}
+                  {/* Text Settings */}
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">图片描述 (alt)</label>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">标题文字</label>
                       <input
                         type="text"
-                        value={banner.alt}
-                        onChange={(e) => updateBanner(index, 'alt', e.target.value)}
-                        placeholder="轮播图描述"
+                        value={banner.title}
+                        onChange={(e) => updateBanner(index, 'title', e.target.value)}
+                        placeholder="例如：Wholesale Products"
                         className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-joy-orange/50"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">跳转链接</label>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">副标题文字</label>
                       <input
-                        type="url"
-                        value={banner.link}
-                        onChange={(e) => updateBanner(index, 'link', e.target.value)}
-                        placeholder="https://"
+                        type="text"
+                        value={banner.subtitle}
+                        onChange={(e) => updateBanner(index, 'subtitle', e.target.value)}
+                        placeholder="例如：Direct from Factory - No middlemen"
                         className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-joy-orange/50"
                       />
                     </div>
 
                     <div>
-                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">轮播时长 (毫秒)</label>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">按钮文字</label>
                       <input
-                        type="number"
-                        value={banner.duration}
-                        onChange={(e) => updateBanner(index, 'duration', parseInt(e.target.value) || 5000)}
-                        min={1000}
-                        max={10000}
-                        step={500}
+                        type="text"
+                        value={banner.buttonText}
+                        onChange={(e) => updateBanner(index, 'buttonText', e.target.value)}
+                        placeholder="例如：Shop Now"
                         className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-joy-orange/50"
                       />
-                      <p className="text-xs text-joy-gray-400 mt-1">1000-10000毫秒 (1-10秒)</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">按钮跳转链接</label>
+                      <input
+                        type="text"
+                        value={banner.buttonLink}
+                        onChange={(e) => updateBanner(index, 'buttonLink', e.target.value)}
+                        placeholder="/products"
+                        className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-joy-orange/50"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-joy-gray-700 mb-1">轮播时长 (毫秒)</label>
+                        <input
+                          type="number"
+                          value={banner.duration}
+                          onChange={(e) => updateBanner(index, 'duration', parseInt(e.target.value) || 5000)}
+                          min={1000}
+                          max={10000}
+                          step={500}
+                          className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-joy-orange/50"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-joy-gray-700 mb-1">图片描述 (alt)</label>
+                        <input
+                          type="text"
+                          value={banner.alt}
+                          onChange={(e) => updateBanner(index, 'alt', e.target.value)}
+                          placeholder="轮播图描述"
+                          className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-joy-orange/50"
+                        />
+                      </div>
                     </div>
                   </div>
                 </div>

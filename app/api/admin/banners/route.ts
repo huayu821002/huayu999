@@ -23,7 +23,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: 'Banners must be an array' }, { status: 400 })
     }
 
-    // Validate each banner
+    // Validate each banner has image
     for (const banner of banners) {
       if (!banner.image) {
         return NextResponse.json({ error: 'Each banner must have an image' }, { status: 400 })

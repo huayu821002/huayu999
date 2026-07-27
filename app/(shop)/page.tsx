@@ -107,31 +107,6 @@ export default function ShopHomePage() {
     <div className="min-h-screen bg-white">
       <Header />
       <main>
-        {/* Hero */}
-        <section className="relative bg-gradient-to-br from-joy-gray-900 via-joy-gray-800 to-joy-gray-900 text-white py-24 lg:py-32">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="max-w-2xl">
-              <h1 className="font-display text-4xl md:text-6xl font-bold mb-6">
-                {sc('hero_title')?.title || 'Wholesale Products from Yiwu'}
-                <span className="block text-joy-orange">{sc('hero_title')?.subtitle || 'Direct from Factory'}</span>
-              </h1>
-              <p className="text-lg text-joy-gray-300 mb-8">
-                {sc('hero_subtitle')?.title || 'No middlemen. No markups. Just factory-direct pricing on 50,000+ products with shipping to 150+ countries.'}
-              </p>
-              <div className="flex flex-wrap gap-4">
-                <Link href="/products">
-                  <Button size="lg" className="bg-joy-orange hover:bg-joy-orange/90 text-white">
-                    Browse Products
-                  </Button>
-                </Link>
-                <Button size="lg" variant="secondary">
-                  Contact Sales
-                </Button>
-              </div>
-            </div>
-          </div>
-        </section>
-
         {/* Hero Carousel */}
         <HeroCarousel />
 
