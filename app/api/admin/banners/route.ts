@@ -20,29 +20,43 @@ export async function PUT(request: NextRequest) {
     const banners = body.banners
 
     if (!Array.isArray(banners)) {
-      return NextResponse.json({ error: 'Banners must be an array' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Banners must be an array' }, { status: 400 })
     }
 
     // Validate each banner has image
     for (const banner of banners) {
       if (!banner.image) {
-        return NextResponse.json({ error: 'Each banner must have an image' }, { status: 400 })
+        return NextResponse.json({ success: false, error: 'Each banner must have an image' }, { status: 400 })
       }
     }
 
     // Max 5 banners
     if (banners.length > 5) {
-      return NextResponse.json({ error: 'Maximum 5 banners allowed' }, { status: 400 })
+      return NextResponse.json({ success: false, error: 'Maximum 5 banners allowed' }, { status: 400 })
     }
 
-    const setting = await prisma.siteSetting.upsert({
-      where: { key: 'homepage_banners' },
-      update: { value: JSON.stringify(banners) },
-      create: { key: 'homepage_banners', value: JSON.stringify(banners) }
+    const jsonValue = JSON.stringify(banners)
+    
+    // Check if record exists first
+    const existing = await prisma.siteSetting.findUnique({
+      where: { key: 'homepage_banners' }
     })
+    
+    let setting
+    if (existing) {
+      setting = await prisma.siteSetting.update({
+        where: { key: 'homepage_banners' },
+        data: { value: jsonValue }
+      })
+    } else {
+      setting = await prisma.siteSetting.create({
+        data: { key: 'homepage_banners', value: jsonValue }
+      })
+    }
 
     return NextResponse.json({ success: true, data: JSON.parse(setting.value) })
-  } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to save banners' }, { status: 500 })
+  } catch (error: any) {
+    console.error('Save banner error:', error)
+    return NextResponse.json({ success: false, error: error.message || 'Failed to save banners' }, { status: 500 })
   }
 }
