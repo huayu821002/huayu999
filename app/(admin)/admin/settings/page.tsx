@@ -20,13 +20,7 @@ interface ShippingMethod {
 }
 
 const HOMEPAGE_SECTIONS = [
-  { key: 'hero_title', label: 'Hero Title' },
-  { key: 'hero_subtitle', label: 'Hero Subtitle' },
-  { key: 'featured_title', label: 'Featured Section Title' },
-  { key: 'banners', label: 'Banners (JSON)' },
   { key: 'trust_badges', label: 'Trust Badges' },
-  { key: 'category_title', label: 'Category Section Title' },
-  { key: 'new_arrivals', label: 'New Arrivals (title=false to disable)' },
 ]
 
 const PAGE_SECTIONS = [
