@@ -6,6 +6,7 @@ import { Icons } from '@/components/ui/Icons'
 import { TRUST_BADGES } from '@/types'
 
 const defaultFooterSettings = {
+  logo: { text: 'Fiestaflare', image: '' },
   columns: [
     {
       title: "Products",
@@ -107,10 +108,10 @@ export function Footer() {
           <div className="col-span-2 lg:col-span-1">
             <Link href="/" className="flex items-center gap-2 mb-4">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-joy-orange to-joy-pink flex items-center justify-center text-white font-display font-bold text-xl">
-                {footerSettings.logo?.text?.charAt(0) || 'F'}
+                F
               </div>
               <div className="font-display font-bold text-xl text-white">
-                {footerSettings.logo?.text || 'Fiestaflare'}
+                Fiestaflare
               </div>
             </Link>
             <p className="text-sm text-joy-gray-400 mb-4">
