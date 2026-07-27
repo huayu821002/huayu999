@@ -218,7 +218,6 @@ export const countries: Country[] = [
       { code: 'CAL', name: 'Caldas', cities: ['Manizales', 'La Dorada', 'Chinchiná'] },
     ],
   },
-  },
   {
     code: 'PE',
     name: 'Peru',
