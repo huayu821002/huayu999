@@ -12,6 +12,7 @@ import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, convertPrice } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
 import { parseProductImages } from '@/lib/imageUtils'
+import { countries } from '@/lib/countries'
 import type { Currency } from '@/types'
 
 const STEPS = ['Cart', 'Shipping', 'Payment', 'Confirm']
@@ -221,9 +222,10 @@ export default function CheckoutPage() {
                     <Input label="ZIP *" placeholder="10001" value={shippingForm.zip} onChange={e => updateShipping('zip', e.target.value)} />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Country *</label>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Country / Region *</label>
                     <select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none" value={shippingForm.country} onChange={e => updateShipping('country', e.target.value)}>
-                      <option>United States</option><option>Canada</option><option>Mexico</option><option>Brazil</option><option>Argentina</option>
+                      <option value="">Select Country / Region</option>
+                      {countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                     </select>
                   </div>
 
