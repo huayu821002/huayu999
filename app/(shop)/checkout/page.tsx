@@ -197,15 +197,15 @@ export default function CheckoutPage() {
       <main className="pt-[calc(4rem+36px)]">
         <div className="max-w-6xl mx-auto px-4 py-8">
           {/* Progress Steps */}
-          <div className="mb-8">
-            <div className="flex items-center justify-center gap-4">
+          <div className="mb-6 sm:mb-8">
+            <div className="flex items-center justify-center gap-2 sm:gap-4">
               {STEPS.map((step, i) => (
                 <div key={step} className="flex items-center">
-                  <div className={cn('w-10 h-10 rounded-full flex items-center justify-center font-semibold text-sm transition-colors', i + 1 <= currentStep ? 'bg-joy-orange text-white' : 'bg-joy-gray-200 text-joy-gray-500')}>
-                    {i + 1 < currentStep ? <Icons.Check size={18} /> : i + 1}
+                  <div className={cn('w-8 h-8 sm:w-10 sm:h-10 rounded-full flex items-center justify-center font-semibold text-xs sm:text-sm transition-colors', i + 1 <= currentStep ? 'bg-joy-orange text-white' : 'bg-joy-gray-200 text-joy-gray-500')}>
+                    {i + 1 < currentStep ? <Icons.Check size={14} className="sm:w-[18px] sm:h-[18px]" /> : i + 1}
                   </div>
-                  <span className={cn('ml-2 font-medium hidden sm:inline', i + 1 <= currentStep ? 'text-joy-gray-900' : 'text-joy-gray-400')}>{step}</span>
-                  {i < STEPS.length - 1 && <div className={cn('w-12 lg:w-20 h-0.5 mx-4', i + 1 < currentStep ? 'bg-joy-orange' : 'bg-joy-gray-200')} />}
+                  <span className={cn('ml-1 sm:ml-2 font-medium text-xs sm:text-sm hidden xs:inline', i + 1 <= currentStep ? 'text-joy-gray-900' : 'text-joy-gray-400')}>{step}</span>
+                  {i < STEPS.length - 1 && <div className={cn('w-6 sm:w-12 lg:w-20 h-0.5 mx-1 sm:mx-2 lg:mx-4', i + 1 < currentStep ? 'bg-joy-orange' : 'bg-joy-gray-200')} />}
                 </div>
               ))}
             </div>
@@ -217,19 +217,19 @@ export default function CheckoutPage() {
               {currentStep === 1 && (
                 <div className="bg-white rounded-2xl shadow-sm p-6">
                   <h2 className="font-semibold text-xl text-joy-gray-900 mb-4">Review Your Cart</h2>
-                  <div className="space-y-4">
+                  <div className="space-y-3 sm:space-y-4">
                     {items.map((item) => (
-                      <div key={item.id} className="flex gap-4 p-4 bg-joy-gray-50 rounded-xl">
-                        <div className="w-20 h-20 rounded-lg overflow-hidden bg-white">
+                      <div key={item.id} className="flex gap-3 sm:gap-4 p-3 sm:p-4 bg-joy-gray-50 rounded-xl">
+                        <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-lg overflow-hidden bg-white flex-shrink-0">
                           <img src={parseProductImages(item.product.images)[0] || '/placeholder.png'} alt={item.product.name} className="w-full h-full object-cover" />
                         </div>
-                        <div className="flex-1">
-                          <h3 className="font-medium text-joy-gray-900">{item.product.name}</h3>
-                          <p className="text-sm text-joy-gray-500">SKU: {item.product.sku}</p>
-                          {item.variant && <p className="text-sm text-joy-gray-500">{item.variant.name}: {item.variant.value}</p>}
-                          <div className="flex items-center justify-between mt-2">
-                            <span className="text-sm text-joy-gray-500">Qty: {item.quantity}{item.product.weight ? ` | ${item.product.weight}kg` : ''}</span>
-                            <span className="font-semibold text-joy-orange">{formatCurrency(convertPrice(item.product.price * item.quantity, currency), currency)}</span>
+                        <div className="flex-1 min-w-0">
+                          <h3 className="font-medium text-joy-gray-900 text-sm sm:text-base truncate">{item.product.name}</h3>
+                          <p className="text-xs sm:text-sm text-joy-gray-500">SKU: {item.product.sku}</p>
+                          {item.variant && <p className="text-xs sm:text-sm text-joy-gray-500">{item.variant.name}: {item.variant.value}</p>}
+                          <div className="flex items-center justify-between mt-1 sm:mt-2">
+                            <span className="text-xs sm:text-sm text-joy-gray-500">Qty: {item.quantity}{item.product.weight ? ` | ${item.product.weight}kg` : ''}</span>
+                            <span className="font-semibold text-joy-orange text-sm sm:text-base">{formatCurrency(convertPrice(item.product.price * item.quantity, currency), currency)}</span>
                           </div>
                         </div>
                       </div>
@@ -266,7 +266,7 @@ export default function CheckoutPage() {
                     <Input label="Address *" placeholder="123 Main St" value={shippingForm.address} onChange={e => updateShipping('address', e.target.value)} className={shippingErrors.address ? 'border-red-500' : ''} />
                     {shippingErrors.address && <p className="text-red-500 text-xs mt-1">{shippingErrors.address}</p>}
                   </div>
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div>
                       <Input label="City *" placeholder="New York" value={shippingForm.city} onChange={e => updateShipping('city', e.target.value)} className={shippingErrors.city ? 'border-red-500' : ''} />
                       {shippingErrors.city && <p className="text-red-500 text-xs mt-1">{shippingErrors.city}</p>}
@@ -275,7 +275,7 @@ export default function CheckoutPage() {
                       <Input label="State *" placeholder="NY" value={shippingForm.state} onChange={e => updateShipping('state', e.target.value)} className={shippingErrors.state ? 'border-red-500' : ''} />
                       {shippingErrors.state && <p className="text-red-500 text-xs mt-1">{shippingErrors.state}</p>}
                     </div>
-                    <div>
+                    <div className="col-span-2 sm:col-span-1">
                       <Input label="ZIP *" placeholder="10001" value={shippingForm.zip} onChange={e => updateShipping('zip', e.target.value)} className={shippingErrors.zip ? 'border-red-500' : ''} />
                       {shippingErrors.zip && <p className="text-red-500 text-xs mt-1">{shippingErrors.zip}</p>}
                     </div>
@@ -331,34 +331,34 @@ export default function CheckoutPage() {
               {currentStep === 3 && (
                 <div className="bg-white rounded-2xl shadow-sm p-6">
                   <h2 className="font-semibold text-xl text-joy-gray-900 mb-6">Payment Method</h2>
-                  <div className="space-y-4 mb-6">
+                  <div className="space-y-3 sm:space-y-4 mb-6">
                     {/* PayPal */}
-                    <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'PAYPAL' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
+                    <label className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'PAYPAL' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
                       <input type="radio" name="payment" checked={paymentMethod === 'PAYPAL'} onChange={() => setPaymentMethod('PAYPAL')} className="accent-joy-orange" />
-                      <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h12.004c.524 0 .972.382 1.054.901l3.107 19.696a.641.641 0 0 1-.633.74h-4.606a.75.75 0 0 1-.612-.314l-1.937-2.754-1.937 2.754a.75.75 0 0 1-.612.314H7.076z"/></svg>
-                      <div>
-                        <span className="font-medium">PayPal</span>
-                        <p className="text-sm text-joy-gray-500">Pay securely with your PayPal account</p>
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h12.004c.524 0 .972.382 1.054.901l3.107 19.696a.641.641 0 0 1-.633.74h-4.606a.75.75 0 0 1-.612-.314l-1.937-2.754-1.937 2.754a.75.75 0 0 1-.612.314H7.076z"/></svg>
+                      <div className="min-w-0">
+                        <span className="font-medium text-sm sm:text-base">PayPal</span>
+                        <p className="text-xs sm:text-sm text-joy-gray-500 hidden xs:block">Pay securely with your PayPal account</p>
                       </div>
                     </label>
 
                     {/* Credit / Debit Card (Stripe) */}
-                    <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'STRIPE' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
+                    <label className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'STRIPE' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
                       <input type="radio" name="payment" checked={paymentMethod === 'STRIPE'} onChange={() => setPaymentMethod('STRIPE')} className="accent-joy-orange" />
-                      <Icons.CreditCard size={24} className="text-joy-gray-600" />
-                      <div>
-                        <span className="font-medium">Credit / Debit Card</span>
-                        <p className="text-sm text-joy-gray-500">Visa, Mastercard, American Express</p>
+                      <Icons.CreditCard size={20} className="sm:w-6 sm:h-6 text-joy-gray-600" />
+                      <div className="min-w-0">
+                        <span className="font-medium text-sm sm:text-base">Credit / Debit Card</span>
+                        <p className="text-xs sm:text-sm text-joy-gray-500 hidden xs:block">Visa, Mastercard, American Express</p>
                       </div>
                     </label>
 
                     {/* Bank Transfer */}
-                    <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'BANK_TRANSFER' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
+                    <label className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'BANK_TRANSFER' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
                       <input type="radio" name="payment" checked={paymentMethod === 'BANK_TRANSFER'} onChange={() => setPaymentMethod('BANK_TRANSFER')} className="accent-joy-orange" />
-                      <Icons.Globe size={24} className="text-joy-gray-600" />
-                      <div>
-                        <span className="font-medium">Bank Transfer / Wire</span>
-                        <p className="text-sm text-joy-gray-500">Direct bank transfer (T/T wire)</p>
+                      <Icons.Globe size={20} className="sm:w-6 sm:h-6 text-joy-gray-600" />
+                      <div className="min-w-0">
+                        <span className="font-medium text-sm sm:text-base">Bank Transfer / Wire</span>
+                        <p className="text-xs sm:text-sm text-joy-gray-500 hidden xs:block">Direct bank transfer (T/T wire)</p>
                       </div>
                     </label>
                   </div>
@@ -433,12 +433,12 @@ export default function CheckoutPage() {
 
             {/* Order Summary Sidebar */}
             <div className="lg:col-span-1">
-              <div className="bg-white rounded-2xl shadow-sm p-6 sticky top-40">
-                <h3 className="font-semibold text-lg text-joy-gray-900 mb-4">Order Summary</h3>
-                <div className="space-y-3 mb-6">
+              <div className="bg-white rounded-2xl shadow-sm p-4 sm:p-6 sticky top-40">
+                <h3 className="font-semibold text-base sm:text-lg text-joy-gray-900 mb-4">Order Summary</h3>
+                <div className="space-y-2 sm:space-y-3 mb-4 sm:mb-6">
                   {items.slice(0, 3).map((item) => (
-                    <div key={item.id} className="flex gap-3">
-                      <div className="w-14 h-14 rounded-lg overflow-hidden bg-joy-gray-100 flex-shrink-0">
+                    <div key={item.id} className="flex gap-2 sm:gap-3">
+                      <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-lg overflow-hidden bg-joy-gray-100 flex-shrink-0">
                         <img src={parseProductImages(item.product.images)[0] || '/placeholder.png'} alt={item.product.name} className="w-full h-full object-cover" />
                       </div>
                       <div className="flex-1 min-w-0">
@@ -448,18 +448,18 @@ export default function CheckoutPage() {
                       <p className="text-sm font-semibold text-joy-gray-900">{formatCurrency(convertPrice(item.product.price * item.quantity, currency), currency)}</p>
                     </div>
                   ))}
-                  {items.length > 3 && <p className="text-sm text-joy-gray-500 text-center">+ {items.length - 3} more items</p>}
+                  {items.length > 3 && <p className="text-xs sm:text-sm text-joy-gray-500 text-center">+ {items.length - 3} more items</p>}
                 </div>
-                <div className="border-t border-joy-gray-100 pt-4 space-y-3">
+                <div className="border-t border-joy-gray-100 pt-3 sm:pt-4 space-y-2 sm:space-y-3">
                   <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Subtotal</span><span className="font-medium">{formatCurrency(subtotal, currency)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Shipping ({totalWeight.toFixed(2)}kg)</span><span className="font-medium">{shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost, currency)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Tax (8%)</span><span className="font-medium">{formatCurrency(tax, currency)}</span></div>
-                  <div className="flex justify-between text-lg font-bold pt-3 border-t border-joy-gray-100"><span>Total</span><span className="text-joy-orange">{formatCurrency(total, currency)}</span></div>
+                  <div className="flex justify-between text-base sm:text-lg font-bold pt-2 sm:pt-3 border-t border-joy-gray-100"><span>Total</span><span className="text-joy-orange">{formatCurrency(total, currency)}</span></div>
                 </div>
-                <div className="mt-6">
+                <div className="mt-4 sm:mt-6">
                   <label className="block text-sm font-medium text-joy-gray-700 mb-2">Display Currency</label>
-                  <select value={currency} onChange={e => useCartStore.getState().setCurrency(e.target.value as Currency)} className="w-full px-4 py-2.5 rounded-xl border-2 border-joy-gray-200 text-sm focus:border-joy-orange focus:outline-none">
-                    <option value="USD">$ USD - US Dollar</option><option value="MXN">MX$ MXN - Mexican Peso</option><option value="BRL">R$ BRL - Brazilian Real</option>
+                  <select value={currency} onChange={e => useCartStore.getState().setCurrency(e.target.value as Currency)} className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border-2 border-joy-gray-200 text-sm focus:border-joy-orange focus:outline-none">
+                    <option value="USD">$ USD</option><option value="MXN">MX$ MXN</option><option value="BRL">R$ BRL</option>
                   </select>
                 </div>
               </div>
