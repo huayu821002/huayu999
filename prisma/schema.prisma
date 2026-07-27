@@ -86,7 +86,6 @@ model Product {
   orderItems  OrderItem[]
   cartItems   CartItem[]
   reviews     Review[]
-  page        Page?
 }
 
 model Order {
