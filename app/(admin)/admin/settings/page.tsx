@@ -30,7 +30,7 @@ export default function AdminSettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'pages' | 'shipping' | 'custom_pages' | 'header_footer'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'shipping' | 'custom_pages' | 'header_footer'>('general')
 
   // Categories
   const [categories, setCategories] = useState<Category[]>([])
@@ -96,7 +96,7 @@ export default function AdminSettingsPage() {
   useEffect(() => {
     if (!isAdmin) return
     if (activeTab === 'categories') fetchCategories()
-    if (activeTab === 'homepage' || activeTab === 'pages') fetchHomepageContent()
+    if (activeTab === 'homepage') fetchHomepageContent()
     if (activeTab === 'shipping') fetchShippingMethods()
     if (activeTab === 'custom_pages') fetchCustomPages()
     if (activeTab === 'header_footer') fetchHeaderFooter()
@@ -384,7 +384,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="flex border-b border-joy-gray-200 mb-6 overflow-x-auto">
-            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'pages', label: 'Pages' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'custom_pages', label: 'Custom Pages' }, { key: 'header_footer', label: 'Header & Footer' }].map(tab => (
+            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'custom_pages', label: 'Custom Pages' }, { key: 'header_footer', label: 'Header & Footer' }].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
                 className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors whitespace-nowrap ${activeTab === tab.key ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'}`}>
                 {tab.label}
@@ -555,15 +555,6 @@ export default function AdminSettingsPage() {
                     </div>
                   </div>
                 </div>
-              </div>
-            </div>
-          )}
-
-          {/* Pages Tab - About & Contact */}
-          {activeTab === 'pages' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl shadow-sm p-6">
-                <p className="text-center text-joy-gray-500 py-8">Page content editing is disabled.</p>
               </div>
             </div>
           )}
