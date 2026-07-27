@@ -22,10 +22,10 @@ export async function GET() {
         mode: settings.mode,
       },
       stripe: {
-        enabled: settings.stripe?.enabled ?? true,
+        enabled: (settings as any).stripe?.enabled ?? true,
         publishableKey: settings.mode === 'sandbox' 
-          ? settings.stripe?.sandbox?.publishableKey 
-          : settings.stripe?.production?.publishableKey,
+          ? (settings as any).stripe?.sandbox?.publishableKey 
+          : (settings as any).stripe?.production?.publishableKey,
       },
       bankTransfer: {
         enabled: settings.bankTransfer?.enabled ?? true,
