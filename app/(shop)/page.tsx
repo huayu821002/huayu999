@@ -21,7 +21,7 @@ interface SiteContent {
   content: string | null
 }
 
-const CATEGORIES = [
+const defaultCategories = [
   { id: 'cat-1', name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400', count: 0 },
   { id: 'cat-2', name: 'Pet Supplies', slug: 'pet-supplies', image: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400', count: 0 },
   { id: 'cat-3', name: 'Home Decor', slug: 'home-decor', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400', count: 0 },
@@ -40,11 +40,25 @@ export default function ShopHomePage() {
   const [newArrivalProducts, setNewArrivalProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [siteContent, setSiteContent] = useState<Record<string, SiteContent>>({})
+  const [categories, setCategories] = useState(defaultCategories)
 
   useEffect(() => {
     fetchProducts()
     fetchSiteContent()
+    fetchCategories()
   }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const res = await fetch('/api/site/categories')
+      const data = await res.json()
+      if (data.success && data.data) {
+        setCategories(data.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch categories:', err)
+    }
+  }
 
   const fetchProducts = async () => {
     try {
@@ -179,7 +193,7 @@ export default function ShopHomePage() {
               </h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {CATEGORIES.map((cat) => (
+              {categories.map((cat) => (
                 <Link key={cat.id} href={`/products?category=${cat.slug}`} className="group relative rounded-2xl overflow-hidden aspect-[4/3]">
                   <Image src={cat.image} alt={cat.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
