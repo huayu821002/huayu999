@@ -157,7 +157,7 @@ export default function AdminSettingsPage() {
     setIsSaving(true)
     try {
       const res = await fetch('/api/admin/header-footer', {
-        method: 'PUT',
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ header: headerSettings, footer: footerSettings })
       })

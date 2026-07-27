@@ -26,8 +26,8 @@ export async function GET() {
   }
 }
 
-// PUT update header and footer settings
-export async function PUT(request: NextRequest) {
+// POST update header and footer settings (using POST instead of PUT to avoid 405 on Vercel)
+export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
     const { header, footer } = body
