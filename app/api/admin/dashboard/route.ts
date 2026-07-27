@@ -32,6 +32,10 @@ export async function GET() {
     const recentOrders = await prisma.order.findMany({
       take: 5,
       orderBy: { createdAt: 'desc' },
+      include: {
+        user: { select: { name: true } },
+        items: { select: { quantity: true } },
+      },
     })
 
     // Get recent products (last 5 created, with images)
@@ -44,6 +48,17 @@ export async function GET() {
         images: true,
       },
     })
+
+    // Transform recentOrders to expected format
+    const formattedOrders = recentOrders.map(o => ({
+      id: o.id,
+      orderNumber: o.orderNumber,
+      customer: o.user?.name || 'Unknown',
+      items: o.items.reduce((sum, i) => sum + i.quantity, 0),
+      total: o.total,
+      status: o.status,
+      createdAt: o.createdAt.toISOString(),
+    }))
 
     // Transform to TopProduct format
     const topProducts = recentProducts.map(p => {
@@ -69,7 +84,7 @@ export async function GET() {
           processing,
           shipped,
         },
-        recentOrders,
+        recentOrders: formattedOrders,
         topProducts,
       },
     })
