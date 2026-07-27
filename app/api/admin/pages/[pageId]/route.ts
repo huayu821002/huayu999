@@ -25,7 +25,7 @@ export async function PUT(
 ) {
   try {
     const body = await request.json()
-    const { title, slug, content, status, productId } = body
+    const { title, slug, content, status } = body
 
     // Check if new slug conflicts with another page
     if (slug) {
@@ -42,10 +42,6 @@ export async function PUT(
       slug,
       content,
       status,
-    }
-
-    if (productId) {
-      updateData.productId = productId
     }
 
     const page = await prisma.page.update({

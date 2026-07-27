@@ -182,8 +182,6 @@ model Page {
   slug      String   @unique
   content   String?
   status    String   @default("DRAFT")
-  productId String?
-  product   Product? @relation(fields: [productId], references: [id], onDelete: Cascade)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

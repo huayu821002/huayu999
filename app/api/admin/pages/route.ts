@@ -16,7 +16,7 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { title, slug, content, status, productId } = body
+    const { title, slug, content, status } = body
 
     if (!title || !slug) {
       return NextResponse.json({ success: false, error: 'Title and slug are required' }, { status: 400 })
@@ -34,7 +34,6 @@ export async function POST(request: Request) {
         slug,
         content: content || null,
         status: status || 'DRAFT',
-        productId: productId || null,
       },
     })
 
