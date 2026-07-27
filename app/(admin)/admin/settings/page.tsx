@@ -494,25 +494,25 @@ export default function AdminSettingsPage() {
                 <div className="flex items-center justify-between mb-6">
                   <div>
                     <h2 className="font-semibold text-lg text-joy-gray-900">Shop by Category</h2>
-                    <p className="text-sm text-joy-gray-500 mt-1">Edit homepage category blocks</p>
+                    <p className="text-sm text-joy-gray-500 mt-1">Custom homepage category blocks - image, name, and link</p>
                   </div>
                   <Button size="sm" onClick={saveCategories} isLoading={isSaving}>Save All</Button>
                 </div>
                 <div className="space-y-4">
                   {homepageCategoryForm.map((cat, idx) => (
                     <div key={cat.id} className="border border-joy-gray-200 rounded-xl p-4">
-                      <div className="grid grid-cols-4 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         <div>
                           <label className="block text-sm font-medium text-joy-gray-700 mb-1">Name</label>
-                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.name} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].name = e.target.value; setHomepageCategoryForm(updated); }} />
+                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.name} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].name = e.target.value; setHomepageCategoryForm(updated); }} placeholder="Category name" />
                         </div>
                         <div>
-                          <label className="block text-sm font-medium text-joy-gray-700 mb-1">Slug</label>
-                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.slug} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].slug = e.target.value; setHomepageCategoryForm(updated); }} />
+                          <label className="block text-sm font-medium text-joy-gray-700 mb-1">Link URL</label>
+                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.slug} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].slug = e.target.value; setHomepageCategoryForm(updated); }} placeholder="/products or https://..." />
                         </div>
-                        <div className="col-span-2">
+                        <div className="lg:col-span-2">
                           <label className="block text-sm font-medium text-joy-gray-700 mb-1">Image URL</label>
-                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.image} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].image = e.target.value; setHomepageCategoryForm(updated); }} />
+                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.image} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].image = e.target.value; setHomepageCategoryForm(updated); }} placeholder="https://images.unsplash.com/..." />
                         </div>
                       </div>
                     </div>
