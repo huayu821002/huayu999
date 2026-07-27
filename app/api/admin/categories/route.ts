@@ -1,46 +1,81 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// GET categories settings
+// GET all categories (flat list for admin UI)
 export async function GET() {
   try {
-    const setting = await prisma.siteSetting.findUnique({
-      where: { key: 'homepage_categories' }
+    const categories = await prisma.category.findMany({
+      orderBy: { createdAt: 'asc' },
+      include: { _count: { select: { products: true } } }
     })
     
-    if (setting?.value) {
-      return NextResponse.json({ success: true, data: JSON.parse(setting.value) })
-    }
+    const formatted = categories.map(c => ({
+      id: c.id,
+      name: c.name,
+      slug: c.slug,
+      description: c.description,
+      parentId: c.parentId,
+      image: c.image,
+      productCount: c._count.products
+    }))
     
-    // Return default categories if no settings exist
-    return NextResponse.json({ success: true, data: getDefaultCategories() })
-  } catch (error) {
-    return NextResponse.json({ success: true, data: getDefaultCategories() })
-  }
-}
-
-// POST save categories settings
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json()
-    
-    await prisma.siteSetting.upsert({
-      where: { key: 'homepage_categories' },
-      update: { value: JSON.stringify(body) },
-      create: { key: 'homepage_categories', value: JSON.stringify(body) }
-    })
-    
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, data: formatted })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }
 
-function getDefaultCategories() {
-  return [
-    { id: 'cat-1', name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400', count: 0 },
-    { id: 'cat-2', name: 'Pet Supplies', slug: 'pet-supplies', image: 'https://images.unsplash.com/photo-1587300003388-59208cc962cb?w=400', count: 0 },
-    { id: 'cat-3', name: 'Home Decor', slug: 'home-decor', image: 'https://images.unsplash.com/photo-1586023492125-27b2c045efd7?w=400', count: 0 },
-    { id: 'cat-4', name: 'Gifts', slug: 'gifts', image: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?w=400', count: 0 },
-  ]
+// POST create or update category
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json()
+    
+    // If id is provided, update existing; otherwise create new
+    if (body.id) {
+      const updated = await prisma.category.update({
+        where: { id: body.id },
+        data: {
+          name: body.name,
+          slug: body.slug,
+          description: body.description || null,
+          parentId: body.parentId || null,
+          image: body.image || null
+        }
+      })
+      return NextResponse.json({ success: true, data: updated })
+    } else {
+      // Create new category
+      const created = await prisma.category.create({
+        data: {
+          name: body.name,
+          slug: body.slug,
+          description: body.description || null,
+          parentId: body.parentId || null,
+          image: body.image || null
+        }
+      })
+      return NextResponse.json({ success: true, data: created })
+    }
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  }
+}
+
+// DELETE category
+export async function DELETE(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url)
+    const id = searchParams.get('id')
+    
+    if (!id) {
+      return NextResponse.json({ success: false, error: 'Category ID required' }, { status: 400 })
+    }
+    
+    // Delete category (products will be uncategorized due to optional relation)
+    await prisma.category.delete({ where: { id } })
+    
+    return NextResponse.json({ success: true })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+  }
 }

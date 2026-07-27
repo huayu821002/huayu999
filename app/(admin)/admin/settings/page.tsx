@@ -10,7 +10,7 @@ import { Icons } from '@/components/ui/Icons'
 interface SiteContent {
   id: string; section: string; title: string | null; subtitle: string | null; content: string | null; isActive: boolean; sortOrder: number
 }
-interface Category { id: string; name: string; slug: string; description: string | null; parentId: string | null }
+interface Category { id: string; name: string; slug: string; description: string | null; parentId: string | null; image?: string | null; productCount?: number }
 interface CategoryNode extends Category { children: CategoryNode[] }
 interface ShippingMethod {
   id: string; name: string; code: string; description: string | null
@@ -46,7 +46,7 @@ export default function AdminSettingsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [categoryForm, setCategoryForm] = useState({ name: '', slug: '', description: '', parentId: '' })
+  const [categoryForm, setCategoryForm] = useState({ name: '', slug: '', description: '', parentId: '', image: '' })
 
   // Homepage
   const [homepageContent, setHomepageContent] = useState<Record<string, SiteContent>>({})
@@ -259,8 +259,8 @@ export default function AdminSettingsPage() {
   const handleSave = () => { setIsSaving(true); setTimeout(() => setIsSaving(false), 1000) }
 
   // Category handlers
-  const openAddCategory = (parentId?: string) => { setEditingCategory(null); setCategoryForm({ name: '', slug: '', description: '', parentId: parentId || '' }); setShowCategoryModal(true) }
-  const openEditCategory = (cat: Category) => { setEditingCategory(cat); setCategoryForm({ name: cat.name, slug: cat.slug, description: cat.description || '', parentId: cat.parentId || '' }); setShowCategoryModal(true) }
+  const openAddCategory = (parentId?: string) => { setEditingCategory(null); setCategoryForm({ name: '', slug: '', description: '', parentId: parentId || '', image: '' }); setShowCategoryModal(true) }
+  const openEditCategory = (cat: Category) => { setEditingCategory(cat); setCategoryForm({ name: cat.name, slug: cat.slug, description: cat.description || '', parentId: cat.parentId || '', image: cat.image || '' }); setShowCategoryModal(true) }
   const handleCategorySubmit = async () => {
     if (!categoryForm.name) return
     setIsSaving(true)
