@@ -30,7 +30,7 @@ export default function AdminSettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'shipping' | 'custom_pages' | 'header_footer'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'shipping' | 'payments' | 'custom_pages' | 'header_footer'>('general')
 
   // Categories
   const [categories, setCategories] = useState<Category[]>([])
@@ -63,6 +63,9 @@ export default function AdminSettingsPage() {
   // Header & Footer Settings
   const [headerSettings, setHeaderSettings] = useState<any>(null)
   const [footerSettings, setFooterSettings] = useState<any>(null)
+
+  // Payment Settings
+  const [paymentSettings, setPaymentSettings] = useState<any>(null)
 
   // Category Settings
   const [homepageCategoryForm, setHomepageCategoryForm] = useState<any[]>([
@@ -98,6 +101,7 @@ export default function AdminSettingsPage() {
     if (activeTab === 'categories') fetchCategories()
     if (activeTab === 'homepage') fetchHomepageContent()
     if (activeTab === 'shipping') fetchShippingMethods()
+    if (activeTab === 'payments') fetchPaymentSettings()
     if (activeTab === 'custom_pages') fetchCustomPages()
     if (activeTab === 'header_footer') fetchHeaderFooter()
     if (activeTab === 'homepage') {
@@ -223,6 +227,33 @@ export default function AdminSettingsPage() {
       })
       if (res.ok) {
         alert('Trust badges and footer promo saved successfully!')
+      } else {
+        alert('Failed to save')
+      }
+    } catch (err) { console.error(err); alert('Failed to save') }
+    finally { setIsSaving(false) }
+  }
+
+  const fetchPaymentSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/payment-settings')
+      const data = await res.json()
+      if (data.success && data.data) {
+        setPaymentSettings(data.data)
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  const savePaymentSettings = async () => {
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/admin/payment-settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(paymentSettings)
+      })
+      if (res.ok) {
+        alert('Payment settings saved successfully!')
       } else {
         alert('Failed to save')
       }
@@ -384,7 +415,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="flex border-b border-joy-gray-200 mb-6 overflow-x-auto">
-            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'custom_pages', label: 'Custom Pages' }, { key: 'header_footer', label: 'Header & Footer' }].map(tab => (
+            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'payments', label: 'Payments' }, { key: 'custom_pages', label: 'Custom Pages' }, { key: 'header_footer', label: 'Header & Footer' }].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
                 className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors whitespace-nowrap ${activeTab === tab.key ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'}`}>
                 {tab.label}
@@ -676,6 +707,162 @@ export default function AdminSettingsPage() {
                     </table>
                   </div>
                 )}
+              </div>
+            </div>
+          )}
+
+          {/* Payments Tab */}
+          {activeTab === 'payments' && paymentSettings && (
+            <div className="space-y-6">
+              {/* Mode Toggle */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2">Payment Mode</h2>
+                <p className="text-sm text-joy-gray-500 mb-6">Switch between sandbox (testing) and production (live) modes</p>
+                <div className="flex items-center gap-4">
+                  <label className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-colors ${paymentSettings.mode === 'sandbox' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}>
+                    <input type="radio" name="mode" checked={paymentSettings.mode === 'sandbox'} onChange={() => setPaymentSettings({ ...paymentSettings, mode: 'sandbox' })} className="accent-joy-orange" />
+                    <div>
+                      <span className="font-medium">Sandbox</span>
+                      <p className="text-xs text-joy-gray-500">Testing mode (simulated payments)</p>
+                    </div>
+                  </label>
+                  <label className={`flex items-center gap-2 px-4 py-3 rounded-xl border-2 cursor-pointer transition-colors ${paymentSettings.mode === 'production' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}>
+                    <input type="radio" name="mode" checked={paymentSettings.mode === 'production'} onChange={() => setPaymentSettings({ ...paymentSettings, mode: 'production' })} className="accent-joy-orange" />
+                    <div>
+                      <span className="font-medium">Production</span>
+                      <p className="text-xs text-joy-gray-500">Live mode (real payments)</p>
+                    </div>
+                  </label>
+                </div>
+                {paymentSettings.mode === 'sandbox' && (
+                  <p className="mt-4 text-sm text-joy-orange bg-joy-orange/10 rounded-lg px-4 py-2">⚠️ Sandbox mode is active. No real money will be processed.</p>
+                )}
+              </div>
+
+              {/* PayPal Settings */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-semibold text-lg text-joy-gray-900">PayPal</h2>
+                    <p className="text-sm text-joy-gray-500 mt-1">Configure PayPal payment settings</p>
+                  </div>
+                  <label className="flex items-center gap-2">
+                    <span className="text-sm text-joy-gray-600">{paymentSettings.paypal?.enabled ? 'Enabled' : 'Disabled'}</span>
+                    <button onClick={() => setPaymentSettings({ ...paymentSettings, paypal: { ...paymentSettings.paypal, enabled: !paymentSettings.paypal?.enabled } })} className={`w-12 h-6 rounded-full transition-colors ${paymentSettings.paypal?.enabled ? 'bg-joy-orange' : 'bg-joy-gray-300'}`}>
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${paymentSettings.paypal?.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Sandbox Client ID</label>
+                      <input type="text" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="sb-xxxxx" value={paymentSettings.paypal?.sandbox?.clientId || ''} onChange={e => setPaymentSettings({ ...paymentSettings, paypal: { ...paymentSettings.paypal, sandbox: { ...paymentSettings.paypal?.sandbox, clientId: e.target.value } } })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Sandbox Client Secret</label>
+                      <input type="password" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="xxxxx" value={paymentSettings.paypal?.sandbox?.clientSecret || ''} onChange={e => setPaymentSettings({ ...paymentSettings, paypal: { ...paymentSettings.paypal, sandbox: { ...paymentSettings.paypal?.sandbox, clientSecret: e.target.value } } })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Production Client ID</label>
+                      <input type="text" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="xxxxx" value={paymentSettings.paypal?.production?.clientId || ''} onChange={e => setPaymentSettings({ ...paymentSettings, paypal: { ...paymentSettings.paypal, production: { ...paymentSettings.paypal?.production, clientId: e.target.value } } })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Production Client Secret</label>
+                      <input type="password" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="xxxxx" value={paymentSettings.paypal?.production?.clientSecret || ''} onChange={e => setPaymentSettings({ ...paymentSettings, paypal: { ...paymentSettings.paypal, production: { ...paymentSettings.paypal?.production, clientSecret: e.target.value } } })} />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Stripe Settings */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-semibold text-lg text-joy-gray-900">Stripe</h2>
+                    <p className="text-sm text-joy-gray-500 mt-1">Configure Stripe payment settings</p>
+                  </div>
+                  <label className="flex items-center gap-2">
+                    <span className="text-sm text-joy-gray-600">{paymentSettings.stripe?.enabled ? 'Enabled' : 'Disabled'}</span>
+                    <button onClick={() => setPaymentSettings({ ...paymentSettings, stripe: { ...paymentSettings.stripe, enabled: !paymentSettings.stripe?.enabled } })} className={`w-12 h-6 rounded-full transition-colors ${paymentSettings.stripe?.enabled ? 'bg-joy-orange' : 'bg-joy-gray-300'}`}>
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${paymentSettings.stripe?.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Sandbox Publishable Key</label>
+                      <input type="text" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="pk_test_xxxxx" value={paymentSettings.stripe?.sandbox?.publishableKey || ''} onChange={e => setPaymentSettings({ ...paymentSettings, stripe: { ...paymentSettings.stripe, sandbox: { ...paymentSettings.stripe?.sandbox, publishableKey: e.target.value } } })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Sandbox Secret Key</label>
+                      <input type="password" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="sk_test_xxxxx" value={paymentSettings.stripe?.sandbox?.secretKey || ''} onChange={e => setPaymentSettings({ ...paymentSettings, stripe: { ...paymentSettings.stripe, sandbox: { ...paymentSettings.stripe?.sandbox, secretKey: e.target.value } } })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Production Publishable Key</label>
+                      <input type="text" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="pk_live_xxxxx" value={paymentSettings.stripe?.production?.publishableKey || ''} onChange={e => setPaymentSettings({ ...paymentSettings, stripe: { ...paymentSettings.stripe, production: { ...paymentSettings.stripe?.production, publishableKey: e.target.value } } })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Production Secret Key</label>
+                      <input type="password" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="sk_live_xxxxx" value={paymentSettings.stripe?.production?.secretKey || ''} onChange={e => setPaymentSettings({ ...paymentSettings, stripe: { ...paymentSettings.stripe, production: { ...paymentSettings.stripe?.production, secretKey: e.target.value } } })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-1">Webhook Secret</label>
+                    <input type="password" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="whsec_xxxxx" value={paymentSettings.stripe?.webhookSecret || ''} onChange={e => setPaymentSettings({ ...paymentSettings, stripe: { ...paymentSettings.stripe, webhookSecret: e.target.value } })} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Bank Transfer Settings */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h2 className="font-semibold text-lg text-joy-gray-900">Bank Transfer / Wire</h2>
+                    <p className="text-sm text-joy-gray-500 mt-1">Configure bank transfer payment details</p>
+                  </div>
+                  <label className="flex items-center gap-2">
+                    <span className="text-sm text-joy-gray-600">{paymentSettings.bankTransfer?.enabled ? 'Enabled' : 'Disabled'}</span>
+                    <button onClick={() => setPaymentSettings({ ...paymentSettings, bankTransfer: { ...paymentSettings.bankTransfer, enabled: !paymentSettings.bankTransfer?.enabled } })} className={`w-12 h-6 rounded-full transition-colors ${paymentSettings.bankTransfer?.enabled ? 'bg-joy-orange' : 'bg-joy-gray-300'}`}>
+                      <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${paymentSettings.bankTransfer?.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                    </button>
+                  </label>
+                </div>
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Bank Name</label>
+                      <input type="text" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="Bank of America" value={paymentSettings.bankTransfer?.bankName || ''} onChange={e => setPaymentSettings({ ...paymentSettings, bankTransfer: { ...paymentSettings.bankTransfer, bankName: e.target.value } })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Account Name</label>
+                      <input type="text" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="Your Company Name" value={paymentSettings.bankTransfer?.accountName || ''} onChange={e => setPaymentSettings({ ...paymentSettings, bankTransfer: { ...paymentSettings.bankTransfer, accountName: e.target.value } })} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">Account Number</label>
+                      <input type="text" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="123456789" value={paymentSettings.bankTransfer?.accountNumber || ''} onChange={e => setPaymentSettings({ ...paymentSettings, bankTransfer: { ...paymentSettings.bankTransfer, accountNumber: e.target.value } })} />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1">SWIFT / BIC Code</label>
+                      <input type="text" className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" placeholder="BOFAUS3N" value={paymentSettings.bankTransfer?.swiftCode || ''} onChange={e => setPaymentSettings({ ...paymentSettings, bankTransfer: { ...paymentSettings.bankTransfer, swiftCode: e.target.value } })} />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-1">Payment Instructions</label>
+                    <textarea className="w-full px-4 py-2 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange min-h-[80px]" placeholder="Instructions shown to customers after order placement" value={paymentSettings.bankTransfer?.instructions || ''} onChange={e => setPaymentSettings({ ...paymentSettings, bankTransfer: { ...paymentSettings.bankTransfer, instructions: e.target.value } })} />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={savePaymentSettings} isLoading={isSaving}>Save Payment Settings</Button>
               </div>
             </div>
           )}

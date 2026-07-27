@@ -1,0 +1,75 @@
+import { NextResponse } from 'next/server'
+import { prisma } from '@/lib/prisma'
+
+// GET public payment settings (for storefront)
+export async function GET() {
+  try {
+    const setting = await prisma.siteSetting.findUnique({
+      where: { key: 'payment_settings' }
+    })
+    
+    let settings = getDefaultPaymentSettings()
+    
+    if (setting?.value) {
+      settings = JSON.parse(setting.value)
+    }
+    
+    // Return only public info (not secrets)
+    const publicSettings = {
+      mode: settings.mode,
+      paypal: {
+        enabled: settings.paypal?.enabled ?? true,
+        mode: settings.mode,
+      },
+      stripe: {
+        enabled: settings.stripe?.enabled ?? true,
+        publishableKey: settings.mode === 'sandbox' 
+          ? settings.stripe?.sandbox?.publishableKey 
+          : settings.stripe?.production?.publishableKey,
+      },
+      bankTransfer: {
+        enabled: settings.bankTransfer?.enabled ?? true,
+        bankName: settings.bankTransfer?.bankName,
+        accountName: settings.bankTransfer?.accountName,
+        // Mask account number for security
+        accountNumber: maskAccountNumber(settings.bankTransfer?.accountNumber),
+        swiftCode: settings.bankTransfer?.swiftCode,
+        instructions: settings.bankTransfer?.instructions,
+      },
+      cod: {
+        enabled: settings.cod?.enabled ?? false,
+        fee: settings.cod?.fee ?? 0,
+      }
+    }
+    
+    return NextResponse.json({ success: true, data: publicSettings })
+  } catch (error) {
+    return NextResponse.json({ success: true, data: getDefaultPublicSettings() })
+  }
+}
+
+function maskAccountNumber(accountNumber: string | undefined): string {
+  if (!accountNumber) return '****'
+  const parts = accountNumber.split(' ')
+  if (parts.length >= 4) {
+    return `${parts[0]} ${parts[1]} ${parts[2]} ****`
+  }
+  return '****'
+}
+
+function getDefaultPublicSettings() {
+  return {
+    mode: 'sandbox',
+    paypal: { enabled: true, mode: 'sandbox' },
+    stripe: { enabled: true, publishableKey: '' },
+    bankTransfer: {
+      enabled: true,
+      bankName: 'Bank of America',
+      accountName: 'Fiestaflare Inc.',
+      accountNumber: '****',
+      swiftCode: 'BOFAUS3N',
+      instructions: 'Please include your order number in the payment reference.',
+    },
+    cod: { enabled: false, fee: 0 },
+  }
+}
