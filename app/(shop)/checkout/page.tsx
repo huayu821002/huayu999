@@ -36,6 +36,7 @@ export default function CheckoutPage() {
   const [error, setError] = useState('')
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([])
   const [selectedShipping, setSelectedShipping] = useState<string>('')
+  const [paymentMethod, setPaymentMethod] = useState<'PAYPAL' | 'STRIPE' | 'BANK_TRANSFER'>('PAYPAL')
 
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     firstName: '', lastName: '', email: '', phone: '',
@@ -119,7 +120,7 @@ export default function CheckoutPage() {
           total,
           currency,
           shippingAddress,
-          paymentMethod: 'CARD',
+          paymentMethod: paymentMethod,
         }),
       })
 
@@ -272,25 +273,75 @@ export default function CheckoutPage() {
                 <div className="bg-white rounded-2xl shadow-sm p-6">
                   <h2 className="font-semibold text-xl text-joy-gray-900 mb-6">Payment Method</h2>
                   <div className="space-y-4 mb-6">
-                    <label className="flex items-center gap-4 p-4 border-2 border-joy-orange rounded-xl cursor-pointer bg-joy-orange/5">
-                      <input type="radio" name="payment" defaultChecked className="accent-joy-orange" />
-                      <Icons.CreditCard size={24} className="text-joy-gray-600" />
-                      <span className="font-medium">Credit / Debit Card</span>
-                    </label>
-                    <label className="flex items-center gap-4 p-4 border-2 border-joy-gray-200 rounded-xl cursor-pointer hover:border-joy-orange transition-colors">
-                      <input type="radio" name="payment" className="accent-joy-orange" />
+                    {/* PayPal */}
+                    <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'PAYPAL' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'PAYPAL'} onChange={() => setPaymentMethod('PAYPAL')} className="accent-joy-orange" />
                       <svg className="w-6 h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h12.004c.524 0 .972.382 1.054.901l3.107 19.696a.641.641 0 0 1-.633.74h-4.606a.75.75 0 0 1-.612-.314l-1.937-2.754-1.937 2.754a.75.75 0 0 1-.612.314H7.076z"/></svg>
-                      <span className="font-medium">PayPal</span>
+                      <div>
+                        <span className="font-medium">PayPal</span>
+                        <p className="text-sm text-joy-gray-500">Pay securely with your PayPal account</p>
+                      </div>
+                    </label>
+
+                    {/* Credit / Debit Card (Stripe) */}
+                    <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'STRIPE' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'STRIPE'} onChange={() => setPaymentMethod('STRIPE')} className="accent-joy-orange" />
+                      <Icons.CreditCard size={24} className="text-joy-gray-600" />
+                      <div>
+                        <span className="font-medium">Credit / Debit Card</span>
+                        <p className="text-sm text-joy-gray-500">Visa, Mastercard, American Express</p>
+                      </div>
+                    </label>
+
+                    {/* Bank Transfer */}
+                    <label className={`flex items-center gap-4 p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'BANK_TRANSFER' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'BANK_TRANSFER'} onChange={() => setPaymentMethod('BANK_TRANSFER')} className="accent-joy-orange" />
+                      <Icons.Globe size={24} className="text-joy-gray-600" />
+                      <div>
+                        <span className="font-medium">Bank Transfer / Wire</span>
+                        <p className="text-sm text-joy-gray-500">Direct bank transfer (T/T wire)</p>
+                      </div>
                     </label>
                   </div>
-                  <div className="space-y-4 border-t border-joy-gray-100 pt-6">
-                    <Input label="Card Number" placeholder="4242 4242 4242 4242" />
-                    <div className="grid grid-cols-2 gap-4">
-                      <Input label="Expiry Date" placeholder="MM/YY" />
-                      <Input label="CVC" placeholder="123" />
+
+                  {/* Stripe Card Form (shown when Stripe is selected) */}
+                  {paymentMethod === 'STRIPE' && (
+                    <div className="space-y-4 border-t border-joy-gray-100 pt-6">
+                      <Input label="Card Number" placeholder="4242 4242 4242 4242" />
+                      <div className="grid grid-cols-2 gap-4">
+                        <Input label="Expiry Date" placeholder="MM/YY" />
+                        <Input label="CVC" placeholder="123" />
+                      </div>
+                      <Input label="Name on Card" placeholder="John Smith" />
                     </div>
-                    <Input label="Name on Card" placeholder="John Smith" />
-                  </div>
+                  )}
+
+                  {/* Bank Transfer Info (shown when Bank Transfer is selected) */}
+                  {paymentMethod === 'BANK_TRANSFER' && (
+                    <div className="border-t border-joy-gray-100 pt-6 space-y-4">
+                      <div className="bg-joy-gray-50 rounded-xl p-4 space-y-3">
+                        <p className="font-medium text-sm">Bank Transfer Instructions</p>
+                        <div className="grid grid-cols-3 gap-2 text-sm">
+                          <span className="text-joy-gray-500">Bank Name:</span>
+                          <span className="col-span-2 font-medium">Bank of America</span>
+                          <span className="text-joy-gray-500">Account Name:</span>
+                          <span className="col-span-2 font-medium">Fiestaflare Inc.</span>
+                          <span className="text-joy-gray-500">Account Number:</span>
+                          <span className="col-span-2 font-medium">XXXX XXXX XXXX 1234</span>
+                          <span className="text-joy-gray-500">SWIFT/BIC:</span>
+                          <span className="col-span-2 font-medium">BOFAUS3N</span>
+                        </div>
+                      </div>
+                      <p className="text-sm text-joy-gray-500">Please include your order number in the payment reference. Your order will be processed after payment is received (usually 2-5 business days).</p>
+                    </div>
+                  )}
+
+                  {paymentMethod === 'PAYPAL' && (
+                    <div className="border-t border-joy-gray-100 pt-6">
+                      <p className="text-sm text-joy-gray-500">You will be redirected to PayPal to complete your payment securely.</p>
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-2 mt-4 text-sm text-joy-gray-500">
                     <Icons.Lock size={16} />
                     <span>Your payment information is encrypted and secure</span>
@@ -299,7 +350,7 @@ export default function CheckoutPage() {
                   <div className="flex gap-4 mt-6">
                     <Button variant="secondary" onClick={() => setCurrentStep(2)}>Back</Button>
                     <Button onClick={handlePlaceOrder} className="flex-1" size="lg" isLoading={isProcessing}>
-                      {isProcessing ? 'Processing...' : `Pay ${formatCurrency(total, currency)}`}
+                      {isProcessing ? 'Processing...' : paymentMethod === 'BANK_TRANSFER' ? `Place Order (Bank Transfer)` : `Pay ${formatCurrency(total, currency)}`}
                     </Button>
                   </div>
                 </div>
