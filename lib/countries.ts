@@ -154,21 +154,6 @@ export const countries: Country[] = [
     ],
   },
   {
-    code: 'BO',
-    name: 'Bolivia',
-    states: [
-      { code: 'LP', name: 'La Paz', cities: ['La Paz', 'El Alto', 'Viacha'] },
-      { code: 'SC', name: 'Santa Cruz', cities: ['Santa Cruz de la Sierra', 'Montero', 'Warnes', 'La Guardia'] },
-      { code: 'CB', name: 'Cochabamba', cities: ['Cochabamba', 'Quillacollo', 'Sacaba'] },
-      { code: 'OR', name: 'Oruro', cities: ['Oruro', 'Huanuni', 'Challapata'] },
-      { code: 'PT', name: 'Potosí', cities: ['Potosí', 'Uyuni', 'Tupiza'] },
-      { code: 'CH', name: 'Chuquisaca', cities: ['Sucre', 'Camargo', 'Padilla'] },
-      { code: 'TJ', name: 'Tarija', cities: ['Tarija', 'Yacuiba', 'Villa Montes', 'Bermejo'] },
-      { code: 'PA', name: 'Pando', cities: ['Cobija', 'Porvenir'] },
-      { code: 'BEN', name: 'Beni', cities: ['Trinidad', 'Riberalta', 'Guayaramerín', 'San Borja'] },
-    ],
-  },
-  {
     code: 'BR',
     name: 'Brazil',
     states: [
@@ -233,32 +218,6 @@ export const countries: Country[] = [
       { code: 'CAL', name: 'Caldas', cities: ['Manizales', 'La Dorada', 'Chinchiná'] },
     ],
   },
-  {
-    code: 'EC',
-    name: 'Ecuador',
-    states: [
-      { code: 'PICH', name: 'Pichincha', cities: ['Quito', 'Cayambe', 'Mejia'] },
-      { code: 'GU', name: 'Guayas', cities: ['Guayaquil', 'Durán', 'Samborondón'] },
-      { code: 'AU', name: 'Azuay', cities: ['Cuenca', 'Gilgil', 'Paute'] },
-      { code: 'MAN', name: 'Manabí', cities: ['Portoviejo', 'Manta', 'Chone'] },
-      { code: 'TUNG', name: 'Tungurahua', cities: ['Ambato', 'Baños', 'Pelileo'] },
-      { code: 'IM', name: 'Imbabura', cities: ['Ibarra', 'Otavalo', 'Cotacachi'] },
-      { code: 'LOJ', name: 'Loja', cities: ['Loja', 'Catamayo', 'Macará'] },
-      { code: 'ES', name: 'El Oro', cities: ['Machala', 'Santa Rosa', 'Huaquillas'] },
-      { code: 'SUC', name: 'Sucumbíos', cities: ['Lago Agrio', 'Nueva Loja', 'Shushufindi'] },
-    ],
-  },
-  {
-    code: 'PY',
-    name: 'Paraguay',
-    states: [
-      { code: 'ASU', name: 'Asunción', cities: ['Asunción', 'San Lorenzo', 'Luque'] },
-      { code: 'CN', name: 'Central', cities: ['San Lorenzo', 'Luque', 'Capiatá'] },
-      { code: 'CON', name: 'Concepción', cities: ['Concepción', 'San Lázaro'] },
-      { code: 'ALTO', name: 'Alto Paraná', cities: ['Ciudad del Este', 'Encarnación'] },
-      { code: 'ITAP', name: 'Itapúa', cities: ['Encarnación', 'Hohenau'] },
-      { code: 'CAAG', name: 'Caaguazú', cities: ['Coronel Oviedo', 'Caaguazú'] },
-    ],
   },
   {
     code: 'PE',
@@ -274,32 +233,6 @@ export const countries: Country[] = [
       { code: 'JUN', name: 'Junín', cities: ['Huancayo', 'Tarma', 'Jauja'] },
       { code: 'AYC', name: 'Ayacucho', cities: ['Ayacucho', 'Huanta', 'Puquio'] },
       { code: 'APU', name: 'Apurímac', cities: ['Abancay', 'Andahuaylas'] },
-    ],
-  },
-  {
-    code: 'UY',
-    name: 'Uruguay',
-    states: [
-      { code: 'MO', name: 'Montevideo', cities: ['Montevideo', 'Ciudad de la Costa', 'Pando', 'Las Piedras'] },
-      { code: 'CA', name: 'Canelones', cities: ['Canelones', 'Santa Lucía', 'San Ramón'] },
-      { code: 'MAL', name: 'Maldonado', cities: ['Maldonado', 'Punta del Este', 'San Carlos'] },
-      { code: 'COL', name: 'Colonia', cities: ['Colonia del Sacramento', 'Juan Lacaze', 'Nueva Helvecia'] },
-      { code: 'SOR', name: 'Soriano', cities: ['Mercedes', 'Dolores', 'Young'] },
-    ],
-  },
-  {
-    code: 'VE',
-    name: 'Venezuela',
-    states: [
-      { code: 'DF', name: 'Distrito Capital', cities: ['Caracas'] },
-      { code: 'MG', name: 'Miranda', cities: ['Petare', 'Baruta', 'Chacao', 'Sucre'] },
-      { code: 'ZUL', name: 'Zulia', cities: ['Maracaibo', 'Cabimas', 'Ciudad Ojeda'] },
-      { code: 'LAR', name: 'Lara', cities: ['Barquisimeto', 'Carora', 'El Tocuyo'] },
-      { code: 'CAR', name: 'Carabobo', cities: ['Valencia', 'Puerto Cabello', 'La Isabelica'] },
-      { code: 'ARU', name: 'Aragua', cities: ['Maracay', 'Turmero', 'El Limón', 'Cagua'] },
-      { code: 'BOL', name: 'Bolívar', cities: ['Ciudad Bolívar', 'Ciudad Guayana'] },
-      { code: 'TACH', name: 'Táchira', cities: ['San Cristóbal', 'Rubio', 'La Grita'] },
-      { code: 'MER', name: 'Mérida', cities: ['Mérida', 'Ejido', 'El Vigía'] },
     ],
   },
 
@@ -1132,64 +1065,7 @@ export const countries: Country[] = [
       { code: 'MP', name: 'Mpumalanga', cities: ['Nelspruit', 'Witbank', 'Secunda', 'Middleburg'] },
     ],
   },
-  {
-    code: 'EG',
-    name: 'Egypt',
-    states: [
-      { code: 'C', name: 'Cairo', cities: ['Cairo', 'Giza', 'Shubra El-Kheima', '6th October City'] },
-      { code: 'ALX', name: 'Alexandria', cities: ['Alexandria', 'Borg El Arab', 'Kafr El Sheikh'] },
-      { code: 'SU', name: 'Suez', cities: ['Suez', 'Ismailia', 'Port Said', 'Arish'] },
-      { code: 'GZ', name: 'Giza', cities: ['Giza', '6th October City', 'Sheikh Zayed City'] },
-      { code: 'ASN', name: 'Aswan', cities: ['Aswan', 'Edfu', 'Kom Ombo', 'Isna'] },
-      { code: 'MN', name: 'Minya', cities: ['Minya', 'Bani Mazar', 'Mallawi', 'El Fashn'] },
-      { code: 'FYM', name: 'Faiyum', cities: ['Faiyum', 'Yousef', 'Sennis', 'Tamiya'] },
-      { code: 'SHG', name: 'Sohag', cities: ['Sohag', 'Akhmim', 'Girga', 'Tahta'] },
-    ],
-  },
-  {
-    code: 'NG',
-    name: 'Nigeria',
-    states: [
-      { code: 'LG', name: 'Lagos', cities: ['Lagos', 'Ikeja', 'Victoria Island', 'Lekki', 'Badagry'] },
-      { code: 'FC', name: 'FCT', cities: ['Abuja', 'Kuje', 'Gwagwalada', 'Bwari'] },
-      { code: 'KN', name: 'Kano', cities: ['Kano', 'Katsina', 'Wudil', 'Rano'] },
-      { code: 'RI', name: 'Rivers', cities: ['Port Harcourt', 'Obio-Akpor', 'Ikwerre', 'Okrika'] },
-      { code: 'OG', name: 'Ogun', cities: ['Abeokuta', 'Ilisha', 'Sagamu', 'Ota'] },
-      { code: 'OY', name: 'Oyo', cities: ['Ibadan', 'Iseyin', 'Oyo', 'Saki', 'Ilorin'] },
-      { code: 'KD', name: 'Kaduna', cities: ['Kaduna', 'Zaria', 'Kafanchan', 'Katsina'] },
-      { code: 'EN', name: 'Enugu', cities: ['Enugu', 'Nsukka', 'Awka', 'Onitsha'] },
-      { code: 'AN', name: 'Anambra', cities: ['Awka', 'Onitsha', 'Nnewi', 'Awl'] },
-      { code: 'LA', name: 'Lagos', cities: ['Lagos', 'Epe', 'Ikorodu', 'Badagry'] },
-    ],
-  },
-  {
-    code: 'KE',
-    name: 'Kenya',
-    states: [
-      { code: 'NBO', name: 'Nairobi', cities: ['Nairobi', 'Kasarani', 'Ruiru', 'Juja'] },
-      { code: 'Mombasa', name: 'Mombasa', cities: ['Mombasa', 'Kilifi', 'Kwale', 'Lamu'] },
-      { code: 'Kisumu', name: 'Kisumu', cities: ['Kisumu', 'Kakamega', 'Bungoma', 'Kisii'] },
-      { code: 'NK', name: 'Nakuru', cities: ['Nakuru', 'Naivasha', 'Molo', 'Gilgil'] },
-      { code: 'Eldoret', name: 'Uasin Gishu', cities: ['Eldoret', 'Kapsabet', 'Nandi'] },
-    ],
-  },
-  {
-    code: 'MA',
-    name: 'Morocco',
-    states: [
-      { code: 'CM', name: 'Casablanca-Settat', cities: ['Casablanca', 'Mohammedia', 'El Jadida', 'Settat'] },
-      { code: 'RK', name: 'Rabat-Salé-Kénitra', cities: ['Rabat', 'Salé', 'Témara', 'Skhirate'] },
-      { code: 'MA', name: 'Marrakech-Safi', cities: ['Marrakech', 'Safi', 'El Jadida', 'Khouribga'] },
-      { code: 'FE', name: 'Fès-Meknès', cities: ['Fès', 'Meknès', 'Ifrane', 'Sefrou'] },
-      { code: 'TK', name: 'Tanger-Tétouan-Al Hoceïma', cities: ['Tanger', 'Tétouan', 'Al Hoceïma', 'Ksar el Kebir'] },
-      { code: 'OD', name: 'Oued Ed-Dahab-Lagouira', cities: ['Dakhla', 'Laayoune', 'Boujdour'] },
-    ],
-  },
 ]
-
-export function getCountryByCode(code: string): Country | undefined {
-  return countries.find(c => c.code === code)
-}
 
 export function getStatesByCountry(countryCode: string): State[] {
   const country = getCountryByCode(countryCode)
