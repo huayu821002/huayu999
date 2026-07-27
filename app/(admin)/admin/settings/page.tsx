@@ -117,7 +117,7 @@ export default function AdminSettingsPage() {
     if (activeTab === 'custom_pages') fetchCustomPages()
     if (activeTab === 'header_footer') fetchHeaderFooter()
     if (activeTab === 'homepage') {
-      fetchCategories()
+      fetchHomepageCategories()
       fetchTrustBadges()
     }
   }, [isAdmin, activeTab])
@@ -191,7 +191,7 @@ export default function AdminSettingsPage() {
     finally { setIsSaving(false) }
   }
 
-  const fetchCategories = async () => {
+  const fetchHomepageCategories = async () => {
     try {
       const res = await fetch('/api/admin/categories')
       const data = await res.json()
