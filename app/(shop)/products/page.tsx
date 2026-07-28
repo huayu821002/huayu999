@@ -271,7 +271,7 @@ function ProductsContent() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/admin/categories')
+      const res = await fetch('/api/categories')
       const data = await res.json()
       if (data.success) {
         setCategories(data.data.map((c: any) => ({
