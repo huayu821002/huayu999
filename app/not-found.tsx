@@ -21,7 +21,7 @@ export default function NotFound() {
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link href="/">
               <Button variant="secondary" size="lg">
-                <Icons.Home size={18} className="mr-2" />
+                ←
                 Back to Home
               </Button>
             </Link>
