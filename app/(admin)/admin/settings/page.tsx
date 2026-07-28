@@ -42,14 +42,16 @@ export default function AdminSettingsPage() {
   const [homepageContent, setHomepageContent] = useState<Record<string, SiteContent>>({})
   const [homepageForm, setHomepageForm] = useState<Record<string, { title: string; subtitle: string; content: string }>>({})
 
-  // Shipping
-  const [shippingMethods, setShippingMethods] = useState<ShippingMethod[]>([])
-  const [showShippingModal, setShowShippingModal] = useState(false)
-  const [editingShipping, setEditingShipping] = useState<ShippingMethod | null>(null)
-  const [shippingForm, setShippingForm] = useState({
-    name: '', code: '', description: '', baseCost: '0', costPerKg: '0',
-    freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0'
-  })
+  // Shipping Templates
+  const [shippingTemplates, setShippingTemplates] = useState<any[]>([])
+  const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
+  const [shippingRates, setShippingRates] = useState<any[]>([])
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [editingTemplate, setEditingTemplate] = useState<any>(null)
+  const [templateForm, setTemplateForm] = useState({ name: '', code: '', description: '', isActive: true, sortOrder: '0' })
+  const [showRateModal, setShowRateModal] = useState(false)
+  const [editingRate, setEditingRate] = useState<any>(null)
+  const [rateForm, setRateForm] = useState({ countryCode: '', countryName: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0' })
 
   // Custom Pages
   const [customPages, setCustomPages] = useState<any[]>([])
@@ -101,7 +103,7 @@ export default function AdminSettingsPage() {
     if (!isAdmin) return
     if (activeTab === 'categories') fetchCategories()
     if (activeTab === 'homepage') fetchHomepageContent()
-    if (activeTab === 'shipping') fetchShippingMethods()
+    if (activeTab === 'shipping') { fetchShippingTemplates(); fetchShippingRates() }
     if (activeTab === 'payments') fetchPaymentSettings()
     if (activeTab === 'custom_pages') fetchCustomPages()
     if (activeTab === 'header_footer') fetchHeaderFooter()
@@ -137,12 +139,26 @@ export default function AdminSettingsPage() {
     } catch (err) { console.error(err) }
   }
 
-  const fetchShippingMethods = async () => {
+  const fetchShippingTemplates = async () => {
     try {
       const res = await fetch('/api/admin/shipping-methods')
       const data = await res.json()
-      if (data.success) setShippingMethods(data.data)
+      if (data.success) setShippingTemplates(data.data)
     } catch (err) { console.error(err) }
+  }
+
+  const fetchShippingRates = async (methodId?: string) => {
+    try {
+      const url = methodId ? `/api/admin/shipping-rates?methodId=${methodId}` : '/api/admin/shipping-rates'
+      const res = await fetch(url)
+      const data = await res.json()
+      if (data.success) setShippingRates(data.data)
+    } catch (err) { console.error(err) }
+  }
+
+  const selectTemplate = async (tmpl: any) => {
+    setSelectedTemplate(tmpl)
+    await fetchShippingRates(tmpl.id)
   }
 
   const fetchSeoSettings = async () => {
@@ -319,25 +335,51 @@ export default function AdminSettingsPage() {
   }
 
   // Shipping handlers
-  const openAddShipping = () => { setEditingShipping(null); setShippingForm({ name: '', code: '', description: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: String(shippingMethods.length) }); setShowShippingModal(true) }
-  const openEditShipping = (m: ShippingMethod) => { setEditingShipping(m); setShippingForm({ name: m.name, code: m.code, description: m.description || '', baseCost: String(m.baseCost), costPerKg: String(m.costPerKg), freeThreshold: String(m.freeThreshold), minWeight: String(m.minWeight), maxWeight: String(m.maxWeight), estimatedDays: m.estimatedDays || '', isActive: m.isActive, sortOrder: String(m.sortOrder) }); setShowShippingModal(true) }
-  const handleShippingSubmit = async () => {
-    if (!shippingForm.name || !shippingForm.code) return
+  // Template handlers
+  const openAddTemplate = () => { setEditingTemplate(null); setTemplateForm({ name: '', code: '', description: '', isActive: true, sortOrder: String(shippingTemplates.length) }); setShowTemplateModal(true) }
+  const openEditTemplate = (t: any) => { setEditingTemplate(t); setTemplateForm({ name: t.name, code: t.code, description: t.description || '', isActive: t.isActive, sortOrder: String(t.sortOrder || 0) }); setShowTemplateModal(true) }
+  const handleTemplateSubmit = async () => {
+    if (!templateForm.name || !templateForm.code) return
     setIsSaving(true)
     try {
-      const url = editingShipping ? `/api/admin/shipping-methods/${editingShipping.id}` : '/api/admin/shipping-methods'
-      const method = editingShipping ? 'PUT' : 'POST'
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(shippingForm) })
+      const url = editingTemplate ? `/api/admin/shipping-methods/${editingTemplate.id}` : '/api/admin/shipping-methods'
+      const method = editingTemplate ? 'PUT' : 'POST'
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(templateForm) })
       const data = await res.json()
-      if (data.success) { setShowShippingModal(false); fetchShippingMethods() } else alert(data.error)
-    } catch { alert('Failed to save shipping method') }
+      if (data.success) { setShowTemplateModal(false); fetchShippingTemplates() } else alert(data.error)
+    } catch { alert('Failed to save template') }
     setIsSaving(false)
   }
-  const handleDeleteShipping = async (id: string) => {
-    if (!confirm('Delete this shipping method?')) return
+  const handleDeleteTemplate = async (id: string) => {
+    if (!confirm('Delete this template?')) return
     try {
       await fetch(`/api/admin/shipping-methods/${id}`, { method: 'DELETE' })
-      fetchShippingMethods()
+      if (selectedTemplate?.id === id) setSelectedTemplate(null)
+      fetchShippingTemplates()
+    } catch { alert('Failed to delete') }
+  }
+
+  // Rate handlers
+  const openAddRate = () => { setEditingRate(null); setRateForm({ countryCode: '', countryName: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0' }); setShowRateModal(true) }
+  const openEditRate = (r: any) => { setEditingRate(r); setRateForm({ countryCode: r.countryCode, countryName: r.countryName, baseCost: String(r.baseCost), costPerKg: String(r.costPerKg), freeThreshold: String(r.freeThreshold), minWeight: String(r.minWeight || 0), maxWeight: String(r.maxWeight || 0), estimatedDays: r.estimatedDays || '', isActive: r.isActive, sortOrder: String(r.sortOrder || 0) }); setShowRateModal(true) }
+  const handleRateSubmit = async () => {
+    if (!rateForm.countryCode) return
+    setIsSaving(true)
+    try {
+      const body = { ...rateForm, methodId: selectedTemplate?.id || null }
+      const url = editingRate ? `/api/admin/shipping-rates/${editingRate.id}` : '/api/admin/shipping-rates'
+      const method = editingRate ? 'PUT' : 'POST'
+      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+      const data = await res.json()
+      if (data.success) { setShowRateModal(false); fetchShippingRates(selectedTemplate?.id) } else alert(data.error)
+    } catch { alert('Failed to save rate') }
+    setIsSaving(false)
+  }
+  const handleDeleteRate = async (id: string) => {
+    if (!confirm('Delete this rate?')) return
+    try {
+      await fetch(`/api/admin/shipping-rates/${id}`, { method: 'DELETE' })
+      fetchShippingRates(selectedTemplate?.id)
     } catch { alert('Failed to delete') }
   }
 
@@ -440,7 +482,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="flex border-b border-joy-gray-200 mb-6 overflow-x-auto">
-            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'payments', label: 'Payments' }, { key: 'custom_pages', label: 'Custom Pages' }, { key: 'header_footer', label: 'Header & Footer' }, { key: 'seo', label: 'SEO' }].map(tab => (
+            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'shipping', label: `Shipping (${shippingTemplates.length})` }, { key: 'payments', label: 'Payments' }, { key: 'custom_pages', label: 'Custom Pages' }, { key: 'header_footer', label: 'Header & Footer' }, { key: 'seo', label: 'SEO' }].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
                 className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors whitespace-nowrap ${activeTab === tab.key ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'}`}>
                 {tab.label}
@@ -688,49 +730,99 @@ export default function AdminSettingsPage() {
 
           {/* Shipping Tab */}
           {activeTab === 'shipping' && (
-            <div className="space-y-6">
-              <div className="bg-white rounded-2xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-6">
-                  <div><h2 className="font-semibold text-lg text-joy-gray-900">Shipping Methods</h2><p className="text-sm text-joy-gray-500 mt-1">Configure carriers and shipping rates</p></div>
-                  <Button onClick={openAddShipping}><Icons.Plus size={18} className="mr-2" />Add Shipping Method</Button>
+            <div className="flex gap-6 min-h-[500px]">
+              {/* Left: Template List */}
+              <div className="w-80 flex-shrink-0 space-y-4">
+                <div className="bg-white rounded-2xl shadow-sm p-5">
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="font-semibold text-joy-gray-900">Templates</h2>
+                    <button onClick={openAddTemplate} className="p-1.5 bg-joy-orange text-white rounded-lg hover:bg-joy-orange/90"><Icons.Plus size={16} /></button>
+                  </div>
+                  {shippingTemplates.length === 0 ? (
+                    <p className="text-sm text-joy-gray-500 text-center py-6">No templates yet.<br />Create one to start.</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {shippingTemplates.map(t => (
+                        <div key={t.id} onClick={() => selectTemplate(t)}
+                          className={`p-3 rounded-xl cursor-pointer border-2 transition-colors ${selectedTemplate?.id === t.id ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-100 hover:border-joy-gray-200'}`}>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-joy-gray-900 text-sm">{t.name}</p>
+                              <p className="text-xs text-joy-gray-500 font-mono">{t.code}</p>
+                              <p className="text-xs text-joy-gray-400 mt-0.5">{t._count?.rates || 0} countries</p>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <span className={`w-2 h-2 rounded-full ${t.isActive ? 'bg-joy-green' : 'bg-joy-gray-300'}`} />
+                              <button onClick={(e) => { e.stopPropagation(); openEditTemplate(t) }} className="p-1 hover:bg-joy-gray-100 rounded"><Icons.Copy size={14} className="text-joy-gray-400" /></button>
+                              <button onClick={(e) => { e.stopPropagation(); handleDeleteTemplate(t.id) }} className="p-1 hover:bg-red-50 rounded"><Icons.Trash2 size={14} className="text-red-400" /></button>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
-                {shippingMethods.length === 0 ? (
-                  <p className="text-center text-joy-gray-500 py-8">No shipping methods configured. Add one to get started.</p>
+              </div>
+
+              {/* Right: Rates for selected template */}
+              <div className="flex-1 bg-white rounded-2xl shadow-sm p-6">
+                {selectedTemplate ? (
+                  <>
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h2 className="font-semibold text-lg text-joy-gray-900">{selectedTemplate.name}</h2>
+                        <p className="text-sm text-joy-gray-500 mt-1">Country rates for this template</p>
+                      </div>
+                      <Button onClick={openAddRate}><Icons.Plus size={18} className="mr-2" />Add Country</Button>
+                    </div>
+                    {shippingRates.length === 0 ? (
+                      <p className="text-center text-joy-gray-500 py-12">No country rates yet. Click "Add Country" to create one.</p>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-joy-gray-50">
+                            <tr>
+                              <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Country</th>
+                              <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Base</th>
+                              <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Per Kg</th>
+                              <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Free At</th>
+                              <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Weight</th>
+                              <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Days</th>
+                              <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Status</th>
+                              <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-joy-gray-100">
+                            {shippingRates.map(r => (
+                              <tr key={r.id} className="hover:bg-joy-gray-50">
+                                <td className="px-4 py-3">
+                                  <p className="font-medium text-joy-gray-900">{r.countryName}</p>
+                                  <p className="text-xs text-joy-gray-500 font-mono">{r.countryCode}</p>
+                                </td>
+                                <td className="px-4 py-3 text-joy-gray-700">${Number(r.baseCost).toFixed(2)}</td>
+                                <td className="px-4 py-3 text-joy-gray-700">${Number(r.costPerKg).toFixed(2)}/kg</td>
+                                <td className="px-4 py-3 text-joy-gray-700">{Number(r.freeThreshold) > 0 ? `$${r.freeThreshold}` : '-'}</td>
+                                <td className="px-4 py-3 text-joy-gray-700 text-xs">{r.minWeight > 0 || r.maxWeight > 0 ? `${r.minWeight || 0}-${r.maxWeight || '∞'}kg` : '-'}</td>
+                                <td className="px-4 py-3 text-joy-gray-700">{r.estimatedDays || '-'}</td>
+                                <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${r.isActive ? 'bg-joy-green/10 text-joy-green' : 'bg-joy-gray-100 text-joy-gray-600'}`}>{r.isActive ? 'Active' : 'Inactive'}</span></td>
+                                <td className="px-4 py-3">
+                                  <div className="flex items-center gap-1">
+                                    <button onClick={() => openEditRate(r)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.Copy size={16} className="text-joy-gray-500" /></button>
+                                    <button onClick={() => handleDeleteRate(r.id)} className="p-2 hover:bg-red-50 rounded-lg"><Icons.Trash2 size={16} className="text-red-500" /></button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full">
-                      <thead className="bg-joy-gray-50">
-                        <tr>
-                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Method</th>
-                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Code</th>
-                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Base Cost</th>
-                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Per Kg</th>
-                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Free At</th>
-                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Days</th>
-                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Status</th>
-                          <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-joy-gray-100">
-                        {shippingMethods.map(m => (
-                          <tr key={m.id} className="hover:bg-joy-gray-50">
-                            <td className="px-4 py-3 font-medium text-joy-gray-900">{m.name}</td>
-                            <td className="px-4 py-3 font-mono text-sm text-joy-gray-600">{m.code}</td>
-                            <td className="px-4 py-3 text-joy-gray-700">${m.baseCost.toFixed(2)}</td>
-                            <td className="px-4 py-3 text-joy-gray-700">${m.costPerKg.toFixed(2)}/kg</td>
-                            <td className="px-4 py-3 text-joy-gray-700">{m.freeThreshold > 0 ? `$${m.freeThreshold}` : '-'}</td>
-                            <td className="px-4 py-3 text-joy-gray-700">{m.estimatedDays || '-'}</td>
-                            <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${m.isActive ? 'bg-joy-green/10 text-joy-green' : 'bg-joy-gray-100 text-joy-gray-600'}`}>{m.isActive ? 'Active' : 'Inactive'}</span></td>
-                            <td className="px-4 py-3">
-                              <div className="flex items-center gap-1">
-                                <button onClick={() => openEditShipping(m)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.Copy size={16} className="text-joy-gray-500" /></button>
-                                <button onClick={() => handleDeleteShipping(m.id)} className="p-2 hover:bg-red-50 rounded-lg"><Icons.Trash2 size={16} className="text-red-500" /></button>
-                              </div>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="flex flex-col items-center justify-center h-full text-center py-16">
+                    <Icons.Truck size={48} className="text-joy-gray-200 mb-4" />
+                    <p className="text-joy-gray-500 font-medium">Select a template to view its country rates</p>
+                    <p className="text-joy-gray-400 text-sm mt-1">Or create a new template to get started</p>
                   </div>
                 )}
               </div>
@@ -1273,41 +1365,68 @@ export default function AdminSettingsPage() {
         </div>
       )}
 
-      {/* Shipping Modal */}
-      {showShippingModal && (
+      {/* Template Modal */}
+      {showTemplateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowShippingModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowTemplateModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-auto">
             <div className="px-6 py-4 border-b border-joy-gray-100 flex items-center justify-between">
-              <h2 className="font-display text-lg font-bold text-joy-gray-900">{editingShipping ? 'Edit Shipping Method' : 'Add Shipping Method'}</h2>
-              <button onClick={() => setShowShippingModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
+              <h2 className="font-display text-lg font-bold text-joy-gray-900">{editingTemplate ? 'Edit Template' : 'Add Template'}</h2>
+              <button onClick={() => setShowTemplateModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
             </div>
             <div className="p-6 space-y-4">
               <div className="grid grid-cols-2 gap-4">
-                <Input label="Method Name *" placeholder="e.g., DHL Express" value={shippingForm.name} onChange={e => setShippingForm({...shippingForm, name: e.target.value})} />
-                <Input label="Code *" placeholder="DHL" value={shippingForm.code} onChange={e => setShippingForm({...shippingForm, code: e.target.value})} />
+                <Input label="Template Name *" placeholder="e.g., ChinaPost" value={templateForm.name} onChange={e => setTemplateForm({...templateForm, name: e.target.value})} />
+                <Input label="Code *" placeholder="CHINAPOST" value={templateForm.code} onChange={e => setTemplateForm({...templateForm, code: e.target.value})} />
               </div>
-              <Input label="Description" placeholder="Optional description" value={shippingForm.description} onChange={e => setShippingForm({...shippingForm, description: e.target.value})} />
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="Base Cost (USD) *" type="number" placeholder="5.99" value={shippingForm.baseCost} onChange={e => setShippingForm({...shippingForm, baseCost: e.target.value})} />
-                <Input label="Cost per KG (USD) *" type="number" placeholder="2.50" value={shippingForm.costPerKg} onChange={e => setShippingForm({...shippingForm, costPerKg: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="Free Shipping Threshold (USD)" type="number" placeholder="199" value={shippingForm.freeThreshold} onChange={e => setShippingForm({...shippingForm, freeThreshold: e.target.value})} />
-                <Input label="Estimated Days" placeholder="7-15 days" value={shippingForm.estimatedDays} onChange={e => setShippingForm({...shippingForm, estimatedDays: e.target.value})} />
-              </div>
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="Min Weight (kg)" type="number" placeholder="0" value={shippingForm.minWeight} onChange={e => setShippingForm({...shippingForm, minWeight: e.target.value})} />
-                <Input label="Max Weight (kg, 0=unlimited)" type="number" placeholder="0" value={shippingForm.maxWeight} onChange={e => setShippingForm({...shippingForm, maxWeight: e.target.value})} />
-              </div>
+              <Input label="Description" placeholder="Optional description" value={templateForm.description} onChange={e => setTemplateForm({...templateForm, description: e.target.value})} />
               <div className="flex items-center gap-2">
-                <input type="checkbox" id="isActive" checked={shippingForm.isActive} onChange={e => setShippingForm({...shippingForm, isActive: e.target.checked})} className="rounded" />
-                <label htmlFor="isActive" className="text-sm text-joy-gray-700">Active</label>
+                <input type="checkbox" id="tmplActive" checked={templateForm.isActive} onChange={e => setTemplateForm({...templateForm, isActive: e.target.checked})} className="rounded" />
+                <label htmlFor="tmplActive" className="text-sm text-joy-gray-700">Active</label>
               </div>
             </div>
             <div className="px-6 py-4 border-t border-joy-gray-100 flex justify-end gap-3">
-              <Button variant="secondary" onClick={() => setShowShippingModal(false)}>Cancel</Button>
-              <Button onClick={handleShippingSubmit} isLoading={isSaving}>{editingShipping ? 'Update' : 'Add Method'}</Button>
+              <Button variant="secondary" onClick={() => setShowTemplateModal(false)}>Cancel</Button>
+              <Button onClick={handleTemplateSubmit} isLoading={isSaving}>{editingTemplate ? 'Update' : 'Add Template'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Rate Modal */}
+      {showRateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowRateModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
+            <div className="px-6 py-4 border-b border-joy-gray-100 flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-joy-gray-900">{editingRate ? 'Edit Country Rate' : 'Add Country Rate'}</h2>
+              <button onClick={() => setShowRateModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Country Code *" placeholder="US" value={rateForm.countryCode} onChange={e => setRateForm({...rateForm, countryCode: e.target.value.toUpperCase()})} />
+                <Input label="Country Name *" placeholder="United States" value={rateForm.countryName} onChange={e => setRateForm({...rateForm, countryName: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Base Cost (USD)" type="number" placeholder="5.99" value={rateForm.baseCost} onChange={e => setRateForm({...rateForm, baseCost: e.target.value})} />
+                <Input label="Cost per KG (USD)" type="number" placeholder="2.50" value={rateForm.costPerKg} onChange={e => setRateForm({...rateForm, costPerKg: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Free Shipping Threshold" type="number" placeholder="199" value={rateForm.freeThreshold} onChange={e => setRateForm({...rateForm, freeThreshold: e.target.value})} />
+                <Input label="Estimated Days" placeholder="7-15 days" value={rateForm.estimatedDays} onChange={e => setRateForm({...rateForm, estimatedDays: e.target.value})} />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <Input label="Min Weight (kg)" type="number" placeholder="0" value={rateForm.minWeight} onChange={e => setRateForm({...rateForm, minWeight: e.target.value})} />
+                <Input label="Max Weight (kg, 0=unlimited)" type="number" placeholder="0" value={rateForm.maxWeight} onChange={e => setRateForm({...rateForm, maxWeight: e.target.value})} />
+              </div>
+              <div className="flex items-center gap-2">
+                <input type="checkbox" id="rateActive" checked={rateForm.isActive} onChange={e => setRateForm({...rateForm, isActive: e.target.checked})} className="rounded" />
+                <label htmlFor="rateActive" className="text-sm text-joy-gray-700">Active</label>
+              </div>
+            </div>
+            <div className="px-6 py-4 border-t border-joy-gray-100 flex justify-end gap-3">
+              <Button variant="secondary" onClick={() => setShowRateModal(false)}>Cancel</Button>
+              <Button onClick={handleRateSubmit} isLoading={isSaving}>{editingRate ? 'Update' : 'Add Rate'}</Button>
             </div>
           </div>
         </div>

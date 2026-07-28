@@ -190,19 +190,35 @@ model Page {
   updatedAt     DateTime @updatedAt
 }
 
-model ShippingRate {
-  id           String   @id @default(cuid())
-  countryCode  String   @unique
-  countryName  String
-  baseCost     Float    @default(0)
-  costPerKg    Float    @default(0)
-  freeThreshold Float   @default(0)
-  estimatedDays String?
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model ShippingMethod {
+  id          String   @id @default(cuid())
+  name        String
+  code        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  sortOrder   Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  rates       ShippingRate[]
 }
 
+model ShippingRate {
+  id            String   @id @default(cuid())
+  countryCode   String
+  countryName   String
+  baseCost      Float    @default(0)
+  costPerKg     Float    @default(0)
+  freeThreshold Float    @default(0)
+  minWeight     Float    @default(0)
+  maxWeight     Float    @default(0)
+  estimatedDays String?
+  isActive      Boolean  @default(true)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  methodId      String?
+  method        ShippingMethod? @relation(fields: [methodId], references: [id])
+}
 
 model SiteSetting {
   id        String   @id @default(cuid())

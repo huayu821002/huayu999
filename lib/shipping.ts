@@ -1,17 +1,8 @@
-// Shipping cost calculation based on weight and destination
-// Database-driven rates with fallback defaults
+// Shipping cost calculation - database-driven
 
 import { prisma } from '@/lib/prisma'
 
-interface ShippingRate {
-  name: string
-  baseCost: number
-  costPerKg: number
-  estimatedDays: string
-  freeThreshold: number
-}
-
-interface ShippingMethod {
+export interface ShippingMethod {
   id: string
   name: string
   code: string
@@ -20,126 +11,170 @@ interface ShippingMethod {
   estimatedDays: string
   isActive: boolean
   freeThreshold: number
+  minWeight: number
+  maxWeight: number
+  sortOrder: number
 }
 
-// Default shipping zones (fallback)
-const defaultShippingZones: Record<string, ShippingRate[]> = {
-  'US': [
-    { name: 'Standard Shipping', baseCost: 9.99, costPerKg: 2.99, estimatedDays: '5-7 days', freeThreshold: 199 },
-    { name: 'Express Shipping', baseCost: 19.99, costPerKg: 4.99, estimatedDays: '2-3 days', freeThreshold: 299 },
-  ],
-  'CA': [
-    { name: 'Standard to Canada', baseCost: 12.99, costPerKg: 3.99, estimatedDays: '7-10 days', freeThreshold: 199 },
-    { name: 'Express to Canada', baseCost: 24.99, costPerKg: 6.99, estimatedDays: '3-5 days', freeThreshold: 299 },
-  ],
-  'GB': [
-    { name: 'Standard to UK', baseCost: 11.99, costPerKg: 3.99, estimatedDays: '8-12 days', freeThreshold: 199 },
-    { name: 'Express to UK', baseCost: 24.99, costPerKg: 6.99, estimatedDays: '3-5 days', freeThreshold: 299 },
-  ],
-  'DE': [
-    { name: 'Standard to Germany', baseCost: 13.99, costPerKg: 4.29, estimatedDays: '8-12 days', freeThreshold: 199 },
-    { name: 'Express to Germany', baseCost: 27.99, costPerKg: 7.49, estimatedDays: '4-6 days', freeThreshold: 299 },
-  ],
-  'HK': [
-    { name: 'Standard to Hong Kong', baseCost: 9.99, costPerKg: 2.49, estimatedDays: '3-5 days', freeThreshold: 99 },
-    { name: 'Express to Hong Kong', baseCost: 19.99, costPerKg: 4.99, estimatedDays: '1-2 days', freeThreshold: 199 },
-  ],
-  'TW': [
-    { name: 'Standard to Taiwan', baseCost: 12.99, costPerKg: 3.49, estimatedDays: '4-7 days', freeThreshold: 149 },
-    { name: 'Express to Taiwan', baseCost: 24.99, costPerKg: 5.99, estimatedDays: '2-3 days', freeThreshold: 249 },
-  ],
-}
-
-// ShippingOption interface
 export interface ShippingOption {
   id: string
+  methodId: string
   name: string
   code: string
-  baseCost: number
-  costPerKg: number
+  description: string
   estimatedDays: string
-  isActive: boolean
-  freeThreshold: number
-  cost?: number
-  isFree?: boolean
-  description?: string
+  cost: number
+  freeShipping: boolean
+  available: boolean
+  reason?: string
 }
 
-// Get shipping methods for a country (from DB or defaults)
-export function getShippingMethods(countryCode: string): ShippingMethod[] {
-  const zones = defaultShippingZones[countryCode]
-  if (!zones) {
-    return [
-      {
-        id: `shipping_${countryCode}_0`,
-        name: 'Standard Shipping',
-        code: `${countryCode}_0`,
-        baseCost: 19.99,
-        costPerKg: 5.99,
-        estimatedDays: '10-14 days',
+// Default fallback rates
+const defaultRates: Record<string, ShippingOption[]> = {
+  'US': [
+    { id: 'def_us_std', methodId: '', name: 'Standard Shipping', code: 'US_STD', description: 'Standard', estimatedDays: '10-14 days', cost: 0, freeShipping: false, available: true },
+    { id: 'def_us_exp', methodId: '', name: 'Express Shipping', code: 'US_EXP', description: 'Express', estimatedDays: '5-7 days', cost: 0, freeShipping: false, available: true },
+  ],
+  'DEFAULT': [
+    { id: 'def_default', methodId: '', name: 'Standard Shipping', code: 'DEFAULT', description: 'Standard', estimatedDays: '10-20 days', cost: 0, freeShipping: false, available: true },
+  ],
+}
+
+// Get all active shipping rates for a country code, grouped by method
+export async function getShippingRatesForCountry(countryCode: string): Promise<ShippingOption[]> {
+  try {
+    // Find all rates for this country (or country code patterns)
+    const rates = await prisma.shippingRate.findMany({
+      where: {
         isActive: true,
-        freeThreshold: 299,
-      }
-    ]
+        OR: [
+          { countryCode: countryCode.toUpperCase() },
+          { countryCode: 'ALL' },
+        ]
+      },
+      include: {
+        method: {
+          select: { name: true, code: true, description: true, icon: true }
+        }
+      },
+      orderBy: { sortOrder: 'asc' },
+    })
+
+    if (rates.length === 0) {
+      // Fallback to default
+      const defaults = defaultRates[countryCode] || defaultRates['DEFAULT']
+      return defaults.map(r => ({ ...r, cost: 0, freeShipping: false }))
+    }
+
+    return rates.map(rate => ({
+      id: rate.id,
+      methodId: rate.methodId || '',
+      name: rate.method?.name || 'Standard',
+      code: `${rate.method?.code || 'STD'}_${rate.countryCode}`,
+      description: rate.method?.description || '',
+      estimatedDays: rate.estimatedDays || '10-14 days',
+      cost: 0, // calculated later
+      freeShipping: false, // calculated later
+      available: true,
+    }))
+  } catch (error) {
+    console.error('Error fetching shipping rates:', error)
+    return defaultRates['DEFAULT'].map(r => ({ ...r }))
   }
-
-  return zones.map((rate, index) => ({
-    id: `shipping_${countryCode}_${index}`,
-    name: rate.name,
-    code: `${countryCode}_${index}`,
-    baseCost: rate.baseCost,
-    costPerKg: rate.costPerKg,
-    estimatedDays: rate.estimatedDays,
-    isActive: true,
-    freeThreshold: rate.freeThreshold,
-  }))
 }
 
-// Calculate total weight from items
-export function calculateTotalWeight(items: { weight?: number | null; quantity: number }[]): number {
-  return items.reduce((total, item) => {
-    const weight = item.weight || 0
-    return total + (weight * item.quantity)
-  }, 0)
-}
-
-// Calculate shipping options with costs
-export function calculateShipping(
+// Calculate shipping options for checkout
+export async function calculateShippingOptions(
   countryCode: string,
   totalWeight: number,
   subtotal: number
-): ShippingOption[] {
-  const methods = getShippingMethods(countryCode)
-  
-  return methods.map(method => {
-    const isFree = method.freeThreshold > 0 && subtotal >= method.freeThreshold
-    const weightCost = totalWeight * method.costPerKg
-    const cost = isFree ? 0 : method.baseCost + weightCost
-    
-    return {
-      ...method,
-      cost,
-      isFree,
-      description: isFree 
-        ? `Free shipping on orders over $${method.freeThreshold}!`
-        : method.estimatedDays
+): Promise<ShippingOption[]> {
+  try {
+    const rates = await prisma.shippingRate.findMany({
+      where: {
+        isActive: true,
+        OR: [
+          { countryCode: countryCode.toUpperCase() },
+          { countryCode: 'ALL' },
+        ]
+      },
+      include: {
+        method: true
+      },
+      orderBy: { sortOrder: 'asc' },
+    })
+
+    if (rates.length === 0) {
+      const defaults = defaultRates[countryCode] || defaultRates['DEFAULT']
+      return defaults.map((r, i) => ({
+        ...r,
+        id: `fallback_${i}`,
+        cost: 0,
+        freeShipping: false,
+        available: true,
+      }))
     }
-  })
-}
 
-// Get estimated days
-export function getEstimatedDays(countryCode: string, shippingMethodCode: string): string {
-  const methods = getShippingMethods(countryCode)
-  const method = methods.find(m => m.code === shippingMethodCode)
-  return method?.estimatedDays || '7-14 days'
-}
+    return rates.map(rate => {
+      // Weight constraints
+      if (rate.minWeight > 0 && totalWeight < rate.minWeight) {
+        return {
+          id: rate.id,
+          methodId: rate.methodId || '',
+          name: rate.method?.name || 'Standard',
+          code: `${rate.method?.code || 'STD'}_${rate.countryCode}`,
+          description: rate.method?.description || '',
+          estimatedDays: rate.estimatedDays || '10-14 days',
+          cost: 0,
+          freeShipping: false,
+          available: false,
+          reason: `Min ${rate.minWeight}kg required`,
+        }
+      }
+      if (rate.maxWeight > 0 && totalWeight > rate.maxWeight) {
+        return {
+          id: rate.id,
+          methodId: rate.methodId || '',
+          name: rate.method?.name || 'Standard',
+          code: `${rate.method?.code || 'STD'}_${rate.countryCode}`,
+          description: rate.method?.description || '',
+          estimatedDays: rate.estimatedDays || '10-14 days',
+          cost: 0,
+          freeShipping: false,
+          available: false,
+          reason: `Max ${rate.maxWeight}kg allowed`,
+        }
+      }
 
-// Check if country is supported
-export function isCountrySupported(countryCode: string): boolean {
-  return countryCode in defaultShippingZones
-}
+      // Calculate cost
+      const weightCost = totalWeight * rate.costPerKg
+      const isFree = rate.freeThreshold > 0 && subtotal >= rate.freeThreshold
+      const cost = isFree ? 0 : rate.baseCost + weightCost
 
-// Get all supported country codes
-export function getSupportedCountries(): string[] {
-  return Object.keys(defaultShippingZones)
+      return {
+        id: rate.id,
+        methodId: rate.methodId || '',
+        name: rate.method?.name || 'Standard',
+        code: `${rate.method?.code || 'STD'}_${rate.countryCode}`,
+        description: rate.method?.description || '',
+        estimatedDays: rate.estimatedDays || '10-14 days',
+        cost,
+        freeShipping: isFree,
+        available: true,
+      }
+    })
+  } catch (error) {
+    console.error('Error calculating shipping:', error)
+    return [{
+      id: 'error',
+      methodId: '',
+      name: 'Standard Shipping',
+      code: 'ERR',
+      description: 'Shipping calculation unavailable',
+      estimatedDays: 'Contact us',
+      cost: 0,
+      freeShipping: false,
+      available: true,
+    }]
+  }
 }
