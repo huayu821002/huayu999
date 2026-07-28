@@ -103,17 +103,16 @@ export default function CheckoutPage() {
   useEffect(() => {
     if (paymentMethod !== 'PAYPAL' || !paypalClientId) return
 
-    const container = document.getElementById('paypal-button-container')
-    if (!container) return
-    container.innerHTML = ''
+    const containerEl = document.getElementById('paypal-button-container') as HTMLDivElement | null
+    if (!containerEl) return
+    containerEl.innerHTML = ''
 
     const script = document.createElement('script')
     script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
     script.async = true
     script.onload = () => {
-      if (!(window as any).paypal || !container) return
       const paypal = (window as any).paypal
-      if (!paypal) return
+      if (!paypal || !containerEl) return
       setPaypalLoaded(true)
       paypal.Buttons({
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
@@ -136,7 +135,7 @@ export default function CheckoutPage() {
           console.error('PayPal error:', err)
           setError('PayPal payment failed. Please try again.')
         }
-      }).render(container)
+      }).render(containerEl)
     }
     document.body.appendChild(script)
   }, [paymentMethod, paypalClientId, total, currency])
