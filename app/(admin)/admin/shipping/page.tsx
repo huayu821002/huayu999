@@ -3,13 +3,17 @@
 import { useState, useEffect } from 'react'
 
 interface ShippingRate {
+  id?: string
   countryCode: string
   countryName: string
   baseCost: number
   costPerKg: number
   freeThreshold: number
+  minWeight: number
+  maxWeight: number
   estimatedDays: string | null
   isActive: boolean
+  methodId?: string | null
 }
 
 const allCountries = [
@@ -47,14 +51,22 @@ const allCountries = [
   { code: 'PH', name: 'Philippines' },
   { code: 'ID', name: 'Indonesia' },
   { code: 'IN', name: 'India' },
-  { code: 'HK', name: '中国香港' },
-  { code: 'MO', name: '中国澳门' },
-  { code: 'TW', name: '中国台湾' },
+  { code: 'HK', name: 'Hong Kong' },
+  { code: 'MO', name: 'Macau' },
+  { code: 'TW', name: 'Taiwan' },
   { code: 'BR', name: 'Brazil' },
   { code: 'AR', name: 'Argentina' },
   { code: 'CO', name: 'Colombia' },
   { code: 'PE', name: 'Peru' },
   { code: 'CL', name: 'Chile' },
+  { code: 'CN', name: 'China' },
+  { code: 'ZA', name: 'South Africa' },
+  { code: 'AE', name: 'UAE' },
+  { code: 'SA', name: 'Saudi Arabia' },
+  { code: 'IL', name: 'Israel' },
+  { code: 'EG', name: 'Egypt' },
+  { code: 'NG', name: 'Nigeria' },
+  { code: 'KE', name: 'Kenya' },
 ]
 
 export default function ShippingSettingsPage() {
@@ -66,10 +78,10 @@ export default function ShippingSettingsPage() {
 
   const fetchRates = async () => {
     try {
-      const res = await fetch('/api/admin/shipping')
+      const res = await fetch('/api/admin/shipping-rates')
       if (res.ok) {
         const data = await res.json()
-        setRates(data)
+        setRates(data.data || [])
       }
     } catch (error) {
       console.error('Failed to fetch rates:', error)
@@ -85,8 +97,10 @@ export default function ShippingSettingsPage() {
   const handleSave = async (rate: ShippingRate) => {
     setSaving(true)
     try {
-      const res = await fetch('/api/admin/shipping', {
-        method: 'POST',
+      const url = rate.id ? `/api/admin/shipping-rates/${rate.id}` : '/api/admin/shipping-rates'
+      const method = rate.id ? 'PUT' : 'POST'
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(rate),
       })
@@ -102,12 +116,10 @@ export default function ShippingSettingsPage() {
     }
   }
 
-  const handleDelete = async (countryCode: string) => {
-    if (!confirm('Delete shipping rate for this country?')) return
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this shipping rate?')) return
     try {
-      const res = await fetch(`/api/admin/shipping?countryCode=${countryCode}`, {
-        method: 'DELETE',
-      })
+      const res = await fetch(`/api/admin/shipping-rates/${id}`, { method: 'DELETE' })
       if (res.ok) {
         await fetchRates()
       }
@@ -117,6 +129,7 @@ export default function ShippingSettingsPage() {
   }
 
   const handleToggleActive = async (rate: ShippingRate) => {
+    if (!rate.id) return
     await handleSave({ ...rate, isActive: !rate.isActive })
   }
 
@@ -130,6 +143,8 @@ export default function ShippingSettingsPage() {
         baseCost: 0,
         costPerKg: 0,
         freeThreshold: 0,
+        minWeight: 0,
+        maxWeight: 0,
         estimatedDays: null,
         isActive: true,
       })
@@ -144,8 +159,8 @@ export default function ShippingSettingsPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-joy-gray-900">Shipping Settings</h1>
-        <p className="text-joy-gray-500 mt-1">Configure shipping rates by country</p>
+        <h1 className="text-2xl font-bold text-joy-gray-900">Shipping Rates</h1>
+        <p className="text-joy-gray-500 mt-1">Configure shipping rates by country (legacy view)</p>
       </div>
 
       {/* Add New Rate */}
@@ -159,9 +174,7 @@ export default function ShippingSettingsPage() {
             className="border border-joy-gray-200 rounded-lg px-3 py-2 text-sm"
             onChange={(e) => {
               const country = allCountries.find((c) => c.code === e.target.value)
-              if (country) {
-                openModal(undefined, country)
-              }
+              if (country) openModal(undefined, country)
             }}
             defaultValue=""
           >
@@ -188,13 +201,13 @@ export default function ShippingSettingsPage() {
         ) : (
           <div className="divide-y divide-joy-gray-100">
             {rates.map((rate) => (
-              <div key={rate.countryCode} className="p-4 flex items-center justify-between">
+              <div key={rate.id || rate.countryCode} className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className={`w-3 h-3 rounded-full ${rate.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
                   <div>
-                    <p className="font-medium text-joy-gray-900">{rate.countryName}</p>
+                    <p className="font-medium text-joy-gray-900">{rate.countryName} <span className="text-joy-gray-400 text-sm">({rate.countryCode})</span></p>
                     <p className="text-sm text-joy-gray-500">
-                      Base: ${rate.baseCost.toFixed(2)} | Per kg: ${rate.costPerKg.toFixed(2)} | Free over: ${rate.freeThreshold.toFixed(2)}
+                      Base: ${Number(rate.baseCost).toFixed(2)} | Per kg: ${Number(rate.costPerKg).toFixed(2)} | Free over: ${Number(rate.freeThreshold).toFixed(2)}
                       {rate.estimatedDays && ` | Est: ${rate.estimatedDays}`}
                     </p>
                   </div>
@@ -217,8 +230,9 @@ export default function ShippingSettingsPage() {
                     {rate.isActive ? 'Disable' : 'Enable'}
                   </button>
                   <button
-                    onClick={() => handleDelete(rate.countryCode)}
-                    className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition"
+                    onClick={() => rate.id && handleDelete(rate.id)}
+                    disabled={!rate.id}
+                    className="px-3 py-1.5 text-sm text-red-600 hover:bg-red-50 rounded-lg transition disabled:opacity-30"
                   >
                     Delete
                   </button>
@@ -234,55 +248,59 @@ export default function ShippingSettingsPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-xl w-full max-w-md p-6">
             <h2 className="text-lg font-bold text-joy-gray-900 mb-4">
-              {rates.find((r) => r.countryCode === editingRate.countryCode)
-                ? `Edit: ${editingRate.countryName}`
-                : `Add: ${editingRate.countryName}`}
+              {editingRate.id ? `Edit: ${editingRate.countryName}` : `Add: ${editingRate.countryName}`}
             </h2>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-joy-gray-700 mb-1">
-                  Base Cost (USD)
-                </label>
+                <label className="block text-sm font-medium text-joy-gray-700 mb-1">Base Cost (USD)</label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="number" step="0.01"
                   value={editingRate.baseCost}
                   onChange={(e) => setEditingRate({ ...editingRate, baseCost: parseFloat(e.target.value) || 0 })}
                   className="w-full border border-joy-gray-200 rounded-lg px-3 py-2"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-joy-gray-700 mb-1">
-                  Cost per KG (USD)
-                </label>
+                <label className="block text-sm font-medium text-joy-gray-700 mb-1">Cost per KG (USD)</label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="number" step="0.01"
                   value={editingRate.costPerKg}
                   onChange={(e) => setEditingRate({ ...editingRate, costPerKg: parseFloat(e.target.value) || 0 })}
                   className="w-full border border-joy-gray-200 rounded-lg px-3 py-2"
                 />
               </div>
-
               <div>
-                <label className="block text-sm font-medium text-joy-gray-700 mb-1">
-                  Free Shipping Threshold (USD)
-                </label>
+                <label className="block text-sm font-medium text-joy-gray-700 mb-1">Free Shipping Threshold (USD)</label>
                 <input
-                  type="number"
-                  step="0.01"
+                  type="number" step="0.01"
                   value={editingRate.freeThreshold}
                   onChange={(e) => setEditingRate({ ...editingRate, freeThreshold: parseFloat(e.target.value) || 0 })}
                   className="w-full border border-joy-gray-200 rounded-lg px-3 py-2"
                 />
               </div>
-
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-joy-gray-700 mb-1">Min Weight (kg)</label>
+                  <input
+                    type="number" step="0.1"
+                    value={editingRate.minWeight}
+                    onChange={(e) => setEditingRate({ ...editingRate, minWeight: parseFloat(e.target.value) || 0 })}
+                    className="w-full border border-joy-gray-200 rounded-lg px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-joy-gray-700 mb-1">Max Weight (kg, 0=unlimited)</label>
+                  <input
+                    type="number" step="0.1"
+                    value={editingRate.maxWeight}
+                    onChange={(e) => setEditingRate({ ...editingRate, maxWeight: parseFloat(e.target.value) || 0 })}
+                    className="w-full border border-joy-gray-200 rounded-lg px-3 py-2"
+                  />
+                </div>
+              </div>
               <div>
-                <label className="block text-sm font-medium text-joy-gray-700 mb-1">
-                  Estimated Delivery Days
-                </label>
+                <label className="block text-sm font-medium text-joy-gray-700 mb-1">Estimated Delivery Days</label>
                 <input
                   type="text"
                   value={editingRate.estimatedDays || ''}
@@ -291,7 +309,6 @@ export default function ShippingSettingsPage() {
                   className="w-full border border-joy-gray-200 rounded-lg px-3 py-2"
                 />
               </div>
-
               <div className="flex items-center gap-2">
                 <input
                   type="checkbox"
@@ -300,18 +317,13 @@ export default function ShippingSettingsPage() {
                   onChange={(e) => setEditingRate({ ...editingRate, isActive: e.target.checked })}
                   className="w-4 h-4 text-joy-orange"
                 />
-                <label htmlFor="isActive" className="text-sm text-joy-gray-700">
-                  Active (shipping available to this country)
-                </label>
+                <label htmlFor="isActive" className="text-sm text-joy-gray-700">Active</label>
               </div>
             </div>
 
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => {
-                  setShowModal(false)
-                  setEditingRate(null)
-                }}
+                onClick={() => { setShowModal(false); setEditingRate(null) }}
                 className="px-4 py-2 text-sm text-joy-gray-600 hover:bg-joy-gray-50 rounded-lg"
               >
                 Cancel
