@@ -174,6 +174,8 @@ export default function ProductDetailPage() {
       />
 
       <main className="pt-[calc(4rem+36px)]">
+        <link rel="canonical" href={`https://huayu-ebon.vercel.app/products/${product.slug}`} />
+
         {/* Breadcrumb */}
         <div className="max-w-7xl mx-auto px-4 py-4">
           <nav className="flex items-center gap-2 text-sm text-joy-gray-500">
@@ -245,7 +247,7 @@ export default function ProductDetailPage() {
                       selectedImage === i ? 'border-joy-orange' : 'border-transparent hover:border-joy-gray-300'
                     )}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img src={img} alt={`${product.name} - Image ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
                 {product.modelImage && (
@@ -501,6 +503,29 @@ export default function ProductDetailPage() {
             </div>
           </div>
         </div>
+
+        {/* SEO: JSON-LD Product Schema */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Product',
+            name: product.name,
+            description: product.shortDesc || product.description?.substring(0, 200) || '',
+            sku: product.sku || product.id,
+            image: images[0] || '',
+            url: `https://huayu-ebon.vercel.app/products/${product.slug}`,
+            offers: {
+              '@type': 'Offer',
+              price: product.price?.toFixed(2) || '0.00',
+              priceCurrency: currency,
+              availability: product.inventory > 0
+                ? 'https://schema.org/InStock'
+                : 'https://schema.org/OutOfStock',
+              seller: { '@type': 'Organization', name: 'Huayu Wholesale' }
+            },
+            ...(product.category ? { category: product.category.name } : {}),
+          })
+        }} />
       </main>
 
       <Footer />

@@ -144,6 +144,23 @@ export default function ShopHomePage() {
     <div className="min-h-screen bg-white">
       <Header />
       <main>
+        <script type="application/ld+json" dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'Organization',
+            name: 'Huayu Wholesale',
+            url: 'https://huayu-ebon.vercel.app',
+            logo: 'https://huayu-ebon.vercel.app/logo.png',
+            description: 'B2B small wholesale platform for accessories, pet supplies, creative gifts, and home décor.',
+            contactPoint: {
+              '@type': 'ContactPoint',
+              contactType: 'customer service',
+              availableLanguage: 'English',
+            },
+            sameAs: []
+          })
+        }} />
+
         {/* Hero Carousel */}
         <HeroCarousel />
 

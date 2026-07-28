@@ -352,9 +352,16 @@ function ProductsContent() {
 
   return (
     <>
+      <link rel="canonical" href="https://huayu-ebon.vercel.app/products" />
+
       {/* Page Header */}
       <div className="bg-joy-gray-50 border-b border-joy-gray-100">
         <div className="max-w-7xl mx-auto px-4 py-8">
+          <nav className="flex items-center gap-2 text-sm text-joy-gray-500 mb-4">
+            <a href="/" className="hover:text-joy-orange">Home</a>
+            <Icons.ChevronRight size={14} />
+            <span className="text-joy-gray-700 font-medium">Products</span>
+          </nav>
           <h1 className="font-display text-3xl font-bold text-joy-gray-900 mb-2">
             {getCategoryName()}
           </h1>
@@ -363,6 +370,17 @@ function ProductsContent() {
           </p>
         </div>
       </div>
+
+      {/* JSON-LD CollectionPage Schema */}
+      <script type="application/ld+json" dangerouslySetInnerHTML={{
+        __html: JSON.stringify({
+          '@context': 'https://schema.org',
+          '@type': 'CollectionPage',
+          name: 'Huayu Wholesale Products',
+          description: 'Wholesale products including accessories, pet supplies, home decor and gifts.',
+          url: 'https://huayu-ebon.vercel.app/products',
+        })
+      }} />
 
       <div className="max-w-7xl mx-auto px-4 py-8">
         <div className="flex flex-col lg:flex-row gap-8">
