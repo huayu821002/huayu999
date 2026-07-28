@@ -94,6 +94,16 @@ export default function CheckoutPage() {
     document.body.appendChild(script)
   }, [paymentMethod, paypalClientId, total, currency])
 
+  const fetchPaymentSettings = async () => {
+    try {
+      const res = await fetch('/api/site/payment-settings')
+      const data = await res.json()
+      if (data.success && data.data.paypal?.clientId) {
+        setPaypalClientId(data.data.paypal.clientId)
+      }
+    } catch (err) { console.error(err) }
+  }
+
   const fetchShippingRates = async () => {
     try {
       const res = await fetch('/api/shipping/calculate', {
