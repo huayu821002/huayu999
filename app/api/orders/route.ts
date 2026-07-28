@@ -37,7 +37,8 @@ export async function POST(request: Request) {
     const body = await request.json()
     const {
       userId, items, subtotal, shippingCost, tax, discount, total,
-      currency, shippingAddress, billingAddress, paymentMethod
+      currency, shippingAddress, billingAddress, paymentMethod,
+      paypalOrderId, paypalStatus
     } = body
 
     // Generate order number
@@ -65,7 +66,8 @@ export async function POST(request: Request) {
         shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress || {}),
         billingAddress: billingAddress ? (typeof billingAddress === 'string' ? billingAddress : JSON.stringify(billingAddress)) : null,
         paymentMethod: paymentMethod || 'BATCH_ORDER',
-        status: 'PENDING',
+        paymentId: paypalOrderId || null,
+        status: paypalStatus === 'COMPLETED' ? 'PAID' : 'PENDING',
       },
     })
 

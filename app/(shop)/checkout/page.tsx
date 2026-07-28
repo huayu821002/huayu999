@@ -38,6 +38,7 @@ export default function CheckoutPage() {
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([])
   const [selectedShipping, setSelectedShipping] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<'PAYPAL' | 'STRIPE' | 'BANK_TRANSFER'>('PAYPAL')
+  const [paypalClientId, setPaypalClientId] = useState<string>('')
 
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     firstName: '', lastName: '', email: '', phone: '',
@@ -51,7 +52,47 @@ export default function CheckoutPage() {
     if (items.length > 0 && subtotal > 0) {
       fetchShippingRates()
     }
+    fetchPaymentSettings()
   }, [subtotal, totalWeight])
+
+  // Load PayPal SDK and render buttons when PAYPAL is selected
+  useEffect(() => {
+    if (paymentMethod !== 'PAYPAL' || !paypalClientId) return
+
+    const container = document.getElementById('paypal-button-container')
+    if (!container) return
+    container.innerHTML = ''
+
+    const script = document.createElement('script')
+    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
+    script.async = true
+    script.onload = () => {
+      if (!(window as any).paypal || !container) return
+      (window as any).paypal.Buttons({
+        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+        createOrder: (_data: any, actions: any) => {
+          return actions.order.create({
+            purchase_units: [{ amount: { value: total.toFixed(2) } }]
+          })
+        },
+        onApprove: async (_data: any, actions: any) => {
+          setIsProcessing(true)
+          try {
+            const details = await actions.order.capture()
+            await handlePlaceOrderWithPayPal(details)
+          } catch (err) {
+            setError('Payment capture failed. Please try again.')
+            setIsProcessing(false)
+          }
+        },
+        onError: (err: any) => {
+          console.error('PayPal error:', err)
+          setError('PayPal payment failed. Please try again.')
+        }
+      }).render(container)
+    }
+    document.body.appendChild(script)
+  }, [paymentMethod, paypalClientId, total, currency])
 
   const fetchShippingRates = async () => {
     try {
@@ -155,6 +196,58 @@ export default function CheckoutPage() {
           currency,
           shippingAddress,
           paymentMethod: paymentMethod,
+        }),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setOrderNumber(data.data.orderNumber)
+        clearCart()
+        setCurrentStep(4)
+      } else {
+        setError(data.error || 'Failed to place order')
+      }
+    } catch (err) {
+      setError('Network error. Please try again.')
+    } finally {
+      setIsProcessing(false)
+    }
+  }
+
+  const handlePlaceOrderWithPayPal = async (paypalDetails: any) => {
+    setError('')
+    try {
+      const userStr = localStorage.getItem('user')
+      const user = userStr ? JSON.parse(userStr) : null
+      const userId = user?.id || 'guest'
+
+      const shippingAddress = `${shippingForm.firstName} ${shippingForm.lastName}, ${shippingForm.address}, ${shippingForm.city}, ${shippingForm.state} ${shippingForm.zip}, ${shippingForm.country}`
+
+      const orderItems = items.map(item => ({
+        productId: item.product.id,
+        name: item.product.name,
+        sku: item.product.sku,
+        price: item.product.price,
+        quantity: item.quantity,
+        variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
+      }))
+
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          items: orderItems,
+          subtotal,
+          shippingCost,
+          tax,
+          discount: 0,
+          total,
+          currency,
+          shippingAddress,
+          paymentMethod: 'PAYPAL',
+          paypalOrderId: paypalDetails.id,
+          paypalStatus: paypalDetails.status,
         }),
       })
 
@@ -397,7 +490,7 @@ export default function CheckoutPage() {
 
                   {paymentMethod === 'PAYPAL' && (
                     <div className="border-t border-joy-gray-100 pt-6">
-                      <p className="text-sm text-joy-gray-500">You will be redirected to PayPal to complete your payment securely.</p>
+                      <div id="paypal-button-container" className="mt-4" />
                     </div>
                   )}
 
@@ -409,7 +502,7 @@ export default function CheckoutPage() {
                   <div className="flex gap-4 mt-6">
                     <Button variant="secondary" onClick={() => setCurrentStep(2)}>Back</Button>
                     <Button onClick={handlePlaceOrder} className="flex-1" size="lg" isLoading={isProcessing}>
-                      {isProcessing ? 'Processing...' : paymentMethod === 'BANK_TRANSFER' ? `Place Order (Bank Transfer)` : `Pay ${formatCurrency(total, currency)}`}
+                      {isProcessing ? 'Processing...' : paymentMethod === 'BANK_TRANSFER' ? `Place Order (Bank Transfer)` : paymentMethod === 'PAYPAL' ? `Place Order` : `Pay ${formatCurrency(total, currency)}`}
                     </Button>
                   </div>
                 </div>

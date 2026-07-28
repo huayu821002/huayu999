@@ -20,6 +20,9 @@ export async function GET() {
       paypal: {
         enabled: settings.paypal?.enabled ?? true,
         mode: settings.mode,
+        clientId: settings.mode === 'sandbox'
+          ? (settings as any).paypal?.sandbox?.clientId
+          : (settings as any).paypal?.production?.clientId,
       },
       stripe: {
         enabled: (settings as any).stripe?.enabled ?? true,
