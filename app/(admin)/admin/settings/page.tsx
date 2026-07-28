@@ -112,7 +112,7 @@ export default function AdminSettingsPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/admin/categories')
+      const res = await fetch('/api/admin/product-categories')
       const data = await res.json()
       if (data.success) setCategories(data.data)
     } catch (err) { console.error(err) }
@@ -286,7 +286,7 @@ export default function AdminSettingsPage() {
     if (!categoryForm.name) return
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(categoryForm) })
+      const res = await fetch('/api/admin/product-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(categoryForm) })
       const data = await res.json()
       if (data.success) { setShowCategoryModal(false); fetchCategories() } else alert(data.error)
     } catch { alert('Failed to save category') }
