@@ -25,6 +25,7 @@ export interface ShippingOption {
   estimatedDays: string
   cost: number
   freeShipping: boolean
+  isFree?: boolean  // alias for freeShipping, used by checkout
   available: boolean
   reason?: string
 }
@@ -32,11 +33,11 @@ export interface ShippingOption {
 // Default fallback rates
 const defaultRates: Record<string, ShippingOption[]> = {
   'US': [
-    { id: 'def_us_std', methodId: '', name: 'Standard Shipping', code: 'US_STD', description: 'Standard', estimatedDays: '10-14 days', cost: 0, freeShipping: false, available: true },
-    { id: 'def_us_exp', methodId: '', name: 'Express Shipping', code: 'US_EXP', description: 'Express', estimatedDays: '5-7 days', cost: 0, freeShipping: false, available: true },
+    { id: 'def_us_std', methodId: '', name: 'Standard Shipping', code: 'US_STD', description: 'Standard', estimatedDays: '10-14 days', cost: 0, freeShipping: false, isFree: false, available: true },
+    { id: 'def_us_exp', methodId: '', name: 'Express Shipping', code: 'US_EXP', description: 'Express', estimatedDays: '5-7 days', cost: 0, freeShipping: false, isFree: false, available: true },
   ],
   'DEFAULT': [
-    { id: 'def_default', methodId: '', name: 'Standard Shipping', code: 'DEFAULT', description: 'Standard', estimatedDays: '10-20 days', cost: 0, freeShipping: false, available: true },
+    { id: 'def_default', methodId: '', name: 'Standard Shipping', code: 'DEFAULT', description: 'Standard', estimatedDays: '10-20 days', cost: 0, freeShipping: false, isFree: false, available: true },
   ],
 }
 
@@ -127,6 +128,7 @@ export async function calculateShippingOptions(
           estimatedDays: rate.estimatedDays || '10-14 days',
           cost: 0,
           freeShipping: false,
+          isFree: false,
           available: false,
           reason: `Min ${rate.minWeight}kg required`,
         }
@@ -141,6 +143,7 @@ export async function calculateShippingOptions(
           estimatedDays: rate.estimatedDays || '10-14 days',
           cost: 0,
           freeShipping: false,
+          isFree: false,
           available: false,
           reason: `Max ${rate.maxWeight}kg allowed`,
         }
@@ -160,6 +163,7 @@ export async function calculateShippingOptions(
         estimatedDays: rate.estimatedDays || '10-14 days',
         cost,
         freeShipping: isFree,
+        isFree,
         available: true,
       }
     })
@@ -174,6 +178,7 @@ export async function calculateShippingOptions(
       estimatedDays: 'Contact us',
       cost: 0,
       freeShipping: false,
+      isFree: false,
       available: true,
     }]
   }
