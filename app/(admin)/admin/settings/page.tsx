@@ -281,7 +281,7 @@ export default function AdminSettingsPage() {
 
   // Category handlers
   const openAddCategory = (parentId?: string) => { setEditingCategory(null); setCategoryForm({ name: '', slug: '', description: '', parentId: parentId || '', image: '' }); setShowCategoryModal(true) }
-  const openEditCategory = (cat: Category) => { setEditingCategory(cat); setCategoryForm({ name: cat.name, slug: cat.slug, description: cat.description || '', parentId: cat.parentId || '', image: cat.image || '' }); setShowCategoryModal(true) }
+  const openEditCategory = (cat: Category) => { setEditingCategory(cat); setCategoryForm({ id: cat.id, name: cat.name, slug: cat.slug, description: cat.description || '', parentId: cat.parentId || '', image: cat.image || '' }); setShowCategoryModal(true) }
   const handleCategorySubmit = async () => {
     if (!categoryForm.name) return
     setIsSaving(true)
@@ -458,6 +458,7 @@ export default function AdminSettingsPage() {
                         <div className="flex items-center gap-1">
                           {depth < 3 && <button onClick={() => openAddCategory(cat.id)} className="p-2 hover:bg-joy-orange/10 rounded-lg text-joy-orange"><Icons.Plus size={16} /></button>}
                           <button onClick={() => openEditCategory(cat)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.Copy size={16} className="text-joy-gray-500" /></button>
+                          <button onClick={() => { if (confirm(`Delete category "${cat.name}"?`)) { fetch(`/api/admin/product-categories?id=${cat.id}`, { method: 'DELETE' }).then(r => r.json()).then(d => d.success ? fetchCategories() : alert(d.error)) } }} className="p-2 hover:bg-red-50 rounded-lg text-red-400"><Icons.Trash2 size={16} /></button>
                         </div>
                       </div>
                     ))}
