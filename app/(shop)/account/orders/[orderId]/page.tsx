@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { Icons } from '@/components/ui/Icons'
+import { Button } from '@/components/ui/Button'
 
 interface Order {
   id: string
@@ -36,9 +37,13 @@ export default function OrderDetailPage() {
   const params = useParams()
   const [order, setOrder] = useState<Order | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [isPaying, setIsPaying] = useState(false)
+  const [paypalClientId, setPaypalClientId] = useState('')
+  const [paypalLoaded, setPaypalLoaded] = useState(false)
 
   useEffect(() => {
     if (params.orderId) fetchOrder(params.orderId as string)
+    fetchPaymentSettings()
   }, [params.orderId])
 
   const fetchOrder = async (orderId: string) => {
@@ -49,6 +54,79 @@ export default function OrderDetailPage() {
     } catch (err) { console.error(err) }
     finally { setIsLoading(false) }
   }
+
+  const fetchPaymentSettings = async () => {
+    try {
+      const res = await fetch('/api/site/payment-settings')
+      const data = await res.json()
+      if (data.success && data.data.paypal?.clientId) {
+        setPaypalClientId(data.data.paypal.clientId)
+      }
+    } catch (err) { console.error(err) }
+  }
+
+  const handlePayPalPayment = async (paypalDetails: any) => {
+    if (!order) return
+    setIsPaying(true)
+    try {
+      const res = await fetch(`/api/orders/${order.orderNumber}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'PAID',
+          paymentId: paypalDetails.id,
+        }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setOrder({ ...order, status: 'PAID', paymentMethod: 'PAYPAL' })
+      }
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setIsPaying(false)
+    }
+  }
+
+  // Load PayPal SDK for pending PAYPAL orders
+  useEffect(() => {
+    if (!order || order.status !== 'PENDING' || !paypalClientId) return
+    if (order.paymentMethod !== 'PAYPAL') return
+
+    const containerEl = document.getElementById('paypal-paynow-container') as HTMLDivElement | null
+    if (!containerEl) return
+    containerEl.innerHTML = ''
+
+    const script = document.createElement('script')
+    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${order.currency}`
+    script.async = true
+    script.onload = () => {
+      const paypal = (window as any).paypal
+      if (!paypal || !containerEl) return
+      setPaypalLoaded(true)
+      paypal.Buttons({
+        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+        createOrder: (_data: any, actions: any) => {
+          return actions.order.create({
+            purchase_units: [{ amount: { value: order.total.toFixed(2) } }]
+          })
+        },
+        onApprove: async (_data: any, actions: any) => {
+          setIsPaying(true)
+          try {
+            const details = await actions.order.capture()
+            await handlePayPalPayment(details)
+          } catch (err) {
+            console.error(err)
+          }
+        },
+        onError: (err: any) => {
+          console.error('PayPal error:', err)
+        }
+      }).render(containerEl)
+    }
+    document.body.appendChild(script)
+  }, [order, paypalClientId])
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" /></div>
   if (!order) return (
@@ -66,6 +144,8 @@ export default function OrderDetailPage() {
 
   let items = []
   try { items = JSON.parse(order.items) } catch {}
+
+  const isPendingPayPal = order.status === 'PENDING' && order.paymentMethod === 'PAYPAL'
 
   return (
     <div className="min-h-screen bg-joy-gray-50">
@@ -95,6 +175,27 @@ export default function OrderDetailPage() {
                   </div>
                 )}
               </div>
+
+              {/* Pay Now Section for Pending PayPal orders */}
+              {isPendingPayPal && (
+                <div className="mt-6 pt-6 border-t border-joy-gray-100">
+                  <p className="text-sm text-joy-gray-500 mb-3">Complete your payment with PayPal:</p>
+                  <div id="paypal-paynow-container" className="max-w-sm" />
+                  {!paypalLoaded && paypalClientId && <p className="text-sm text-joy-gray-400 mt-2">Loading PayPal...</p>}
+                  {!paypalClientId && <p className="text-sm text-red-400 mt-2">PayPal is not configured. Please contact support.</p>}
+                </div>
+              )}
+
+              {/* Bank Transfer pending instructions */}
+              {order.status === 'PENDING' && order.paymentMethod === 'BANK_TRANSFER' && (
+                <div className="mt-6 pt-6 border-t border-joy-gray-100">
+                  <p className="text-sm text-joy-gray-500 mb-3">Bank Transfer Instructions:</p>
+                  <div className="bg-joy-gray-50 rounded-xl p-4 text-sm space-y-1">
+                    <p>Please transfer <strong>${order.total.toFixed(2)} {order.currency}</strong> to the account below and include your order number <strong>#{order.orderNumber}</strong> as the payment reference.</p>
+                    <p className="pt-2 text-joy-gray-400">Your order will be processed after payment is received (2-5 business days).</p>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Items */}
