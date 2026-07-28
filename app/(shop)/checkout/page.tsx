@@ -112,8 +112,10 @@ export default function CheckoutPage() {
     script.async = true
     script.onload = () => {
       if (!(window as any).paypal || !container) return
+      const paypal = (window as any).paypal
+      if (!paypal) return
       setPaypalLoaded(true)
-      (window as any).paypal.Buttons({
+      paypal.Buttons({
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
           return actions.order.create({
