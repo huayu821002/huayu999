@@ -30,7 +30,7 @@ export default function AdminSettingsPage() {
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
-  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'shipping' | 'payments' | 'custom_pages' | 'header_footer'>('general')
+  const [activeTab, setActiveTab] = useState<'general' | 'categories' | 'homepage' | 'shipping' | 'payments' | 'custom_pages' | 'header_footer' | 'seo'>('general')
 
   // Categories
   const [categories, setCategories] = useState<Category[]>([])
@@ -63,6 +63,7 @@ export default function AdminSettingsPage() {
   // Header & Footer Settings
   const [headerSettings, setHeaderSettings] = useState<any>(null)
   const [footerSettings, setFooterSettings] = useState<any>(null)
+  const [seoSettings, setSeoSettings] = useState<{ title: string; description: string; keywords: string; ogImage: string }>({ title: '', description: '', keywords: '', ogImage: '' })
 
   // Payment Settings
   const [paymentSettings, setPaymentSettings] = useState<any>(null)
@@ -104,6 +105,7 @@ export default function AdminSettingsPage() {
     if (activeTab === 'payments') fetchPaymentSettings()
     if (activeTab === 'custom_pages') fetchCustomPages()
     if (activeTab === 'header_footer') fetchHeaderFooter()
+    if (activeTab === 'seo') fetchSeoSettings()
     if (activeTab === 'homepage') {
       fetchHomepageCategories()
       fetchTrustBadges()
@@ -140,6 +142,14 @@ export default function AdminSettingsPage() {
       const res = await fetch('/api/admin/shipping-methods')
       const data = await res.json()
       if (data.success) setShippingMethods(data.data)
+    } catch (err) { console.error(err) }
+  }
+
+  const fetchSeoSettings = async () => {
+    try {
+      const res = await fetch('/api/admin/seo')
+      const data = await res.json()
+      if (data.success) setSeoSettings(data.data)
     } catch (err) { console.error(err) }
   }
 
@@ -242,6 +252,21 @@ export default function AdminSettingsPage() {
         setPaymentSettings(data.data)
       }
     } catch (err) { console.error(err) }
+  }
+
+  const saveSeoSettings = async () => {
+    setIsSaving(true)
+    try {
+      const res = await fetch('/api/admin/seo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(seoSettings)
+      })
+      if (res.ok) {
+        alert('SEO settings saved successfully!')
+      }
+    } catch (err) { console.error(err) }
+    setIsSaving(false)
   }
 
   const savePaymentSettings = async () => {
@@ -415,7 +440,7 @@ export default function AdminSettingsPage() {
           </div>
 
           <div className="flex border-b border-joy-gray-200 mb-6 overflow-x-auto">
-            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'payments', label: 'Payments' }, { key: 'custom_pages', label: 'Custom Pages' }, { key: 'header_footer', label: 'Header & Footer' }].map(tab => (
+            {[{ key: 'general', label: 'General' }, { key: 'categories', label: `Categories (${categories.length})` }, { key: 'homepage', label: 'Homepage' }, { key: 'shipping', label: `Shipping (${shippingMethods.length})` }, { key: 'payments', label: 'Payments' }, { key: 'custom_pages', label: 'Custom Pages' }, { key: 'header_footer', label: 'Header & Footer' }, { key: 'seo', label: 'SEO' }].map(tab => (
               <button key={tab.key} onClick={() => setActiveTab(tab.key as typeof activeTab)}
                 className={`px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors whitespace-nowrap ${activeTab === tab.key ? 'text-joy-orange border-joy-orange' : 'text-joy-gray-500 border-transparent hover:text-joy-gray-700'}`}>
                 {tab.label}
@@ -997,6 +1022,47 @@ export default function AdminSettingsPage() {
 
               <div className="flex justify-end">
                 <Button onClick={saveHeaderFooter} isLoading={isSaving}>Save Header & Footer</Button>
+              </div>
+            </div>
+          )}
+
+          {/* SEO Tab */}
+          {activeTab === 'seo' && (
+            <div className="space-y-6">
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2 flex items-center gap-2"><Icons.Search size={20} className="text-joy-orange" />SEO Settings</h2>
+                <p className="text-sm text-joy-gray-500 mb-6">Manage homepage and default page meta tags for search engines</p>
+
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Meta Title</label>
+                    <input type="text" className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange text-sm" value={seoSettings.title} onChange={e => setSeoSettings({...seoSettings, title: e.target.value})} placeholder="Page title for search engines" />
+                    <p className="text-xs text-joy-gray-400 mt-1">{seoSettings.title.length}/60 characters (recommended)</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Meta Description</label>
+                    <textarea className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange text-sm min-h-[100px]" value={seoSettings.description} onChange={e => setSeoSettings({...seoSettings, description: e.target.value})} placeholder="Description shown in search results (155 characters recommended)" />
+                    <p className="text-xs text-joy-gray-400 mt-1">{seoSettings.description.length}/155 characters (recommended)</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Keywords</label>
+                    <input type="text" className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange text-sm" value={seoSettings.keywords} onChange={e => setSeoSettings({...seoSettings, keywords: e.target.value})} placeholder="Comma-separated keywords" />
+                    <p className="text-xs text-joy-gray-400 mt-1">Separate keywords with commas</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">OG Image URL (Open Graph)</label>
+                    <input type="text" className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange text-sm" value={seoSettings.ogImage} onChange={e => setSeoSettings({...seoSettings, ogImage: e.target.value})} placeholder="https://example.com/og-image.jpg" />
+                    <p className="text-xs text-joy-gray-400 mt-1">Recommended size: 1200x630px</p>
+                    {seoSettings.ogImage && <img src={seoSettings.ogImage} alt="OG Preview" className="mt-3 w-64 h-32 object-cover rounded-xl border border-joy-gray-200" onError={e => (e.target as HTMLImageElement).style.display = 'none'} />}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={saveSeoSettings} isLoading={isSaving}>Save SEO Settings</Button>
               </div>
             </div>
           )}
