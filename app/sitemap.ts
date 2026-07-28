@@ -25,7 +25,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   try {
     products = await prisma.product.findMany({
       select: { slug: true, updatedAt: true },
-      where: { isActive: 'ACTIVE' },
+      where: { isActive: true },
     })
   } catch (e) {
     console.error('Sitemap: failed to fetch products', e)
