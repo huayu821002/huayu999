@@ -55,7 +55,7 @@ export async function getShippingRatesForCountry(countryCode: string): Promise<S
       },
       include: {
         method: {
-          select: { name: true, code: true, description: true, icon: true }
+          select: { name: true, code: true, description: true }
         }
       },
       orderBy: { sortOrder: 'asc' },
