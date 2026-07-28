@@ -55,44 +55,6 @@ export default function CheckoutPage() {
     fetchPaymentSettings()
   }, [subtotal, totalWeight])
 
-  // Load PayPal SDK and render buttons when PAYPAL is selected
-  useEffect(() => {
-    if (paymentMethod !== 'PAYPAL' || !paypalClientId) return
-
-    const container = document.getElementById('paypal-button-container')
-    if (!container) return
-    container.innerHTML = ''
-
-    const script = document.createElement('script')
-    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
-    script.async = true
-    script.onload = () => {
-      if (!(window as any).paypal || !container) return
-      (window as any).paypal.Buttons({
-        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
-        createOrder: (_data: any, actions: any) => {
-          return actions.order.create({
-            purchase_units: [{ amount: { value: total.toFixed(2) } }]
-          })
-        },
-        onApprove: async (_data: any, actions: any) => {
-          setIsProcessing(true)
-          try {
-            const details = await actions.order.capture()
-            await handlePlaceOrderWithPayPal(details)
-          } catch (err) {
-            setError('Payment capture failed. Please try again.')
-            setIsProcessing(false)
-          }
-        },
-        onError: (err: any) => {
-          console.error('PayPal error:', err)
-          setError('PayPal payment failed. Please try again.')
-        }
-      }).render(container)
-    }
-    document.body.appendChild(script)
-  }, [paymentMethod, paypalClientId, total, currency])
 
   const fetchPaymentSettings = async () => {
     try {
@@ -135,6 +97,45 @@ export default function CheckoutPage() {
   const shippingCost = selectedOption?.cost || 0
   const tax = subtotal * 0.08
   const total = subtotal + shippingCost + tax
+
+  // Load PayPal SDK and render buttons when PAYPAL is selected
+  useEffect(() => {
+    if (paymentMethod !== 'PAYPAL' || !paypalClientId) return
+
+    const container = document.getElementById('paypal-button-container')
+    if (!container) return
+    container.innerHTML = ''
+
+    const script = document.createElement('script')
+    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
+    script.async = true
+    script.onload = () => {
+      if (!(window as any).paypal || !container) return
+      (window as any).paypal.Buttons({
+        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+        createOrder: (_data: any, actions: any) => {
+          return actions.order.create({
+            purchase_units: [{ amount: { value: total.toFixed(2) } }]
+          })
+        },
+        onApprove: async (_data: any, actions: any) => {
+          setIsProcessing(true)
+          try {
+            const details = await actions.order.capture()
+            await handlePlaceOrderWithPayPal(details)
+          } catch (err) {
+            setError('Payment capture failed. Please try again.')
+            setIsProcessing(false)
+          }
+        },
+        onError: (err: any) => {
+          console.error('PayPal error:', err)
+          setError('PayPal payment failed. Please try again.')
+        }
+      }).render(container)
+    }
+    document.body.appendChild(script)
+  }, [paymentMethod, paypalClientId, total, currency])
 
   const updateShipping = (field: keyof ShippingForm, value: string) => {
     setShippingForm(prev => ({ ...prev, [field]: value }))
