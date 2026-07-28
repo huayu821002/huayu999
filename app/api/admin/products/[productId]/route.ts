@@ -20,7 +20,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
     const {
       name, slug, description, price, comparePrice, costPrice,
       weight, images, sku, barcode, inventory,
-      categoryId, isActive
+      categoryId, isActive, isFeatured, isTrending
     } = body
 
     const product = await prisma.product.update({
@@ -36,6 +36,8 @@ export async function PUT(request: Request, { params }: { params: { productId: s
         inventory: parseInt(inventory) || 0,
         categoryId,
         isActive,
+        isFeatured,
+        isTrending,
       },
     })
     return NextResponse.json({ success: true, data: product })

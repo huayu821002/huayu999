@@ -54,7 +54,7 @@ export async function POST(request: Request) {
     const {
       name, slug, description, price, comparePrice, costPrice,
       weight, images, sku, barcode, inventory,
-      categoryId, isActive
+      categoryId, isActive, isFeatured, isTrending
     } = body
 
     const product = await prisma.product.create({
@@ -72,6 +72,8 @@ export async function POST(request: Request) {
         inventory: parseInt(inventory) || 0,
         categoryId,
         isActive: isActive || 'ACTIVE',
+        isFeatured: isFeatured || false,
+        isTrending: isTrending || false,
       },
     })
 
