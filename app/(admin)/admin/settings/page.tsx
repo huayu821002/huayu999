@@ -274,7 +274,7 @@ export default function AdminSettingsPage() {
   if (!isAdmin) return null
 
   // Category helpers
-  const buildTree = (cats: Category[], parentId: string | null = null): CategoryNode[] => cats.filter(c => c.parentId === parentId).map(c => ({ ...c, children: buildTree(cats, c.id) }))
+  const buildTree = (cats: Category[], parentId: string | null = null): CategoryNode[] => cats.filter(c => (c.parentId || null) === parentId).map(c => ({ ...c, children: buildTree(cats, c.id) }))
   const flattenTree = (nodes: CategoryNode[], depth = 0): { cat: CategoryNode; depth: number }[] => nodes.flatMap(node => [{ cat: node, depth }, ...flattenTree(node.children, depth + 1)])
 
   const handleSave = () => { setIsSaving(true); setTimeout(() => setIsSaving(false), 1000) }
