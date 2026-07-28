@@ -39,6 +39,7 @@ export default function CheckoutPage() {
   const [selectedShipping, setSelectedShipping] = useState<string>('')
   const [paymentMethod, setPaymentMethod] = useState<'PAYPAL' | 'STRIPE' | 'BANK_TRANSFER'>('PAYPAL')
   const [paypalClientId, setPaypalClientId] = useState<string>('')
+  const [paypalLoaded, setPaypalLoaded] = useState(false)
 
   const [shippingForm, setShippingForm] = useState<ShippingForm>({
     firstName: '', lastName: '', email: '', phone: '',
@@ -111,6 +112,7 @@ export default function CheckoutPage() {
     script.async = true
     script.onload = () => {
       if (!(window as any).paypal || !container) return
+      setPaypalLoaded(true)
       (window as any).paypal.Buttons({
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
@@ -136,6 +138,11 @@ export default function CheckoutPage() {
     }
     document.body.appendChild(script)
   }, [paymentMethod, paypalClientId, total, currency])
+
+  // Reset paypalLoaded when switching away from PayPal
+  useEffect(() => {
+    if (paymentMethod !== 'PAYPAL') setPaypalLoaded(false)
+  }, [paymentMethod])
 
   const updateShipping = (field: keyof ShippingForm, value: string) => {
     setShippingForm(prev => ({ ...prev, [field]: value }))
@@ -510,12 +517,22 @@ export default function CheckoutPage() {
                     <span>Your payment information is encrypted and secure</span>
                   </div>
                   {error && <p className="text-red-500 text-sm mt-2">{error}</p>}
-                  <div className="flex gap-4 mt-6">
-                    <Button variant="secondary" onClick={() => setCurrentStep(2)}>Back</Button>
-                    <Button onClick={handlePlaceOrder} className="flex-1" size="lg" isLoading={isProcessing}>
-                      {isProcessing ? 'Processing...' : paymentMethod === 'BANK_TRANSFER' ? `Place Order (Bank Transfer)` : paymentMethod === 'PAYPAL' ? `Place Order` : `Pay ${formatCurrency(total, currency)}`}
-                    </Button>
-                  </div>
+                  {paymentMethod === 'PAYPAL' && !paypalLoaded && (
+                    <div className="flex gap-4 mt-6">
+                      <Button variant="secondary" onClick={() => setCurrentStep(2)}>Back</Button>
+                      <Button className="flex-1" size="lg" disabled>
+                        {paypalClientId ? 'Loading PayPal...' : 'PayPal Not Configured'}
+                      </Button>
+                    </div>
+                  )}
+                  {paymentMethod !== 'PAYPAL' && (
+                    <div className="flex gap-4 mt-6">
+                      <Button variant="secondary" onClick={() => setCurrentStep(2)}>Back</Button>
+                      <Button onClick={handlePlaceOrder} className="flex-1" size="lg" isLoading={isProcessing}>
+                        {isProcessing ? 'Processing...' : paymentMethod === 'BANK_TRANSFER' ? `Place Order (Bank Transfer)` : `Pay ${formatCurrency(total, currency)}`}
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )}
 
