@@ -9,9 +9,9 @@
     "lint": "next lint",
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
-    "db:seed": "node prisma/seed.js",
-    "@supabase/supabase-js": "^2.0.0",
-    "postinstall": "prisma generate"
+    "db:seed": "node prisma/seed.js", 
+    "postinstall": "prisma generate",
+    "@supabase/supabase-js": "^2.0.0"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",
