@@ -36,7 +36,7 @@ export default function AdminSettingsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [categoryForm, setCategoryForm] = useState({ name: '', slug: '', description: '', parentId: '', image: '' })
+  const [categoryForm, setCategoryForm] = useState<{ id?: string; name: string; slug: string; description: string; parentId: string; image: string }>({ name: '', slug: '', description: '', parentId: '', image: '' })
 
   // Homepage
   const [homepageContent, setHomepageContent] = useState<Record<string, SiteContent>>({})
