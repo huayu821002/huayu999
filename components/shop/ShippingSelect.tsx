@@ -3,14 +3,18 @@
 import { useState, useEffect } from 'react'
 import { cn } from '@/lib/utils'
 import { Icons } from '@/components/ui/Icons'
-import { calculateShipping, calculateTotalWeight, ShippingOption } from '@/lib/shipping'
+import { ShippingOption } from '@/lib/shipping'
 
 interface ShippingSelectProps {
   items: { productId: string; quantity: number; weight?: number | null; price: number }[]
   subtotal: number
   country: string
-  value: string // selected shipping option id
+  value: string
   onChange: (option: ShippingOption) => void
+}
+
+function calculateTotalWeight(items: { weight?: number | null; quantity: number }[]): number {
+  return items.reduce((total, item) => total + (item.weight || 0) * item.quantity, 0)
 }
 
 export function ShippingSelect({ items, subtotal, country, value, onChange }: ShippingSelectProps) {
@@ -25,19 +29,27 @@ export function ShippingSelect({ items, subtotal, country, value, onChange }: Sh
     }
 
     setIsLoading(true)
-    
-    // Calculate total weight
     const totalWeight = calculateTotalWeight(items)
-    
-    // Get shipping options
-    const options = calculateShipping(country, totalWeight, subtotal)
-    setShippingOptions(options)
-    setIsLoading(false)
 
-    // Auto-select first option if none selected
-    if (!value && options.length > 0) {
-      onChange(options[0])
-    }
+    fetch('/api/shipping/calculate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ subtotal, weight: totalWeight, country }),
+    })
+      .then(res => res.json())
+      .then(data => {
+        const options: ShippingOption[] = data.data || []
+        setShippingOptions(options)
+        setIsLoading(false)
+        if (!value && options.length > 0) {
+          const first = options.find(o => o.available) || options[0]
+          if (first) onChange(first)
+        }
+      })
+      .catch(() => {
+        setShippingOptions([])
+        setIsLoading(false)
+      })
   }, [country, items, subtotal])
 
   if (!country) {
@@ -84,11 +96,11 @@ export function ShippingSelect({ items, subtotal, country, value, onChange }: Sh
             onChange={() => onChange(option)}
             className="w-4 h-4 text-joy-orange"
           />
-          
+
           <div className="flex-1">
             <div className="flex items-center gap-2">
               <span className="font-medium text-joy-gray-900">{option.name}</span>
-              {option.isFree && (
+              {option.freeShipping && (
                 <span className="px-2 py-0.5 bg-joy-green/10 text-joy-green text-xs font-medium rounded-full">
                   FREE
                 </span>
@@ -96,9 +108,9 @@ export function ShippingSelect({ items, subtotal, country, value, onChange }: Sh
             </div>
             <p className="text-sm text-joy-gray-500">{option.description}</p>
           </div>
-          
+
           <div className="text-right">
-            {option.isFree ? (
+            {option.freeShipping ? (
               <span className="font-bold text-joy-green">FREE</span>
             ) : (
               <span className="font-bold text-joy-gray-900">${(option.cost ?? 0).toFixed(2)}</span>
