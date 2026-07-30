@@ -39,6 +39,12 @@ export default function BatchCheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [orderSuccess, setOrderSuccess] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
+  const [error, setError] = useState('')
+  
+  // Payment
+  const [paymentMethod, setPaymentMethod] = useState<'PAYPAL' | 'STRIPE' | 'BANK_TRANSFER'>('PAYPAL')
+  const [paypalClientId, setPaypalClientId] = useState<string>('')
+  const [paypalLoaded, setPaypalLoaded] = useState(false)
   
   // Customer info
   const [customerInfo, setCustomerInfo] = useState({
@@ -77,6 +83,123 @@ export default function BatchCheckoutPage() {
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const shippingCost = selectedShipping?.cost ?? 0
   const total = subtotal + shippingCost
+
+  // Fetch payment settings
+  useEffect(() => {
+    const fetchPaymentSettings = async () => {
+      try {
+        const res = await fetch('/api/site/payment-settings')
+        const data = await res.json()
+        if (data.success && data.data.paypal?.clientId) {
+          setPaypalClientId(data.data.paypal.clientId)
+        }
+      } catch (err) { console.error(err) }
+    }
+    fetchPaymentSettings()
+  }, [])
+
+  // Preload PayPal SDK
+  useEffect(() => {
+    if (!paypalClientId || (window as any).paypal) return
+    const script = document.createElement('script')
+    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
+    script.async = true
+    script.onload = () => setPaypalLoaded(true)
+    document.body.appendChild(script)
+  }, [paypalClientId, currency])
+
+  // Render PayPal buttons when selected
+  useEffect(() => {
+    if (paymentMethod !== 'PAYPAL' || !paypalClientId) return
+    const containerEl = document.getElementById('paypal-button-container-batch') as HTMLDivElement | null
+    if (!containerEl) return
+    containerEl.innerHTML = ''
+
+    const paypal = (window as any).paypal
+    if (paypal) {
+      paypal.Buttons({
+        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+        createOrder: (_data: any, actions: any) => {
+          return actions.order.create({
+            purchase_units: [{ amount: { value: total.toFixed(2) } }]
+          })
+        },
+        onApprove: async (_data: any, actions: any) => {
+          setIsSubmitting(true)
+          try {
+            const details = await actions.order.capture()
+            await handlePlaceOrderWithPayPal(details)
+          } catch (err) {
+            setError('Payment capture failed. Please try again.')
+            setIsSubmitting(false)
+          }
+        },
+        onError: (err: any) => {
+          console.error('PayPal error:', err)
+          setError('PayPal payment failed. Please try again.')
+        }
+      }).render(containerEl)
+    }
+  }, [paymentMethod, paypalClientId, total])
+
+  const handlePlaceOrderWithPayPal = async (paypalDetails: any) => {
+    try {
+      const shippingAddress = JSON.stringify({
+        name: customerInfo.name,
+        email: customerInfo.email,
+        phone: customerInfo.phone,
+        company: customerInfo.company,
+        street: address.street,
+        city: address.city,
+        state: address.state,
+        country: address.country,
+        zip: address.zip,
+      })
+
+      const orderItems = items.map(item => ({
+        productId: item.productId,
+        name: item.name,
+        sku: item.sku,
+        quantity: item.quantity,
+        price: item.price,
+        image: item.image || null,
+      }))
+
+      const orderData = {
+        items: orderItems,
+        subtotal,
+        shippingCost,
+        total,
+        shippingAddress,
+        currency: 'USD',
+        shippingMethod: selectedShipping?.name || 'Standard',
+        paymentMethod: 'PAYPAL',
+        paypalOrderId: paypalDetails.id,
+        paypalStatus: paypalDetails.status,
+      }
+
+      const res = await fetch('/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderData),
+      })
+
+      const data = await res.json()
+      if (data.success) {
+        setOrderNumber(data.data?.orderNumber || `BO-${Date.now()}`)
+        setOrderSuccess(true)
+        localStorage.removeItem('batchOrder')
+        localStorage.removeItem('batchOrderTotal')
+      } else {
+        setError(data.error || 'Failed to submit order')
+      }
+    } catch (err) {
+      console.error('Order error:', err)
+      setError('Failed to submit order. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
 
   const handleSubmitOrder = async () => {
     // Validation
@@ -126,7 +249,8 @@ export default function BatchCheckoutPage() {
         total,
         shippingAddress,
         currency: 'USD',
-        shippingMethod: selectedShipping.name,
+        shippingMethod: selectedShipping?.name || 'Standard',
+        paymentMethod,
       }
 
       const res = await fetch('/api/orders', {
@@ -333,15 +457,43 @@ export default function BatchCheckoutPage() {
                   </div>
                 </div>
 
-                <Button 
-                  onClick={handleSubmitOrder}
-                  isLoading={isSubmitting}
-                  className="w-full mt-6 bg-joy-orange hover:bg-joy-orange/90"
-                  size="lg"
-                >
-                  <Icons.Check size={18} className="mr-2" />
-                  Submit Order
-                </Button>
+                {/* Payment Method Selection */}
+                <div className="mt-6 pt-4 border-t">
+                  <h3 className="font-semibold text-joy-gray-900 mb-3">Payment Method</h3>
+                  <div className="space-y-2">
+                    <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'PAYPAL' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'PAYPAL'} onChange={() => setPaymentMethod('PAYPAL')} className="accent-joy-orange" />
+                      <span className="font-medium">PayPal</span>
+                    </label>
+                    <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'STRIPE' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'STRIPE'} onChange={() => setPaymentMethod('STRIPE')} className="accent-joy-orange" />
+                      <span className="font-medium">Credit Card (Stripe)</span>
+                    </label>
+                    <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'BANK_TRANSFER' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'BANK_TRANSFER'} onChange={() => setPaymentMethod('BANK_TRANSFER')} className="accent-joy-orange" />
+                      <span className="font-medium">Bank Transfer</span>
+                    </label>
+                  </div>
+
+                  {/* PayPal Button Container */}
+                  {paymentMethod === 'PAYPAL' && (
+                    <div id="paypal-button-container-batch" className="mt-4" />
+                  )}
+                </div>
+
+                {error && <p className="text-red-500 text-sm mt-3">{error}</p>}
+
+                {paymentMethod !== 'PAYPAL' && (
+                  <Button
+                    onClick={handleSubmitOrder}
+                    isLoading={isSubmitting}
+                    className="w-full mt-4 bg-joy-orange hover:bg-joy-orange/90"
+                    size="lg"
+                  >
+                    <Icons.Check size={18} className="mr-2" />
+                    {paymentMethod === 'BANK_TRANSFER' ? 'Submit Order (Bank Transfer)' : `Pay ${formatCurrency(total, currency)}`}
+                  </Button>
+                )}
 
                 <p className="text-xs text-joy-gray-500 text-center mt-4">
                   By submitting, you agree to our terms of service
