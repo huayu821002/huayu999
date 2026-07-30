@@ -110,13 +110,20 @@ export default function BatchCheckoutPage() {
 
   // Render PayPal buttons when selected
   useEffect(() => {
-    if (paymentMethod !== 'PAYPAL' || !paypalClientId) return
-    const containerEl = document.getElementById('paypal-button-container-batch') as HTMLDivElement | null
-    if (!containerEl) return
-    containerEl.innerHTML = ''
+    if (paymentMethod !== 'PAYPAL') return
+    
+    // Wait for SDK to be loaded and container to be mounted
+    const tryRender = () => {
+      const containerEl = document.getElementById('paypal-button-container-batch') as HTMLDivElement | null
+      if (!containerEl || !paypalClientId) {
+        // Retry after a short delay if conditions not met
+        setTimeout(tryRender, 100)
+        return
+      }
+      containerEl.innerHTML = ''
 
-    const paypal = (window as any).paypal
-    if (paypal) {
+      const paypal = (window as any).paypal
+      if (paypal) {
       paypal.Buttons({
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
@@ -140,7 +147,10 @@ export default function BatchCheckoutPage() {
         }
       }).render(containerEl)
     }
-  }, [paymentMethod, paypalClientId, total])
+    
+    // Initial try
+    tryRender()
+  }, [paymentMethod, paypalClientId, total, paypalLoaded])
 
   const handlePlaceOrderWithPayPal = async (paypalDetails: any) => {
     try {
