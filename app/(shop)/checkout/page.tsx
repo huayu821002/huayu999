@@ -97,7 +97,6 @@ export default function CheckoutPage() {
         body: JSON.stringify({ subtotal, weight: totalWeight, country: shippingForm.country }),
       })
       const data = await res.json()
-      console.log('[/checkout] shipping rates response:', data)
       if (data.success && data.data && data.data.length > 0) {
         setShippingOptions(data.data)
         // Auto-select first available
