@@ -42,7 +42,7 @@ export default function BatchCheckoutPage() {
   const [error, setError] = useState('')
   
   // Payment
-  const [paymentMethod, setPaymentMethod] = useState<'PAYPAL' | 'STRIPE' | 'BANK_TRANSFER'>('PAYPAL')
+  const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'PAYPAL' | 'BANK_TRANSFER'>('STRIPE')
   const [paypalClientId, setPaypalClientId] = useState<string>('')
   const [paypalLoaded, setPaypalLoaded] = useState(false)
   
@@ -472,13 +472,13 @@ export default function BatchCheckoutPage() {
                 <div className="mt-6 pt-4 border-t">
                   <h3 className="font-semibold text-joy-gray-900 mb-3">Payment Method</h3>
                   <div className="space-y-2">
-                    <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'PAYPAL' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}>
-                      <input type="radio" name="payment" checked={paymentMethod === 'PAYPAL'} onChange={() => setPaymentMethod('PAYPAL')} className="accent-joy-orange" />
-                      <span className="font-medium">PayPal</span>
-                    </label>
                     <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'STRIPE' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}>
                       <input type="radio" name="payment" checked={paymentMethod === 'STRIPE'} onChange={() => setPaymentMethod('STRIPE')} className="accent-joy-orange" />
                       <span className="font-medium">Credit Card (Stripe)</span>
+                    </label>
+                    <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'PAYPAL' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'PAYPAL'} onChange={() => setPaymentMethod('PAYPAL')} className="accent-joy-orange" />
+                      <span className="font-medium">PayPal</span>
                     </label>
                     <label className={`flex items-center gap-3 p-3 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'BANK_TRANSFER' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-gray-300'}`}>
                       <input type="radio" name="payment" checked={paymentMethod === 'BANK_TRANSFER'} onChange={() => setPaymentMethod('BANK_TRANSFER')} className="accent-joy-orange" />
