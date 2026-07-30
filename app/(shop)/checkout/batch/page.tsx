@@ -123,7 +123,11 @@ export default function BatchCheckoutPage() {
       containerEl.innerHTML = ''
 
       const paypal = (window as any).paypal
-      if (paypal) {
+      if (!paypal) {
+        // SDK not loaded yet, retry
+        setTimeout(tryRender, 100)
+        return
+      }
       paypal.Buttons({
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
@@ -146,7 +150,6 @@ export default function BatchCheckoutPage() {
           setError('PayPal payment failed. Please try again.')
         }
       }).render(containerEl)
-    }
     
     // Initial try
     tryRender()
