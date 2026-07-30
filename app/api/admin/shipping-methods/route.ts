@@ -22,7 +22,7 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { name, code, description, isActive, sortOrder } = body
     const method = await prisma.shippingMethod.create({
-      data: { name, code, description, isActive: isActive ?? true, sortOrder: sortOrder ?? 0 }
+      data: { name, code, description, isActive: isActive ?? true, sortOrder: parseInt(sortOrder) || 0 }
     })
     return NextResponse.json({ success: true, data: method })
   } catch (error: any) {
