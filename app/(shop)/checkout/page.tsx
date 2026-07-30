@@ -54,7 +54,7 @@ export default function CheckoutPage() {
       fetchShippingRates()
     }
     fetchPaymentSettings()
-  }, [subtotal, totalWeight])
+  }, [subtotal, totalWeight, shippingForm.country])
 
   // Preload PayPal SDK in background when clientId is available
   useEffect(() => {
@@ -84,6 +84,12 @@ export default function CheckoutPage() {
   }
 
   const fetchShippingRates = async () => {
+    if (!shippingForm.country) {
+      // No country selected yet, clear options
+      setShippingOptions([])
+      setSelectedShipping('')
+      return
+    }
     try {
       const res = await fetch('/api/shipping/calculate', {
         method: 'POST',
@@ -91,7 +97,8 @@ export default function CheckoutPage() {
         body: JSON.stringify({ subtotal, weight: totalWeight, country: shippingForm.country }),
       })
       const data = await res.json()
-      if (data.success && data.data.length > 0) {
+      console.log('[/checkout] shipping rates response:', data)
+      if (data.success && data.data && data.data.length > 0) {
         setShippingOptions(data.data)
         // Auto-select first available
         const first = data.data.find((o: ShippingOption) => o.available)
