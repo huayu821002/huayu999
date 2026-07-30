@@ -150,6 +150,7 @@ export default function BatchCheckoutPage() {
     
     // Initial try
     tryRender()
+  }
   }, [paymentMethod, paypalClientId, total, paypalLoaded])
 
   const handlePlaceOrderWithPayPal = async (paypalDetails: any) => {
