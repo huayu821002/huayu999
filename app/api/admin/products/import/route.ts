@@ -51,20 +51,40 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json()
-    const { products } = body
+    const formData = await request.formData()
+    const file = formData.get('file') as File
 
-    if (!products || !Array.isArray(products)) {
-      return NextResponse.json({ success: false, error: 'Products array is required' }, { status: 400 })
+    if (!file) {
+      return NextResponse.json({ success: false, error: 'No file provided' }, { status: 400 })
     }
 
-    const results = { imported: 0, skipped: 0, errors: [] as string[] }
+    // Parse CSV file
+    const text = await file.text()
+    const lines = text.split('\n').filter(line => line.trim())
 
-    for (const row of products) {
+    if (lines.length < 2) {
+      return NextResponse.json({ success: false, error: 'CSV file is empty or invalid' }, { status: 400 })
+    }
+
+    // Parse header row
+    const headerLine = lines[0]
+    const headers = parseCSVLine(headerLine).map(h => h.toLowerCase().trim())
+
+    // Expected headers: name, slug, sku, description, price, compareprice, costprice, inventory, weight, category, images, isactive
+    const results = { imported: 0, skipped: 0, failed: 0, errors: [] as string[] }
+
+    for (let i = 1; i < lines.length; i++) {
       try {
+        const values = parseCSVLine(lines[i])
+        const row: Record<string, string> = {}
+        headers.forEach((header, idx) => {
+          row[header] = (values[idx] || '').trim()
+        })
+
         // Validate required fields
-        if (!row.name || !row.sku || row.price === undefined) {
+        if (!row.name || !row.sku || !row.price) {
           results.skipped++
+          results.errors.push(`Row ${i + 1}: Missing required fields (name, sku, price)`)
           continue
         }
 
@@ -75,6 +95,7 @@ export async function POST(request: Request) {
 
         if (existing) {
           results.skipped++
+          results.errors.push(`Row ${i + 1}: SKU ${row.sku} already exists`)
           continue
         }
 
@@ -87,42 +108,66 @@ export async function POST(request: Request) {
           categoryId = category?.id || null
         }
 
-        // Parse images if provided
+        // Parse images
         let images = null
         if (row.images) {
-          if (typeof row.images === 'string') {
-            images = row.images
-          } else if (Array.isArray(row.images)) {
-            images = JSON.stringify(row.images)
-          }
+          images = row.images
         }
 
         await prisma.product.create({
           data: {
             name: row.name,
-            slug: row.slug || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+            slug: row.slug || row.name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36),
             sku: row.sku,
             description: row.description || null,
             price: parseFloat(row.price) || 0,
-            comparePrice: row.comparePrice ? parseFloat(row.comparePrice) : null,
-            costPrice: row.costPrice ? parseFloat(row.costPrice) : null,
+            comparePrice: row.compareprice ? parseFloat(row.compareprice) : null,
+            costPrice: row.costprice ? parseFloat(row.costprice) : null,
             inventory: parseInt(row.inventory) || 0,
             weight: row.weight ? parseFloat(row.weight) : null,
             images,
             categoryId,
-            isActive: row.isActive !== undefined ? row.isActive : true,
+            isActive: row.isactive === 'true' || row.isactive === '1' || !row.isactive,
           }
         })
         results.imported++
-      } catch (err) {
-        results.errors.push(`Failed to import ${row.name || row.sku}: ${err}`)
-        results.skipped++
+      } catch (err: any) {
+        results.failed++
+        results.errors.push(`Row ${i + 1}: ${err?.message || 'Unknown error'}`)
       }
     }
 
     return NextResponse.json(results)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Import error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to import products' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to import products: ' + error?.message }, { status: 500 })
   }
+}
+
+// Simple CSV line parser (handles quoted fields with commas)
+function parseCSVLine(line: string): string[] {
+  const result: string[] = []
+  let current = ''
+  let inQuotes = false
+
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i]
+
+    if (char === '"') {
+      if (inQuotes && line[i + 1] === '"') {
+        current += '"'
+        i++
+      } else {
+        inQuotes = !inQuotes
+      }
+    } else if (char === ',' && !inQuotes) {
+      result.push(current)
+      current = ''
+    } else {
+      current += char
+    }
+  }
+  result.push(current)
+
+  return result
 }
