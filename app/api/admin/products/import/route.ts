@@ -137,7 +137,7 @@ export async function POST(request: Request) {
       }
     }
 
-    return NextResponse.json(results)
+    return NextResponse.json({ success: true, ...results })
   } catch (error: any) {
     console.error('Import error:', error)
     return NextResponse.json({ success: false, error: 'Failed to import products: ' + error?.message }, { status: 500 })
