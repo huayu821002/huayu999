@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
+import { SHIPPING_ZONES } from '@/lib/shipping-zones'
 
 interface SiteContent {
   id: string; section: string; title: string | null; subtitle: string | null; content: string | null; isActive: boolean; sortOrder: number
@@ -51,6 +52,7 @@ export default function AdminSettingsPage() {
   const [templateForm, setTemplateForm] = useState({ name: '', code: '', description: '', isActive: true, sortOrder: '0' })
   const [showRateModal, setShowRateModal] = useState(false)
   const [editingRate, setEditingRate] = useState<any>(null)
+  const [selectedCountries, setSelectedCountries] = useState<string[]>([])
   const [rateForm, setRateForm] = useState({ countryCode: '', countryName: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0' })
 
   // Custom Pages
@@ -360,18 +362,60 @@ export default function AdminSettingsPage() {
   }
 
   // Rate handlers
-  const openAddRate = () => { setEditingRate(null); setRateForm({ countryCode: '', countryName: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0' }); setShowRateModal(true) }
-  const openEditRate = (r: any) => { setEditingRate(r); setRateForm({ countryCode: r.countryCode, countryName: r.countryName, baseCost: String(r.baseCost), costPerKg: String(r.costPerKg), freeThreshold: String(r.freeThreshold), minWeight: String(r.minWeight || 0), maxWeight: String(r.maxWeight || 0), estimatedDays: r.estimatedDays || '', isActive: r.isActive, sortOrder: String(r.sortOrder || 0) }); setShowRateModal(true) }
+  const openAddRate = () => { setEditingRate(null); setSelectedCountries([]); setRateForm({ countryCode: '', countryName: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0' }); setShowRateModal(true) }
+  const openEditRate = (r: any) => { setEditingRate(r); setSelectedCountries([r.countryCode]); setRateForm({ countryCode: r.countryCode, countryName: r.countryName, baseCost: String(r.baseCost), costPerKg: String(r.costPerKg), freeThreshold: String(r.freeThreshold), minWeight: String(r.minWeight || 0), maxWeight: String(r.maxWeight || 0), estimatedDays: r.estimatedDays || '', isActive: r.isActive, sortOrder: String(r.sortOrder || 0) }); setShowRateModal(true) }
   const handleRateSubmit = async () => {
-    if (!rateForm.countryCode) return
+    if (selectedCountries.length === 0) {
+      alert('Please select at least one country')
+      return
+    }
     setIsSaving(true)
     try {
-      const body = { ...rateForm, methodId: selectedTemplate?.id || null }
-      const url = editingRate ? `/api/admin/shipping-rates/${editingRate.id}` : '/api/admin/shipping-rates'
-      const method = editingRate ? 'PUT' : 'POST'
-      const res = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-      const data = await res.json()
-      if (data.success) { setShowRateModal(false); fetchShippingRates(selectedTemplate?.id) } else alert(data.error)
+      if (editingRate) {
+        // Editing single rate
+        const body = { ...rateForm, methodId: selectedTemplate?.id || null }
+        const res = await fetch(`/api/admin/shipping-rates/${editingRate.id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        })
+        const data = await res.json()
+        if (!data.success) alert(data.error)
+      } else {
+        // Creating multiple rates (one per country)
+        const results = { success: 0, failed: 0, errors: [] as string[] }
+        for (const countryCode of selectedCountries) {
+          const countryName = SHIPPING_ZONES.flatMap(z => z.countries).find(c => c.code === countryCode)?.name || countryCode
+          const body = {
+            countryCode,
+            countryName,
+            baseCost: rateForm.baseCost,
+            costPerKg: rateForm.costPerKg,
+            freeThreshold: rateForm.freeThreshold,
+            minWeight: rateForm.minWeight,
+            maxWeight: rateForm.maxWeight,
+            estimatedDays: rateForm.estimatedDays,
+            isActive: rateForm.isActive,
+            methodId: selectedTemplate?.id || null
+          }
+          const res = await fetch('/api/admin/shipping-rates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body)
+          })
+          const data = await res.json()
+          if (data.success) results.success++
+          else {
+            results.failed++
+            results.errors.push(`${countryCode}: ${data.error}`)
+          }
+        }
+        if (results.failed > 0) {
+          alert(`Added: ${results.success}, Failed: ${results.failed}\n${results.errors.slice(0, 3).join('\n')}`)
+        }
+      }
+      setShowRateModal(false)
+      fetchShippingRates(selectedTemplate?.id)
     } catch { alert('Failed to save rate') }
     setIsSaving(false)
   }
@@ -1397,16 +1441,79 @@ export default function AdminSettingsPage() {
       {showRateModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowRateModal(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-auto">
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-auto">
             <div className="px-6 py-4 border-b border-joy-gray-100 flex items-center justify-between">
               <h2 className="font-display text-lg font-bold text-joy-gray-900">{editingRate ? 'Edit Country Rate' : 'Add Country Rate'}</h2>
               <button onClick={() => setShowRateModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <Input label="Country Code *" placeholder="US" value={rateForm.countryCode} onChange={e => setRateForm({...rateForm, countryCode: e.target.value.toUpperCase()})} />
-                <Input label="Country Name *" placeholder="United States" value={rateForm.countryName} onChange={e => setRateForm({...rateForm, countryName: e.target.value})} />
-              </div>
+              {/* Zone-based country selection */}
+              {!editingRate && (
+                <div>
+                  <label className="block text-sm font-medium text-joy-gray-700 mb-2">Select Countries (by Zone)</label>
+                  <div className="border border-joy-gray-200 rounded-xl p-4 max-h-60 overflow-y-auto">
+                    {SHIPPING_ZONES.map(zone => (
+                      <div key={zone.id} className="mb-3 last:mb-0">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const zoneCodes = zone.countries.map(c => c.code)
+                            const allSelected = zoneCodes.every((c: string) => selectedCountries.includes(c))
+                            if (allSelected) {
+                              setSelectedCountries(selectedCountries.filter((c: string) => !zoneCodes.includes(c)))
+                            } else {
+                              setSelectedCountries([...new Set([...selectedCountries, ...zoneCodes])])
+                            }
+                          }}
+                          className="flex items-center gap-2 w-full text-left font-medium text-joy-gray-800 hover:text-joy-orange mb-1"
+                        >
+                          <input
+                            type="checkbox"
+                            checked={zone.countries.every((c: any) => selectedCountries.includes(c.code))}
+                            onChange={() => {}}
+                            className="rounded"
+                          />
+                          {zone.name}
+                        </button>
+                        <div className="ml-6 flex flex-wrap gap-1">
+                          {zone.countries.map(c => (
+                            <button
+                              key={c.code}
+                              type="button"
+                              onClick={() => {
+                                if (selectedCountries.includes(c.code)) {
+                                  setSelectedCountries(selectedCountries.filter((x: string) => x !== c.code))
+                                } else {
+                                  setSelectedCountries([...selectedCountries, c.code])
+                                }
+                              }}
+                              className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                                selectedCountries.includes(c.code)
+                                  ? 'bg-joy-orange text-white border-joy-orange'
+                                  : 'bg-white text-joy-gray-600 border-joy-gray-200 hover:border-joy-orange'
+                              }`}
+                            >
+                              {c.name} ({c.code})
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-sm text-joy-gray-500 mt-2">
+                    {selectedCountries.length} country(ies) selected
+                  </p>
+                </div>
+              )}
+
+              {/* Edit mode: show single country */}
+              {editingRate && (
+                <div className="p-3 bg-joy-gray-50 rounded-lg">
+                  <p className="font-medium text-joy-gray-900">{rateForm.countryName} ({rateForm.countryCode})</p>
+                </div>
+              )}
+
+              {/* Shipping fee fields */}
               <div className="grid grid-cols-2 gap-4">
                 <Input label="Base Cost (USD)" type="number" placeholder="5.99" value={rateForm.baseCost} onChange={e => setRateForm({...rateForm, baseCost: e.target.value})} />
                 <Input label="Cost per KG (USD)" type="number" placeholder="2.50" value={rateForm.costPerKg} onChange={e => setRateForm({...rateForm, costPerKg: e.target.value})} />
@@ -1426,7 +1533,7 @@ export default function AdminSettingsPage() {
             </div>
             <div className="px-6 py-4 border-t border-joy-gray-100 flex justify-end gap-3">
               <Button variant="secondary" onClick={() => setShowRateModal(false)}>Cancel</Button>
-              <Button onClick={handleRateSubmit} isLoading={isSaving}>{editingRate ? 'Update' : 'Add Rate'}</Button>
+              <Button onClick={handleRateSubmit} isLoading={isSaving}>{editingRate ? 'Update' : `Add ${editingRate ? '' : selectedCountries.length + ' ' + (selectedCountries.length === 1 ? 'Country' : 'Countries')}`}</Button>
             </div>
           </div>
         </div>
