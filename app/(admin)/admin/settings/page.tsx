@@ -1462,7 +1462,8 @@ export default function AdminSettingsPage() {
                             if (allSelected) {
                               setSelectedCountries(selectedCountries.filter((c: string) => !zoneCodes.includes(c)))
                             } else {
-                              setSelectedCountries([...new Set([...selectedCountries, ...zoneCodes])])
+                              const combined = selectedCountries.concat(zoneCodes)
+                              setSelectedCountries(Array.from(new Set(combined)))
                             }
                           }}
                           className="flex items-center gap-2 w-full text-left font-medium text-joy-gray-800 hover:text-joy-orange mb-1"
