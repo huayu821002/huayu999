@@ -233,7 +233,7 @@ export default function CheckoutPage() {
     try {
       const userStr = localStorage.getItem('user')
       const user = userStr ? JSON.parse(userStr) : null
-      const userId = user?.id || 'guest'
+      const userId = user?.id || null
 
       const shippingAddress = `${shippingForm.firstName} ${shippingForm.lastName}, ${shippingForm.address}, ${shippingForm.city}, ${shippingForm.state} ${shippingForm.zip}, ${shippingForm.country}`
 
@@ -283,7 +283,7 @@ export default function CheckoutPage() {
     try {
       const userStr = localStorage.getItem('user')
       const user = userStr ? JSON.parse(userStr) : null
-      const userId = user?.id || 'guest'
+      const userId = user?.id || null
 
       const shippingAddress = `${shippingForm.firstName} ${shippingForm.lastName}, ${shippingForm.address}, ${shippingForm.city}, ${shippingForm.state} ${shippingForm.zip}, ${shippingForm.country}`
 
