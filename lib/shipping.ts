@@ -91,6 +91,7 @@ export async function calculateShippingOptions(
   subtotal: number
 ): Promise<ShippingOption[]> {
   try {
+    console.log('[calculateShippingOptions] Finding rates for country:', countryCode)
     const rates = await prisma.shippingRate.findMany({
       where: {
         isActive: true,
@@ -104,6 +105,7 @@ export async function calculateShippingOptions(
       },
       orderBy: { sortOrder: 'asc' },
     })
+    console.log('[calculateShippingOptions] Found rates:', rates.length)
 
     if (rates.length === 0) {
       const defaults = defaultRates[countryCode] || defaultRates['DEFAULT']
