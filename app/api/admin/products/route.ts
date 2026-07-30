@@ -52,28 +52,38 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const {
-      name, slug, description, price, comparePrice, costPrice,
+      name, slug, description, shortDesc,
+      price, comparePrice, costPrice, wholesalePrice, vipPrice,
       weight, images, sku, barcode, inventory,
-      categoryId, isActive, isFeatured, isTrending
+      categoryId, isActive, isFeatured, isTrending,
+      minOrderQty, lowStockAlert
     } = body
+
+    // Auto-generate slug if not provided
+    const generatedSlug = slug || name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36)
 
     const product = await prisma.product.create({
       data: {
         name,
-        slug: slug || name.toLowerCase().replace(/\s+/g, '-') + '-' + Date.now().toString(36),
+        slug: generatedSlug,
         description,
+        shortDesc: shortDesc || null,
         price: parseFloat(price) || 0,
         comparePrice: comparePrice ? parseFloat(comparePrice) : null,
         costPrice: costPrice ? parseFloat(costPrice) : null,
+        wholesalePrice: wholesalePrice ? parseFloat(wholesalePrice) : null,
+        vipPrice: vipPrice ? parseFloat(vipPrice) : null,
         weight: weight ? parseFloat(weight) : null,
         images: Array.isArray(images) ? JSON.stringify(images) : images,
         sku,
         barcode,
         inventory: parseInt(inventory) || 0,
-        categoryId,
-        isActive: isActive || 'ACTIVE',
+        categoryId: categoryId || null,
+        isActive: isActive !== undefined ? isActive : true,
         isFeatured: isFeatured || false,
         isTrending: isTrending || false,
+        minOrderQty: parseInt(minOrderQty) || 1,
+        lowStockAlert: parseInt(lowStockAlert) || 10,
       },
     })
 
