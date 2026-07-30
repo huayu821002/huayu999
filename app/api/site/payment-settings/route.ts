@@ -15,20 +15,21 @@ export async function GET() {
     }
     
     // Return only public info (not secrets)
+    const normalizedPaypal = normalizePaypalSettings(settings.paypal, settings.mode)
     const publicSettings = {
       mode: settings.mode,
       paypal: {
-        enabled: settings.paypal?.enabled ?? true,
-        mode: settings.mode,
+        enabled: normalizedPaypal.enabled,
+        mode: normalizedPaypal.mode,
         clientId: settings.mode === 'sandbox'
-          ? (settings as any).paypal?.sandbox?.clientId
-          : (settings as any).paypal?.production?.clientId,
+          ? normalizedPaypal.sandbox.clientId
+          : normalizedPaypal.production.clientId,
       },
       stripe: {
         enabled: (settings as any).stripe?.enabled ?? true,
-        publishableKey: settings.mode === 'sandbox' 
-          ? (settings as any).stripe?.sandbox?.publishableKey 
-          : (settings as any).stripe?.production?.publishableKey,
+        publishableKey: settings.mode === 'sandbox'
+          ? (settings as any).stripe?.sandbox?.publishableKey || (settings as any).stripe?.publishableKey || ''
+          : (settings as any).stripe?.production?.publishableKey || '',
       },
       bankTransfer: {
         enabled: settings.bankTransfer?.enabled ?? true,
@@ -63,7 +64,12 @@ function maskAccountNumber(accountNumber: string | undefined): string {
 function getDefaultPublicSettings() {
   return {
     mode: 'sandbox',
-    paypal: { enabled: true, mode: 'sandbox' },
+    paypal: {
+      enabled: true,
+      mode: 'sandbox',
+      sandbox: { clientId: '' },
+      production: { clientId: '' }
+    },
     stripe: { enabled: true, publishableKey: '' },
     bankTransfer: {
       enabled: true,
@@ -74,5 +80,20 @@ function getDefaultPublicSettings() {
       instructions: 'Please include your order number in the payment reference.',
     },
     cod: { enabled: false, fee: 0 },
+  }
+}
+
+// Ensure nested paypal structure exists
+function normalizePaypalSettings(paypal: any, mode: string): any {
+  if (!paypal) return getDefaultPublicSettings().paypal
+  return {
+    enabled: paypal.enabled ?? true,
+    mode: mode,
+    sandbox: {
+      clientId: paypal.sandbox?.clientId || paypal.clientId || ''
+    },
+    production: {
+      clientId: paypal.production?.clientId || ''
+    }
   }
 }
