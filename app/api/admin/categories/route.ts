@@ -1,23 +1,30 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/api'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-// GET homepage categories settings
+// GET categories from database
 export async function GET() {
   try {
-    const setting = await prisma.siteSetting.findUnique({
-      where: { key: 'homepage_categories' }
+    // Fetch actual categories from Category table
+    const categories = await prisma.category.findMany({
+      orderBy: { name: 'asc' },
+      include: {
+        _count: {
+          select: { products: true }
+        }
+      }
     })
     
-    if (setting?.value) {
-      return NextResponse.json({ success: true, data: JSON.parse(setting.value) })
+    // If no categories exist, return default ones
+    if (categories.length === 0) {
+      return NextResponse.json({ success: true, data: getDefaultCategories() })
     }
     
-    // Return default categories if no settings exist
-    return NextResponse.json({ success: true, data: getDefaultCategories() })
+    return NextResponse.json({ success: true, data: categories })
   } catch (error) {
-    return NextResponse.json({ success: true, data: getDefaultCategories() })
+    console.error('Category fetch error:', error)
+    return NextResponse.json({ success: false, error: 'Failed to fetch categories' }, { status: 500 })
   }
 }
 
