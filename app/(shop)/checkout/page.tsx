@@ -37,7 +37,7 @@ export default function CheckoutPage() {
   const [shippingErrors, setShippingErrors] = useState<Record<string, string>>({})
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([])
   const [selectedShipping, setSelectedShipping] = useState<string>('')
-  const [paymentMethod, setPaymentMethod] = useState<'PAYPAL' | 'STRIPE' | 'BANK_TRANSFER'>('PAYPAL')
+  const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'PAYPAL' | 'BANK_TRANSFER'>('STRIPE')
   const [paypalClientId, setPaypalClientId] = useState<string>('')
   const [paypalLoaded, setPaypalLoaded] = useState(false)
 
@@ -489,16 +489,6 @@ export default function CheckoutPage() {
                 <div className="bg-white rounded-2xl shadow-sm p-6">
                   <h2 className="font-semibold text-xl text-joy-gray-900 mb-6">Payment Method</h2>
                   <div className="space-y-3 sm:space-y-4 mb-6">
-                    {/* PayPal */}
-                    <label className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'PAYPAL' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
-                      <input type="radio" name="payment" checked={paymentMethod === 'PAYPAL'} onChange={() => setPaymentMethod('PAYPAL')} className="accent-joy-orange" />
-                      <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h12.004c.524 0 .972.382 1.054.901l3.107 19.696a.641.641 0 0 1-.633.74h-4.606a.75.75 0 0 1-.612-.314l-1.937-2.754-1.937 2.754a.75.75 0 0 1-.612.314H7.076z"/></svg>
-                      <div className="min-w-0">
-                        <span className="font-medium text-sm sm:text-base">PayPal</span>
-                        <p className="text-xs sm:text-sm text-joy-gray-500 hidden xs:block">Pay securely with your PayPal account</p>
-                      </div>
-                    </label>
-
                     {/* Credit / Debit Card (Stripe) */}
                     <label className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'STRIPE' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
                       <input type="radio" name="payment" checked={paymentMethod === 'STRIPE'} onChange={() => setPaymentMethod('STRIPE')} className="accent-joy-orange" />
@@ -506,6 +496,16 @@ export default function CheckoutPage() {
                       <div className="min-w-0">
                         <span className="font-medium text-sm sm:text-base">Credit / Debit Card</span>
                         <p className="text-xs sm:text-sm text-joy-gray-500 hidden xs:block">Visa, Mastercard, American Express</p>
+                      </div>
+                    </label>
+
+                    {/* PayPal */}
+                    <label className={`flex items-center gap-3 sm:gap-4 p-3 sm:p-4 border-2 rounded-xl cursor-pointer transition-colors ${paymentMethod === 'PAYPAL' ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange'}`}>
+                      <input type="radio" name="payment" checked={paymentMethod === 'PAYPAL'} onChange={() => setPaymentMethod('PAYPAL')} className="accent-joy-orange" />
+                      <svg className="w-5 h-5 sm:w-6 sm:h-6" viewBox="0 0 24 24" fill="currentColor"><path d="M7.076 21.337H2.47a.641.641 0 0 1-.633-.74L4.944.901C5.026.382 5.474 0 5.998 0h12.004c.524 0 .972.382 1.054.901l3.107 19.696a.641.641 0 0 1-.633.74h-4.606a.75.75 0 0 1-.612-.314l-1.937-2.754-1.937 2.754a.75.75 0 0 1-.612.314H7.076z"/></svg>
+                      <div className="min-w-0">
+                        <span className="font-medium text-sm sm:text-base">PayPal</span>
+                        <p className="text-xs sm:text-sm text-joy-gray-500 hidden xs:block">Pay securely with your PayPal account</p>
                       </div>
                     </label>
 
