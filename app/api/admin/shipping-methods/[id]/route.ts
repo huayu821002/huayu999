@@ -20,7 +20,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
     const { name, code, description, isActive, sortOrder } = body
     const method = await prisma.shippingMethod.update({
       where: { id: params.id },
-      data: { name, code, description, isActive, sortOrder }
+      data: { name, code, description, isActive, sortOrder: parseInt(sortOrder) || 0 }
     })
     return NextResponse.json({ success: true, data: method })
   } catch (error: any) {
