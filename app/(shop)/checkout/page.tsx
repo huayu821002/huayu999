@@ -56,6 +56,22 @@ export default function CheckoutPage() {
     fetchPaymentSettings()
   }, [subtotal, totalWeight])
 
+  // Preload PayPal SDK in background when clientId is available
+  useEffect(() => {
+    if (!paypalClientId) return
+    // Check if already loaded
+    if ((window as any).paypal) {
+      setPaypalLoaded(true)
+      return
+    }
+    // Preload the SDK script
+    const script = document.createElement('script')
+    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
+    script.async = true
+    script.onload = () => setPaypalLoaded(true)
+    document.body.appendChild(script)
+  }, [paypalClientId, currency])
+
 
   const fetchPaymentSettings = async () => {
     try {
@@ -107,14 +123,43 @@ export default function CheckoutPage() {
     if (!containerEl) return
     containerEl.innerHTML = ''
 
+    // Check if PayPal SDK is already loaded (from preload)
+    const paypal = (window as any).paypal
+    if (paypal && containerEl) {
+      paypal.Buttons({
+        style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
+        createOrder: (_data: any, actions: any) => {
+          return actions.order.create({
+            purchase_units: [{ amount: { value: total.toFixed(2) } }]
+          })
+        },
+        onApprove: async (_data: any, actions: any) => {
+          setIsProcessing(true)
+          try {
+            const details = await actions.order.capture()
+            await handlePlaceOrderWithPayPal(details)
+          } catch (err) {
+            setError('Payment capture failed. Please try again.')
+            setIsProcessing(false)
+          }
+        },
+        onError: (err: any) => {
+          console.error('PayPal error:', err)
+          setError('PayPal payment failed. Please try again.')
+        }
+      }).render(containerEl)
+      return
+    }
+
+    // Fallback: load SDK if not preloaded
     const script = document.createElement('script')
     script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
     script.async = true
     script.onload = () => {
-      const paypal = (window as any).paypal
-      if (!paypal || !containerEl) return
+      const paypalLoaded = (window as any).paypal
+      if (!paypalLoaded || !containerEl) return
       setPaypalLoaded(true)
-      paypal.Buttons({
+      paypalLoaded.Buttons({
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
           return actions.order.create({
@@ -522,7 +567,12 @@ export default function CheckoutPage() {
                     <div className="flex gap-4 mt-6">
                       <Button variant="secondary" onClick={() => setCurrentStep(2)}>Back</Button>
                       <Button className="flex-1" size="lg" disabled>
-                        {paypalClientId ? 'Loading PayPal...' : 'PayPal Not Configured'}
+                        {paypalClientId ? (
+                          <span className="flex items-center gap-2">
+                            <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/></svg>
+                            Loading PayPal...
+                          </span>
+                        ) : 'PayPal Not Configured'}
                       </Button>
                     </div>
                   )}
