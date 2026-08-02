@@ -31,27 +31,35 @@ async function getHomePageData() {
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-  // 并行执行所有查询
-  const [featuredProducts, allProducts, categoriesSetting, trustBadgesSetting] = await Promise.all([
+  // 并行执行所有查询，每个都限制返回数量
+  const [featuredProducts, newArrivalProducts, allProductsLimited, categoriesSetting, trustBadgesSetting] = await Promise.all([
+    // 精选产品
     prisma.product.findMany({
       where: { isFeatured: true, isActive: true },
       take: 8,
       orderBy: { createdAt: 'desc' },
       include: { category: true },
     }),
+    // 新到货产品（数据库层面过滤，只取最近30天的）
+    prisma.product.findMany({
+      where: {
+        isActive: true,
+        createdAt: { gte: thirtyDaysAgo },
+      },
+      take: 8,
+      orderBy: { createdAt: 'desc' },
+      include: { category: true },
+    }),
+    // 备用产品（如果没有精选，取前8个最新的）
     prisma.product.findMany({
       where: { isActive: true },
+      take: 8,
       orderBy: { createdAt: 'desc' },
       include: { category: true },
     }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_categories' } }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_trust_badges' } }),
   ])
-
-  // 计算新到货产品
-  const newArrivalProducts = allProducts.filter(p => 
-    p.createdAt && p.createdAt >= thirtyDaysAgo
-  ).slice(0, 8)
 
   // 解析分类数据
   let categories = defaultCategories
@@ -72,7 +80,7 @@ async function getHomePageData() {
   }
 
   // 如果没有精选产品，用全部产品的前8个
-  const displayProducts = featuredProducts.length > 0 ? featuredProducts : allProducts.slice(0, 8)
+  const displayProducts = featuredProducts.length > 0 ? featuredProducts : allProductsLimited
 
   return {
     featuredProducts: displayProducts as unknown as Product[],
