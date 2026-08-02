@@ -62,9 +62,8 @@ export async function getShippingRatesForCountry(countryCode: string): Promise<S
     })
 
     if (rates.length === 0) {
-      // Fallback to default
-      const defaults = defaultRates[countryCode] || defaultRates['DEFAULT']
-      return defaults.map(r => ({ ...r, cost: 0, freeShipping: false }))
+      // No shipping rates configured - return empty
+      return []
     }
 
     return rates.map(rate => ({
@@ -106,14 +105,8 @@ export async function calculateShippingOptions(
     })
 
     if (rates.length === 0) {
-      const defaults = defaultRates[countryCode] || defaultRates['DEFAULT']
-      return defaults.map((r, i) => ({
-        ...r,
-        id: `fallback_${i}`,
-        cost: 0,
-        freeShipping: false,
-        available: true,
-      }))
+      // No shipping templates configured - return empty
+      return []
     }
 
     return rates.map(rate => {
