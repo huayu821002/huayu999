@@ -75,8 +75,8 @@ async function getHomePageData() {
   const displayProducts = featuredProducts.length > 0 ? featuredProducts : allProducts.slice(0, 8)
 
   return {
-    featuredProducts: displayProducts as Product[],
-    newArrivalProducts: newArrivalProducts as Product[],
+    featuredProducts: displayProducts as unknown as Product[],
+    newArrivalProducts: newArrivalProducts as unknown as Product[],
     categories,
     trustBadges,
   }
