@@ -106,7 +106,7 @@ export function Header({ initialSettings }: HeaderProps) {
         <div className="flex items-center justify-between h-16 lg:h-20">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            {headerSettings.logo?.type == 'image' && headerSettings.logo?.image ? (
+            {(headerSettings.logo?.type as string) === 'image' && headerSettings.logo?.image ? (
               <img src={headerSettings.logo.image} alt={headerSettings.logo?.text || 'Logo'} className="h-10 w-10 rounded-xl object-cover" />
             ) : (
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-joy-orange to-joy-pink flex items-center justify-center text-white font-display font-bold text-xl">
