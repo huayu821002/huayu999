@@ -86,6 +86,10 @@ model Product {
   orderItems  OrderItem[]
   cartItems   CartItem[]
   reviews     Review[]
+
+  @@index([isActive, isFeatured, createdAt])
+  @@index([isActive, createdAt])
+  @@index([categoryId])
 }
 
 model Order {
