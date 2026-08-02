@@ -40,7 +40,7 @@ interface Product {
   lowStockAlert?: number
   weight?: number
   dimensions?: string
-  images: string
+  images: string[]
   modelImage?: string
   sku?: string
   barcode?: string
@@ -107,10 +107,14 @@ export default function ProductDetailPage() {
       const res = await fetch(`/api/products?category=${categorySlug}`)
       const data = await res.json()
       if (data.success && data.data) {
-        // Filter out current product and limit to 8
-        const related = data.data
-          .filter((p: Product) => p.id !== currentProductId)
+        // Filter out current product, transform images to string[], and limit to 8
+        const related: Product[] = data.data
+          .filter((p: any) => p.id !== currentProductId)
           .slice(0, 8)
+          .map((p: any) => ({
+            ...p,
+            images: typeof p.images === 'string' ? JSON.parse(p.images) : p.images,
+          }))
         setRelatedProducts(related)
       }
     } catch (err) {
