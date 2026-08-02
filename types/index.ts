@@ -60,6 +60,8 @@ export interface Product {
   isTrending?: boolean
   isActive?: boolean
   compliance?: Compliance[]
+  averageRating?: number
+  reviewCount?: number
 }
 
 export interface ProductVariant {
