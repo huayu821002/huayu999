@@ -103,16 +103,14 @@ export default function CheckoutPage() {
         const first = data.data.find((o: ShippingOption) => o.available)
         if (first) setSelectedShipping(first.id)
       } else {
-        // Fallback if no methods configured
-        setShippingOptions([{
-          id: 'fallback', name: 'Standard Shipping', code: 'FALLBACK',
-          description: 'Calculated shipping', estimatedDays: '10-15 days',
-          cost: subtotal >= 199 ? 0 : 9.99, freeShipping: subtotal >= 199, available: true
-        }])
-        setSelectedShipping('fallback')
+        // No shipping methods configured for this country
+        setShippingOptions([])
+        setSelectedShipping('')
       }
     } catch (err) {
       console.error('Failed to fetch shipping rates:', err)
+      setShippingOptions([])
+      setSelectedShipping('')
     }
   }
 
@@ -456,7 +454,7 @@ export default function CheckoutPage() {
                   <div className="border-t border-joy-gray-100 pt-6">
                     <h3 className="font-medium text-joy-gray-900 mb-4">Shipping Method ({totalWeight.toFixed(2)}kg total)</h3>
                     {shippingOptions.length === 0 ? (
-                      <p className="text-joy-gray-500 text-sm">Loading shipping options...</p>
+                      <p className="text-joy-gray-500 text-sm">选择发货地址后，运费出现</p>
                     ) : (
                       <div className="space-y-3">
                         {shippingOptions.filter(o => o.available).map(option => (
