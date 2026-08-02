@@ -1,6 +1,4 @@
-'use client'
-
-import { useEffect, useState } from 'react'
+import { prisma } from '@/lib/prisma'
 import Link from 'next/link'
 import Image from 'next/image'
 import { Header } from '@/components/layout/Header'
@@ -13,13 +11,6 @@ import { HeroCarousel } from '@/components/home/HeroCarousel'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import type { Product } from '@/types'
-
-interface SiteContent {
-  section: string
-  title: string | null
-  subtitle: string | null
-  content: string | null
-}
 
 const defaultCategories = [
   { id: 'cat-1', name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400', count: 0 },
@@ -35,110 +26,64 @@ const defaultTrustBadges = [
   { icon: 'RefreshCw', title: 'Easy Returns', desc: '30-day hassle-free returns' },
 ]
 
-const TRUST_BADGES = [
-  { icon: Icons.ShieldCheck, title: 'Quality Assured', desc: 'Every product inspected before shipping' },
-  { icon: Icons.Truck, title: 'Global Shipping', desc: '150+ countries supported' },
-  { icon: Icons.Package, title: 'Low Minimums', desc: 'Order from just 3 units' },
-  { icon: Icons.RefreshCw, title: 'Easy Returns', desc: '30-day hassle-free returns' },
-]
+// 并行获取所有首页数据
+async function getHomePageData() {
+  const thirtyDaysAgo = new Date()
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-export default function ShopHomePage() {
-  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
-  const [newArrivalProducts, setNewArrivalProducts] = useState<Product[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [siteContent, setSiteContent] = useState<Record<string, SiteContent>>({})
-  const [categories, setCategories] = useState(defaultCategories)
-  const [trustBadges, setTrustBadges] = useState(defaultTrustBadges)
+  // 并行执行所有查询
+  const [featuredProducts, allProducts, categoriesSetting, trustBadgesSetting] = await Promise.all([
+    prisma.product.findMany({
+      where: { isFeatured: true, isActive: true },
+      take: 8,
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.product.findMany({
+      where: { isActive: true },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.siteSetting.findUnique({ where: { key: 'homepage_categories' } }),
+    prisma.siteSetting.findUnique({ where: { key: 'homepage_trust_badges' } }),
+  ])
 
-  useEffect(() => {
-    fetchProducts()
-    fetchSiteContent()
-    fetchCategories()
-    fetchHomepageBlocks()
-  }, [])
+  // 计算新到货产品
+  const newArrivalProducts = allProducts.filter(p => 
+    p.createdAt && p.createdAt >= thirtyDaysAgo
+  ).slice(0, 8)
 
-  const fetchCategories = async () => {
+  // 解析分类数据
+  let categories = defaultCategories
+  if (categoriesSetting?.value) {
     try {
-      const res = await fetch('/api/site/categories')
-      const data = await res.json()
-      if (data.success && data.data) {
-        setCategories(data.data)
-      }
-    } catch (err) {
-      console.error('Failed to fetch categories:', err)
-    }
+      const parsed = JSON.parse(categoriesSetting.value)
+      if (Array.isArray(parsed) && parsed.length > 0) categories = parsed
+    } catch {}
   }
 
-  const fetchHomepageBlocks = async () => {
+  // 解析信任徽章数据
+  let trustBadges = defaultTrustBadges
+  if (trustBadgesSetting?.value) {
     try {
-      const res = await fetch('/api/site/homepage-blocks')
-      const data = await res.json()
-      if (data.success && data.data) {
-        if (data.data.trustBadges) {
-          setTrustBadges(data.data.trustBadges)
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch homepage blocks:', err)
-    }
+      const parsed = JSON.parse(trustBadgesSetting.value)
+      if (Array.isArray(parsed) && parsed.length > 0) trustBadges = parsed
+    } catch {}
   }
 
-  const fetchProducts = async () => {
-    try {
-      // Fetch featured products
-      const featuredRes = await fetch('/api/products?featured=true')
-      const featuredData = await featuredRes.json()
-      if (featuredData.success && featuredData.data.length > 0) {
-        setFeaturedProducts(featuredData.data.slice(0, 8))
-      } else {
-        const allRes = await fetch('/api/products')
-        const allData = await allRes.json()
-        if (allData.success) {
-          setFeaturedProducts(allData.data.slice(0, 8))
-        }
-      }
+  // 如果没有精选产品，用全部产品的前8个
+  const displayProducts = featuredProducts.length > 0 ? featuredProducts : allProducts.slice(0, 8)
 
-      // Fetch new arrivals (products created in last 30 days)
-      const allRes = await fetch('/api/products')
-      const allData = await allRes.json()
-      if (allData.success) {
-        const thirtyDaysAgo = new Date()
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
-        const newProducts = allData.data.filter((p: any) => 
-          p.createdAt && new Date(p.createdAt) >= thirtyDaysAgo
-        )
-        setNewArrivalProducts(newProducts.slice(0, 8))
-      }
-    } catch (err) {
-      console.error('Failed to fetch products:', err)
-    } finally {
-      setIsLoading(false)
-    }
+  return {
+    featuredProducts: displayProducts as Product[],
+    newArrivalProducts: newArrivalProducts as Product[],
+    categories,
+    trustBadges,
   }
+}
 
-  const fetchSiteContent = async () => {
-    try {
-      const res = await fetch('/api/admin/site-content')
-      const data = await res.json()
-      if (data.success) {
-        const contentMap: Record<string, SiteContent> = {}
-        data.data.forEach((item: SiteContent) => { contentMap[item.section] = item })
-        setSiteContent(contentMap)
-      }
-    } catch (err) { console.error('Failed to fetch site content:', err) }
-  }
+export default async function ShopHomePage() {
+  const { featuredProducts, newArrivalProducts, categories, trustBadges } = await getHomePageData()
 
-  const sc = (section: string) => siteContent[section]
-
-  // Parse banners from site content
-  let banners: { image: string; link: string; alt: string }[] = []
-  try {
-    if (sc('banners')?.content) banners = JSON.parse(sc('banners')!.content!)
-  } catch {}
-
-  // Check if new arrivals section is enabled
-  const newArrivalEnabled = sc('new_arrivals')?.title !== 'false'
-  const showNewArrivals = newArrivalEnabled && newArrivalProducts.length > 0
+  const showNewArrivals = newArrivalProducts.length > 0
 
   return (
     <div className="min-h-screen bg-white">
@@ -199,11 +144,11 @@ export default function ShopHomePage() {
                       NEW
                     </span>
                     <h2 className="font-display text-2xl font-bold text-joy-gray-900">
-                      {sc('new_arrivals')?.title || 'New Arrivals'}
+                      New Arrivals
                     </h2>
                   </div>
                   <p className="text-joy-gray-500 mt-1">
-                    {sc('new_arrivals')?.subtitle || 'Fresh from the factory - just landed!'}
+                    Fresh from the factory - just landed!
                   </p>
                 </div>
                 <Link href="/products?sort=newest">
@@ -212,19 +157,11 @@ export default function ShopHomePage() {
                   </Button>
                 </Link>
               </div>
-              {isLoading ? (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-                  {[...Array(4)].map((_, i) => (
-                    <div key={i} className="bg-white rounded-2xl h-80 animate-pulse" />
-                  ))}
-                </div>
-              ) : (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-                  {newArrivalProducts.map((product) => (
-                    <ProductCard key={product.id} product={product} isNew />
-                  ))}
-                </div>
-              )}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+                {newArrivalProducts.map((product) => (
+                  <ProductCard key={product.id} product={product} isNew />
+                ))}
+              </div>
             </div>
           </section>
         )}
@@ -234,7 +171,7 @@ export default function ShopHomePage() {
           <div className="max-w-7xl mx-auto px-4">
             <div className="flex items-center justify-between mb-8">
               <h2 className="font-display text-2xl font-bold text-joy-gray-900">
-                {sc('category_title')?.title || 'Shop by Category'}
+                Shop by Category
               </h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -257,10 +194,10 @@ export default function ShopHomePage() {
             <div className="flex items-center justify-between mb-8">
               <div>
                 <h2 className="font-display text-2xl font-bold text-joy-gray-900">
-                  {sc('featured_title')?.title || 'Featured Products'}
+                  Featured Products
                 </h2>
                 <p className="text-joy-gray-500 mt-1">
-                  {sc('featured_title')?.subtitle || 'Handpicked bestsellers at wholesale prices'}
+                  Handpicked bestsellers at wholesale prices
                 </p>
               </div>
               <Link href="/products">
@@ -269,15 +206,9 @@ export default function ShopHomePage() {
                 </Button>
               </Link>
             </div>
-            {isLoading ? (
+            {featuredProducts.length > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="bg-white rounded-2xl h-80 animate-pulse" />
-                ))}
-              </div>
-            ) : featuredProducts.length > 0 ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
-                {featuredProducts.slice(0, 8).map((product) => (
+                {featuredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
