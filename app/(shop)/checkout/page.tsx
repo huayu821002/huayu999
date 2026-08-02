@@ -227,7 +227,7 @@ export default function CheckoutPage() {
     }
     if (!shippingForm.country) errors.country = 'Please select a country'
     if (shippingOptions.length === 0) {
-      alert('当前地址无法配送，请改用其它地址')
+      alert('Unable to deliver to this address. Please use a different address.')
       return false
     }
     
@@ -458,7 +458,7 @@ export default function CheckoutPage() {
                   <div className="border-t border-joy-gray-100 pt-6">
                     <h3 className="font-medium text-joy-gray-900 mb-4">Shipping Method ({totalWeight.toFixed(2)}kg total)</h3>
                     {shippingOptions.length === 0 ? (
-                      <p className="text-red-500 text-sm">当前地址无法配送！</p>
+                      <p className="text-red-500 text-sm">Unable to deliver to this address!</p>
                     ) : (
                       <div className="space-y-3">
                         {shippingOptions.filter(o => o.available).map(option => (
