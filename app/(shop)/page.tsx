@@ -37,10 +37,12 @@ async function getHomePageData() {
       where: { isFeatured: true, isActive: true },
       take: 8,
       orderBy: { createdAt: 'desc' },
+      include: { category: true },
     }),
     prisma.product.findMany({
       where: { isActive: true },
       orderBy: { createdAt: 'desc' },
+      include: { category: true },
     }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_categories' } }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_trust_badges' } }),
