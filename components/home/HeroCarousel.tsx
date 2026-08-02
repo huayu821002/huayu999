@@ -16,10 +16,14 @@ interface Banner {
   buttonLink?: string
 }
 
-export function HeroCarousel() {
-  const [banners, setBanners] = useState<Banner[]>([])
+interface HeroCarouselProps {
+  initialBanners?: Banner[]
+}
+
+export function HeroCarousel({ initialBanners }: HeroCarouselProps) {
+  const [banners, setBanners] = useState<Banner[]>(initialBanners || [])
   const [currentIndex, setCurrentIndex] = useState(0)
-  const [isLoading, setIsLoading] = useState(true)
+  const [isLoading, setIsLoading] = useState(!initialBanners)
 
   const fetchBanners = useCallback(async () => {
     try {
@@ -36,8 +40,13 @@ export function HeroCarousel() {
   }, [])
 
   useEffect(() => {
+    if (initialBanners) {
+      setBanners(initialBanners)
+      setIsLoading(false)
+      return
+    }
     fetchBanners()
-  }, [fetchBanners])
+  }, [initialBanners, fetchBanners])
 
   useEffect(() => {
     if (banners.length <= 1) return
