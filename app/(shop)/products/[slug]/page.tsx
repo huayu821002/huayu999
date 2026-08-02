@@ -556,7 +556,7 @@ export default function ProductDetailPage() {
               <h2 className="font-display text-2xl font-bold text-joy-gray-900 mb-8">You May Also Like</h2>
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
                 {relatedProducts.map((p) => (
-                  <ProductCard key={p.id} product={p as any} currency={currency} />
+                  <ProductCard key={p.id} product={p} currency={currency} />
                 ))}
               </div>
             </div>
