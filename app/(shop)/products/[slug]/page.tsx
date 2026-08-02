@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { CartDrawer } from '@/components/shop/CartDrawer'
 import { FloatingButtons } from '@/components/layout/FloatingButtons'
+import { ProductCard } from '@/components/shop/ProductCard'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, getPriceByTier, convertPrice } from '@/lib/utils'
@@ -57,6 +58,7 @@ export default function ProductDetailPage() {
   const { currency } = useCartStore()
   const { isInWishlist, toggleItem } = useWishlistStore()
   const [product, setProduct] = useState<Product | null>(null)
+  const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
@@ -85,6 +87,10 @@ export default function ProductDetailPage() {
         if (data.data.variants?.length > 0) {
           setSelectedVariant(data.data.variants[0].id)
         }
+        // Fetch related products (same category)
+        if (data.data.category?.slug) {
+          fetchRelatedProducts(data.data.category.slug, data.data.id)
+        }
       } else {
         setError(data.error || 'Product not found')
       }
@@ -93,6 +99,22 @@ export default function ProductDetailPage() {
       setError('Failed to load product')
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const fetchRelatedProducts = async (categorySlug: string, currentProductId: string) => {
+    try {
+      const res = await fetch(`/api/products?category=${categorySlug}`)
+      const data = await res.json()
+      if (data.success && data.data) {
+        // Filter out current product and limit to 8
+        const related = data.data
+          .filter((p: Product) => p.id !== currentProductId)
+          .slice(0, 8)
+        setRelatedProducts(related)
+      }
+    } catch (err) {
+      console.error('Failed to fetch related products:', err)
     }
   }
 
@@ -526,6 +548,20 @@ export default function ProductDetailPage() {
             ...(product.category ? { category: product.category.name } : {}),
           })
         }} />
+
+        {/* You May Also Like */}
+        {relatedProducts.length > 0 && (
+          <section className="py-16 bg-white border-t">
+            <div className="max-w-7xl mx-auto px-4">
+              <h2 className="font-display text-2xl font-bold text-joy-gray-900 mb-8">You May Also Like</h2>
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 lg:gap-6">
+                {relatedProducts.map((p) => (
+                  <ProductCard key={p.id} product={p} currency={currency} />
+                ))}
+              </div>
+            </div>
+          </section>
+        )}
       </main>
 
       <Footer />
