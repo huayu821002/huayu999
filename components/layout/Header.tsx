@@ -20,7 +20,7 @@ const defaultHeaderSettings = {
     enabled: true,
     text: "🎉 $50 Minimum Mixed Order | Free Shipping NA $299+ | SA $499+ 🚚 15-20 Days Worldwide"
   },
-  logo: { type: "text", text: "Fiestaflare", image: "" },
+  logo: { type: "text" as const, text: "Fiestaflare", image: "" },
   navLinks: [
     { href: "/", label: "Home" },
     { href: "/products", label: "Products" },
@@ -31,19 +31,27 @@ const defaultHeaderSettings = {
   ]
 }
 
-export function Header() {
+interface HeaderProps {
+  initialSettings?: typeof defaultHeaderSettings
+}
+
+export function Header({ initialSettings }: HeaderProps) {
   const pathname = usePathname()
   const [isScrolled, setIsScrolled] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const { items, setCurrency, currency } = useCartStore()
   const { isAuthenticated, user } = useUserStore()
   const { mobileMenuOpen, isMobileMenuOpen, mobileMenuClose } = useUIStore()
-  const [headerSettings, setHeaderSettings] = useState(defaultHeaderSettings)
-  const [isSettingsLoaded, setIsSettingsLoaded] = useState(false)
+  const [headerSettings, setHeaderSettings] = useState(initialSettings || defaultHeaderSettings)
+  const [isSettingsLoaded, setIsSettingsLoaded] = useState(!!initialSettings)
 
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0)
 
   useEffect(() => {
+    if (initialSettings) {
+      setIsSettingsLoaded(true)
+      return
+    }
     const fetchHeaderSettings = async () => {
       try {
         const res = await fetch('/api/site/header-footer')
@@ -58,7 +66,7 @@ export function Header() {
       }
     }
     fetchHeaderSettings()
-  }, [])
+  }, [initialSettings])
 
   useEffect(() => {
     const handleScroll = () => setIsScrolled(window.scrollY > 20)

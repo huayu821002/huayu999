@@ -26,13 +26,29 @@ const defaultTrustBadges = [
   { icon: 'RefreshCw', title: 'Easy Returns', desc: '30-day hassle-free returns' },
 ]
 
+const defaultHeaderSettings = {
+  promoBanner: {
+    enabled: true,
+    text: "🎉 $50 Minimum Mixed Order | Free Shipping NA $299+ | SA $499+ 🚚 15-20 Days Worldwide"
+  },
+  logo: { type: "text" as const, text: "Fiestaflare", image: "" },
+  navLinks: [
+    { href: "/", label: "Home" },
+    { href: "/products", label: "Products" },
+    { href: "/products?collection=trending-now", label: "🔥 Trending" },
+    { href: "/products?collection=pet-me", label: "🐾 Pet & Me" },
+    { href: "/info/about-us", label: "About" },
+    { href: "/info/contact", label: "Contact" }
+  ]
+}
+
 // 并行获取所有首页数据
 async function getHomePageData() {
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
   // 并行执行所有查询，每个都限制返回数量
-  const [featuredProducts, newArrivalProducts, allProductsLimited, categoriesSetting, trustBadgesSetting] = await Promise.all([
+  const [featuredProducts, newArrivalProducts, allProductsLimited, categoriesSetting, trustBadgesSetting, headerFooterSetting, bannersSetting] = await Promise.all([
     // 精选产品
     prisma.product.findMany({
       where: { isFeatured: true, isActive: true },
@@ -59,6 +75,8 @@ async function getHomePageData() {
     }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_categories' } }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_trust_badges' } }),
+    prisma.siteSetting.findUnique({ where: { key: 'header_settings' } }),
+    prisma.siteSetting.findUnique({ where: { key: 'homepage_banners' } }),
   ])
 
   // 解析分类数据
@@ -82,22 +100,42 @@ async function getHomePageData() {
   // 如果没有精选产品，用全部产品的前8个
   const displayProducts = featuredProducts.length > 0 ? featuredProducts : allProductsLimited
 
+  // 解析 header 设置
+  let headerSettings = defaultHeaderSettings
+  if (headerFooterSetting?.value) {
+    try {
+      const parsed = JSON.parse(headerFooterSetting.value)
+      if (parsed.header) headerSettings = parsed.header
+    } catch {}
+  }
+
+  // 解析 banners
+  let banners: any[] = []
+  if (bannersSetting?.value) {
+    try {
+      const parsed = JSON.parse(bannersSetting.value)
+      if (Array.isArray(parsed)) banners = parsed
+    } catch {}
+  }
+
   return {
     featuredProducts: displayProducts as unknown as Product[],
     newArrivalProducts: newArrivalProducts as unknown as Product[],
     categories,
     trustBadges,
+    headerSettings,
+    banners,
   }
 }
 
 export default async function ShopHomePage() {
-  const { featuredProducts, newArrivalProducts, categories, trustBadges } = await getHomePageData()
+  const { featuredProducts, newArrivalProducts, categories, trustBadges, headerSettings, banners } = await getHomePageData()
 
   const showNewArrivals = newArrivalProducts.length > 0
 
   return (
     <div className="min-h-screen bg-white">
-      <Header />
+      <Header initialSettings={headerSettings} />
       <main>
         <script type="application/ld+json" dangerouslySetInnerHTML={{
           __html: JSON.stringify({
@@ -117,7 +155,7 @@ export default async function ShopHomePage() {
         }} />
 
         {/* Hero Carousel */}
-        <HeroCarousel />
+        <HeroCarousel initialBanners={banners} />
 
         {/* Trust Badges */}
         <section className="bg-joy-gray-50 py-8 border-b">
