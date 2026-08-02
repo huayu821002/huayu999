@@ -226,6 +226,10 @@ export default function CheckoutPage() {
       errors.zip = 'Please enter a valid ZIP/Postal code'
     }
     if (!shippingForm.country) errors.country = 'Please select a country'
+    if (shippingOptions.length === 0) {
+      alert('当前地址无法配送，请改用其它地址')
+      return false
+    }
     
     setShippingErrors(errors)
     return Object.keys(errors).length === 0
