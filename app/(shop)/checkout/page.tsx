@@ -454,7 +454,7 @@ export default function CheckoutPage() {
                   <div className="border-t border-joy-gray-100 pt-6">
                     <h3 className="font-medium text-joy-gray-900 mb-4">Shipping Method ({totalWeight.toFixed(2)}kg total)</h3>
                     {shippingOptions.length === 0 ? (
-                      <p className="text-joy-gray-500 text-sm">选择发货地址后，运费出现</p>
+                      <p className="text-red-500 text-sm">当前地址无法配送！</p>
                     ) : (
                       <div className="space-y-3">
                         {shippingOptions.filter(o => o.available).map(option => (
