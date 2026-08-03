@@ -39,8 +39,8 @@ export interface Product {
   id: string
   name: string
   slug: string
-  description: string
-  shortDesc?: string
+  description?: string | null
+  shortDesc?: string | null
   price: number
   comparePrice?: number
   wholesalePrice?: number
