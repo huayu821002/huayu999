@@ -71,6 +71,43 @@ export default function ProductDetailPage() {
   const [isSubmittingReview, setIsSubmittingReview] = useState(false)
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
+  const [reviewable, setReviewable] = useState(false)
+  const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  // Check user login status when reviews tab becomes active
+  useEffect(() => {
+    if (activeTab === 'reviews') {
+      const token = localStorage.getItem('token')
+      const userStr = localStorage.getItem('user')
+      if (token && userStr) {
+        setIsLoggedIn(true)
+        const user = JSON.parse(userStr)
+        // Admins can always review
+        if (user.role === 'ADMIN') {
+          setReviewable(true)
+        } else {
+          // Check if user has ordered this product
+          checkIfCanReview()
+        }
+      } else {
+        setIsLoggedIn(false)
+        setReviewable(false)
+      }
+    }
+  }, [activeTab])
+
+  const checkIfCanReview = async () => {
+    if (!product) return
+    const token = localStorage.getItem('token')
+    if (!token) return
+    try {
+      const res = await fetch(`/api/reviews/check?productId=${product.id}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await res.json()
+      setReviewable(data.canReview || false)
+    } catch {}
+  }
 
   // Parse images helper - uses imported parseProductImages for string | string[] support
 
@@ -123,10 +160,14 @@ export default function ProductDetailPage() {
     if (!product) return
     setIsSubmittingReview(true)
     try {
+      const token = localStorage.getItem('token')
+      const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+      if (token) headers['Authorization'] = `Bearer ${token}`
+
       const res = await fetch('/api/reviews', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ productId: product.id, userId: 'guest-user', ...reviewForm }),
+        headers,
+        body: JSON.stringify({ productId: product.id, ...reviewForm }),
       })
       const data = await res.json()
       if (data.success) {
@@ -139,6 +180,8 @@ export default function ProductDetailPage() {
         }))
         setReviewSubmitted(true)
         setReviewForm({ rating: 5, comment: '' })
+      } else if (data.error) {
+        alert(data.error)
       }
     } catch (err) {
       console.error('Failed to submit review:', err)
@@ -602,7 +645,22 @@ export default function ProductDetailPage() {
                   </div>
 
                   {/* Submit Review Form */}
-                  {!reviewSubmitted ? (
+                  {!isLoggedIn ? (
+                    <div className="border border-joy-gray-200 rounded-2xl p-6 text-center">
+                      <Icons.MessageCircle size={32} className="mx-auto text-joy-gray-300 mb-3" />
+                      <p className="font-medium text-joy-gray-900 mb-1">Login to write a review</p>
+                      <p className="text-sm text-joy-gray-500 mb-4">Please login and purchase this product before submitting a review.</p>
+                      <Link href="/login">
+                        <Button variant="secondary">Login to Review</Button>
+                      </Link>
+                    </div>
+                  ) : !reviewable ? (
+                    <div className="border border-joy-gray-200 rounded-2xl p-6 text-center">
+                      <Icons.MessageCircle size={32} className="mx-auto text-joy-gray-300 mb-3" />
+                      <p className="font-medium text-joy-gray-900 mb-1">Purchase required to review</p>
+                      <p className="text-sm text-joy-gray-500">You need to purchase this product before you can write a review.</p>
+                    </div>
+                  ) : !reviewSubmitted ? (
                     <div className="border border-joy-gray-200 rounded-2xl p-6">
                       <h3 className="font-semibold text-joy-gray-900 mb-4">Write a Review</h3>
                       <div className="space-y-4">
