@@ -94,6 +94,12 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleLogout = () => {
+    localStorage.removeItem('token')
+    localStorage.removeItem('user')
+    router.push('/login')
+  }
+
   const formatTimeAgo = (dateStr: string) => {
     const date = new Date(dateStr)
     const now = new Date()
@@ -123,9 +129,17 @@ export default function AdminDashboard() {
       <Header />
       <main className="pt-[calc(4rem+36px)]">
         <div className="max-w-7xl mx-auto px-4 py-8">
-          <div className="mb-8">
-            <h1 className="font-display text-3xl font-bold text-joy-gray-900">Dashboard</h1>
-            <p className="text-joy-gray-600">Welcome back! Here is what is happening with your store.</p>
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h1 className="font-display text-3xl font-bold text-joy-gray-900">Dashboard</h1>
+              <p className="text-joy-gray-600">Welcome back! Here is what is happening with your store.</p>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-joy-gray-600 hover:text-joy-gray-900 hover:bg-joy-gray-100 rounded-lg transition-colors"
+            >
+              Logout
+            </button>
           </div>
 
           {/* Stats Cards */}
