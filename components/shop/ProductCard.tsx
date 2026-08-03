@@ -177,6 +177,9 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
               {product.reviewCount !== undefined && (
                 <span className="text-xs text-joy-gray-400">({product.reviewCount})</span>
               )}
+              {product.soldCount !== undefined && product.soldCount > 0 && (
+                <span className="text-xs text-joy-gray-400"> · {product.soldCount} sold</span>
+              )}
             </div>
           )}
 
