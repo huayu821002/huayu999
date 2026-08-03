@@ -37,17 +37,17 @@ interface Product {
   vipPrice?: number | null
   minOrderQty: number
   inventory: number
-  lowStockAlert?: number | null
+  lowStockAlert?: number
   weight?: number | null
   dimensions?: string | null
   images?: string | null
   modelImage?: string | null
-  sku?: string | null
+  sku?: string
   barcode?: string | null
   category?: { id: string; name: string; slug: string } | null
   tags?: string | null
   variants: ProductVariant[]
-  compliance?: { type: string; status: string } | null
+  compliance?: string | null
   isTrending?: boolean
   isFeatured?: boolean
   createdAt?: string

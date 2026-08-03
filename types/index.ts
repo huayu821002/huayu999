@@ -43,6 +43,7 @@ export interface Product {
   shortDesc?: string | null
   price: number
   comparePrice?: number | null
+  costPrice?: number | null
   wholesalePrice?: number | null
   vipPrice?: number | null
   minOrderQty: number
@@ -51,8 +52,9 @@ export interface Product {
   images?: string | null
   modelImage?: string | null
   sizeChart?: string | null
-  sku?: string | null
+  sku?: string
   inventory: number
+  lowStockAlert?: number
   category?: Category | null
   tags?: string | null
   variants?: ProductVariant[]
