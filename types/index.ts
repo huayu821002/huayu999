@@ -51,7 +51,7 @@ export interface Product {
   images: string[]
   modelImage?: string
   sizeChart?: string
-  sku: string
+  sku?: string
   inventory: number
   category: Category
   tags?: { name: string }[]
