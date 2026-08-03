@@ -48,7 +48,7 @@ export interface Product {
   minOrderQty: number
   weight?: number | null
   dimensions?: string | null
-  images: string[]
+  images?: string | null
   modelImage?: string | null
   sizeChart?: string | null
   sku?: string | null

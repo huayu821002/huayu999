@@ -40,7 +40,7 @@ interface Product {
   lowStockAlert?: number | null
   weight?: number | null
   dimensions?: string | null
-  images: string[]
+  images?: string | null
   modelImage?: string | null
   sku?: string | null
   barcode?: string | null
