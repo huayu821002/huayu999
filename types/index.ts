@@ -64,6 +64,7 @@ export interface Product {
   compliance?: string | null
   averageRating?: number
   reviewCount?: number
+  soldCount?: number
 }
 
 export interface ProductVariant {
