@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next'
 import { Inter, Poppins } from 'next/font/google'
 import { Toaster } from 'sonner'
+import { Providers } from '@/components/Providers'
 import './globals.css'
 
 const inter = Inter({ 
@@ -51,18 +52,20 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
       <body className="min-h-screen bg-joy-gray-50 antialiased">
-        {children}
-        <Toaster 
-          position="top-center" 
-          toastOptions={{
-            style: {
-              background: 'white',
-              color: '#212121',
-              borderRadius: '1rem',
-              boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
-            },
-          }}
-        />
+        <Providers>
+          {children}
+          <Toaster 
+            position="top-center" 
+            toastOptions={{
+              style: {
+                background: 'white',
+                color: '#212121',
+                borderRadius: '1rem',
+                boxShadow: '0 10px 40px rgba(0,0,0,0.1)',
+              },
+            }}
+          />
+        </Providers>
       </body>
     </html>
   )
