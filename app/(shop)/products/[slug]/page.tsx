@@ -51,6 +51,7 @@ interface Product {
   isTrending?: boolean
   isFeatured?: boolean
   createdAt?: string
+  soldCount?: number
 }
 
 export default function ProductDetailPage() {
@@ -408,7 +409,7 @@ export default function ProductDetailPage() {
                   <span className="text-sm text-joy-gray-400">({reviewStats.reviewCount} reviews)</span>
                 )}
                 <span className="text-sm text-joy-gray-400">|</span>
-                <span className="text-sm text-joy-gray-500">{product.inventory > 0 ? `${product.inventory} sold` : '0 sold'}</span>
+                <span className="text-sm text-joy-gray-500">{product.soldCount || 0} sold</span>
               </div>
 
               {/* Short Description */}
