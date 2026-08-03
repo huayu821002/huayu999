@@ -186,8 +186,12 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
               <span className="text-sm font-medium text-joy-gray-500">Retail:</span>
               {hasDiscount ? (
                 <>
-                  <span className="font-semibold text-joy-gray-400 line-through">
+                  <span className="relative font-semibold text-joy-gray-500 pr-1">
                     {formatCurrency(product.comparePrice!, currency)}
+                    <span className="absolute inset-0 flex flex-col justify-center items-center pointer-events-none">
+                      <span className="absolute w-full h-0.5 bg-joy-gray-400 rotate-[-3deg]" />
+                      <span className="absolute w-full h-0.5 bg-joy-gray-400 rotate-[3deg]" />
+                    </span>
                   </span>
                   <span className="font-bold text-joy-pink">
                     {formatCurrency(product.price, currency)}
