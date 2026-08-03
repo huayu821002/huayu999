@@ -51,10 +51,10 @@ export interface Product {
   images: string[]
   modelImage?: string
   sizeChart?: string
-  sku?: string
+  sku?: string | null
   inventory: number
   category?: Category | null
-  tags?: string | undefined
+  tags?: string | null
   variants?: ProductVariant[]
   isFeatured?: boolean
   isTrending?: boolean
