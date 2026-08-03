@@ -53,7 +53,7 @@ export interface Product {
   sizeChart?: string
   sku?: string
   inventory: number
-  category?: Category
+  category?: Category | null
   tags?: { name: string }[]
   variants?: ProductVariant[]
   isFeatured?: boolean
