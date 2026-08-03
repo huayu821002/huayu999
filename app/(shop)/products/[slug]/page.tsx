@@ -463,9 +463,9 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="py-8">
-              {activeTab === 'description' && (
+              {activeTab === 'description' && product.description && (
                 <div className="prose max-w-none">
-                  {product.description.split('\n').map((p, i) => (
+                  {(product.description || '').split('\n').map((p, i) => (
                     <p key={i} className="mb-4 text-joy-gray-700">{p}</p>
                   ))}
                 </div>
