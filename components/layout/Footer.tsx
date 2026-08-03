@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Icons } from '@/components/ui/Icons'
+import { useLocale, useTranslation } from '@/lib/translation/client'
 
 const defaultTrustBadges = [
   { icon: 'ShieldCheck', title: 'Quality Assured', desc: 'Every product inspected before shipping' },
@@ -64,9 +65,22 @@ const SOCIAL_ICONS: Record<string, any> = {
 }
 
 export function Footer() {
+  const { locale } = useLocale()
   const [footerSettings, setFooterSettings] = useState(defaultFooterSettings)
   const [trustBadges, setTrustBadges] = useState(defaultTrustBadges)
   const [footerPromo, setFooterPromo] = useState({ title: '', subtitle: '', social: [] as string[] })
+
+  // Translation helper
+  const t = (key: string, fallback: string): string => {
+    if (locale === 'en') return fallback
+    try {
+      const translations = require(`@/locales/${locale}.json`)
+      const keys = key.split('.')
+      let val: any = translations
+      for (const k of keys) { val = val?.[k] }
+      return typeof val === 'string' ? val : fallback
+    } catch { return fallback }
+  }
 
   useEffect(() => {
     const fetchSettings = async () => {
@@ -138,7 +152,7 @@ export function Footer() {
               </div>
             </Link>
             <p className="text-sm text-joy-gray-400 mb-4">
-              Your trusted wholesale partner for unique products.
+              {t('footer.aboutDesc', 'Your trusted wholesale partner for unique products.')}
             </p>
             {/* Social Links */}
             <div className="flex gap-3">
@@ -166,10 +180,12 @@ export function Footer() {
           </div>
 
           {/* Footer Columns */}
-          {columns.map((column: any, idx: number) => (
+          {columns.map((column: any, idx: number) => {
+            const colTitle = t(`footer.${column.title.toLowerCase().replace(/\s+/g, '')}`, column.title)
+            return (
             <div key={idx}>
               <h3 className="font-semibold text-sm uppercase tracking-wider text-white mb-4">
-                {column.title}
+                {colTitle}
               </h3>
               <ul className="space-y-2.5">
                 {column.links?.map((link: any, linkIdx: number) => (
@@ -184,7 +200,8 @@ export function Footer() {
                 ))}
               </ul>
             </div>
-          ))}
+            )
+          })
         </div>
       </div>
 
