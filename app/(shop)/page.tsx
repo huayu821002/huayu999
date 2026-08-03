@@ -103,7 +103,7 @@ async function getHomePageData() {
   const displayProducts = featuredProducts.length > 0 ? featuredProducts : allProductsLimited
 
   // 计算所有产品的已售数量
-  const allProductIds = [...new Set([...displayProducts, ...newArrivalProducts].map(p => p.id))]
+  const allProductIds = Array.from(new Set([...displayProducts, ...newArrivalProducts].map(p => p.id)))
   const soldCounts = await prisma.orderItem.groupBy({
     by: ['productId'],
     where: {
