@@ -13,6 +13,8 @@ import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, getPriceByTier, convertPrice } from '@/lib/utils'
 import { useCartStore, useWishlistStore } from '@/lib/store'
 import { parseProductImages, parseImageUrl } from '@/lib/imageUtils'
+import { useLocale, useTranslation } from '@/lib/translation/client'
+import { useProductTranslation } from '@/lib/translation/useProductTranslation'
 
 interface ProductVariant {
   id: string
@@ -57,6 +59,7 @@ interface Product {
 export default function ProductDetailPage() {
   const params = useParams()
   const { currency } = useCartStore()
+  const { locale } = useLocale()
   const { isInWishlist, toggleItem } = useWishlistStore()
   const [product, setProduct] = useState<Product | null>(null)
   const [relatedProducts, setRelatedProducts] = useState<Product[]>([])
@@ -74,6 +77,20 @@ export default function ProductDetailPage() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
   const [reviewable, setReviewable] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+
+  // Translation
+  const t = useTranslation.bind(null, 'product', '')
+
+  // Translate product content when locale changes
+  const { translated: translatedProduct, loading: isTranslating } = useProductTranslation(
+    { name: product?.name, description: product?.description, shortDesc: product?.shortDesc },
+    locale
+  )
+
+  // Use translated product name/description when available
+  const displayProduct = translatedProduct?.name !== product?.name && translatedProduct?.name
+    ? { ...product, ...translatedProduct }
+    : product
 
   // Check user login status when reviews tab becomes active
   useEffect(() => {
@@ -281,7 +298,7 @@ export default function ProductDetailPage() {
       <CartDrawer />
       <FloatingButtons 
         productUrl={`https://fiestaflare.com/products/${product.slug}`}
-        productName={product.name}
+        productName={displayProduct?.name || product.name}
       />
 
       <main className="pt-[calc(4rem+36px)]">
@@ -302,7 +319,7 @@ export default function ProductDetailPage() {
               </>
             )}
             <Icons.ChevronRight size={14} />
-            <span className="text-joy-gray-900">{product.name}</span>
+            <span className="text-joy-gray-900">{displayProduct?.name || product.name}</span>
           </nav>
         </div>
 
@@ -314,7 +331,7 @@ export default function ProductDetailPage() {
               <div className="relative aspect-square rounded-2xl overflow-hidden bg-joy-gray-100 mb-4">
                 <img
                   src={images[selectedImage] || '/placeholder.png'}
-                  alt={product.name}
+                  alt={displayProduct?.name || product.name}
                   className="w-full h-full object-cover"
                 />
                 
@@ -358,7 +375,7 @@ export default function ProductDetailPage() {
                       selectedImage === i ? 'border-joy-orange' : 'border-transparent hover:border-joy-gray-300'
                     )}
                   >
-                    <img src={img} alt={`${product.name} - Image ${i + 1}`} className="w-full h-full object-cover" />
+                    <img src={img} alt={`${displayProduct?.name || product.name} - Image ${i + 1}`} className="w-full h-full object-cover" />
                   </button>
                 ))}
                 {product.modelImage && (
@@ -392,7 +409,7 @@ export default function ProductDetailPage() {
 
               {/* Title */}
               <h1 className="font-display text-3xl font-bold text-joy-gray-900 mb-3">
-                {product.name}
+                {displayProduct?.name || product.name}
               </h1>
 
               {/* Rating & Sales */}
@@ -413,8 +430,8 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Short Description */}
-              {product.shortDesc && (
-                <p className="text-joy-gray-600 mb-4">{product.shortDesc}</p>
+              {(displayProduct?.shortDesc || product.shortDesc) && (
+                <p className="text-joy-gray-600 mb-4">{displayProduct?.shortDesc || product.shortDesc}</p>
               )}
 
               {/* Price Display */}
@@ -573,9 +590,9 @@ export default function ProductDetailPage() {
             </div>
 
             <div className="py-8">
-              {activeTab === 'description' && product.description && (
+              {activeTab === 'description' && (displayProduct?.description || product.description) && (
                 <div className="prose max-w-none">
-                  {(product.description || '').split('\n').map((p, i) => (
+                  (displayProduct?.description || product.description || '').split('\n').map((p, i) => (
                     <p key={i} className="mb-4 text-joy-gray-700">{p}</p>
                   ))}
                 </div>
