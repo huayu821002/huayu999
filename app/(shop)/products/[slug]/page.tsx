@@ -108,10 +108,7 @@ export default function ProductDetailPage() {
         const related: Product[] = data.data
           .filter((p: any) => p.id !== currentProductId)
           .slice(0, 8)
-          .map((p: any) => ({
-            ...p,
-            images: typeof p.images === 'string' ? JSON.parse(p.images) : p.images,
-          }))
+          .map((p: any) => p)
         setRelatedProducts(related)
       }
     } catch (err) {
