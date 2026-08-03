@@ -7,6 +7,8 @@ import { cn, formatCurrency, getPriceByTier } from '@/lib/utils'
 import { useCartStore, useWishlistStore } from '@/lib/store'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
+import { useLocale } from '@/lib/translation/client'
+import { useProductTranslation } from '@/lib/translation/useProductTranslation'
 import type { Product, Currency } from '@/types'
 
 interface ProductCardProps {
@@ -22,6 +24,15 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
   const [isAdding, setIsAdding] = useState(false)
   const { addItem } = useCartStore()
   const { isInWishlist, toggleItem } = useWishlistStore()
+  const { locale } = useLocale()
+
+  // Translate product name
+  const { translated } = useProductTranslation(
+    { name: product.name, description: product.description, shortDesc: product.shortDesc },
+    locale
+  )
+  const displayName = translated?.name || product.name
+
   
   // Parse images - can be JSON array string or already an array
   const images: string[] = (() => {
@@ -78,7 +89,7 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
           {/* Main Image */}
           <img
             src={images[0] || '/placeholder.png'}
-            alt={product.name}
+            alt={displayName}
             className={cn(
               'w-full h-full object-cover transition-transform duration-500',
               isHovered && hasModelImage && 'opacity-0'
@@ -89,7 +100,7 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
           {hasModelImage && (
             <img
               src={modelImage}
-              alt={`${product.name} - Model view`}
+              alt={`${displayName} - Model view`}
               className={cn(
                 'absolute inset-0 w-full h-full object-cover transition-opacity duration-300',
                 isHovered ? 'opacity-100' : 'opacity-0'
@@ -156,7 +167,7 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
           
           {/* Product Name */}
           <h3 className="font-semibold text-joy-gray-900 mb-1 line-clamp-2 group-hover:text-joy-orange transition-colors">
-            {product.name}
+            {displayName}
           </h3>
 
           {/* Rating Stars */}

@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { useCartStore, useUIStore, useUserStore } from '@/lib/store'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
+import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import type { Currency } from '@/types'
 
 const CURRENCIES: { code: Currency; symbol: string; name: string }[] = [
@@ -150,6 +151,9 @@ export function Header({ initialSettings }: HeaderProps) {
 
           {/* Right Actions */}
           <div className="flex items-center gap-2">
+            {/* Language */}
+            <LanguageSwitcher />
+
             {/* Currency */}
             <select
               value={currency}
