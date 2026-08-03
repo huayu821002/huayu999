@@ -68,7 +68,6 @@ export async function translateProduct(
     fields.map(async (field) => {
       const value = product[field]
       if (!value) {
-        result[field] = value
         return
       }
       const translated = await translate(value, targetLocale)
