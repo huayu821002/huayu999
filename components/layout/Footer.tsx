@@ -181,7 +181,7 @@ export function Footer() {
 
           {/* Footer Columns */}
           {columns.map((column: any, idx: number) => {
-            const colTitle = t(`footer.${column.title.toLowerCase().replace(/\s+/g, '')}`, column.title)
+            const colTitle = column.title
             return (
             <div key={idx}>
               <h3 className="font-semibold text-sm uppercase tracking-wider text-white mb-4">
