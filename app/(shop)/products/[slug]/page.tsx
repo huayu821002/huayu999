@@ -67,10 +67,7 @@ export default function ProductDetailPage() {
   const [isAdding, setIsAdding] = useState(false)
   const [activeTab, setActiveTab] = useState<'description' | 'specs'>('description')
 
-  // Parse images helper
-  const parseImages = (imgStr: string): string[] => {
-    try { return JSON.parse(imgStr) } catch { return imgStr ? [imgStr] : [] }
-  }
+  // Parse images helper - uses imported parseProductImages for string | string[] support
 
   useEffect(() => {
     fetchProduct()
@@ -129,7 +126,7 @@ export default function ProductDetailPage() {
     // Convert API product to cart-compatible format
     const cartProduct = {
       ...product,
-      images: parseImages(product.images),
+      images: parseProductImages(product.images),
       sku: product.sku || '',
     }
     const cartVariant = currentVariant ? {
@@ -183,7 +180,7 @@ export default function ProductDetailPage() {
     )
   }
 
-  const images = parseImages(product.images)
+  const images = parseProductImages(product.images)
   const currentVariant = product.variants?.find(v => v.id === selectedVariant)
   const displayPrice = currentVariant?.price || product.price
   const priceByQty = getPriceByTier(displayPrice, quantity, currency)
