@@ -3,7 +3,9 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { SignJWT } from 'jose'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'joyhub-wholesale-secret-key-change-in-production-2024'
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'joyhub-wholesale-secret-key-change-in-production-2024'
+)
 
 export async function POST(request: Request) {
   try {
