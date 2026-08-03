@@ -44,7 +44,9 @@ export async function GET(request: Request) {
     // Merge category data manually
     const productsWithCategory = products.map(p => ({
       ...p,
-      category: p.categoryId ? categoryMap.get(p.categoryId) || null : null
+      category: p.categoryId ? categoryMap.get(p.categoryId) || null : null,
+      averageRating: p.averageRating,
+      reviewCount: p.reviewCount,
     }))
 
     return NextResponse.json({ success: true, data: productsWithCategory })
