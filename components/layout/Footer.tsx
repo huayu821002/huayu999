@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Icons } from '@/components/ui/Icons'
-import { useLocale, useTranslation } from '@/lib/translation/client'
+import { useLocale } from '@/lib/translation/client'
 
 const defaultTrustBadges = [
   { icon: 'ShieldCheck', title: 'Quality Assured', desc: 'Every product inspected before shipping' },
@@ -69,12 +69,17 @@ export function Footer() {
   const [footerSettings, setFooterSettings] = useState(defaultFooterSettings)
   const [trustBadges, setTrustBadges] = useState(defaultTrustBadges)
   const [footerPromo, setFooterPromo] = useState({ title: '', subtitle: '', social: [] as string[] })
+  const [translations, setTranslations] = useState<Record<string, any>>({})
+
+  useEffect(() => {
+    if (locale === 'en') { setTranslations({}); return }
+    import(`@/locales/${locale}.json`).then(m => setTranslations(m.default || m)).catch(() => {})
+  }, [locale])
 
   // Translation helper
   const t = (key: string, fallback: string): string => {
     if (locale === 'en') return fallback
     try {
-      const translations = require(`@/locales/${locale}.json`)
       const keys = key.split('.')
       let val: any = translations
       for (const k of keys) { val = val?.[k] }
