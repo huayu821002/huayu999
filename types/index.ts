@@ -59,7 +59,7 @@ export interface Product {
   isFeatured?: boolean
   isTrending?: boolean
   isActive?: boolean
-  compliance?: Compliance[]
+  compliance?: string | null
   averageRating?: number
   reviewCount?: number
 }
@@ -72,13 +72,6 @@ export interface ProductVariant {
   price?: number | null
   inventory: number
   image?: string | null
-}
-
-export interface Compliance {
-  type: string
-  status: string
-  documentUrl?: string
-  expiryDate?: Date
 }
 
 export interface CartItem {
