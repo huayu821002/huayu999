@@ -15,8 +15,8 @@ const BAIDU_APP_ID = process.env.BAIDU_TRANSLATE_APP_ID || ''
 const BAIDU_SECRET_KEY = process.env.BAIDU_TRANSLATE_SECRET_KEY || ''
 
 // MD5 hash
-function md5(text: string): string {
-  const crypto = require('crypto')
+async function md5(text: string): Promise<string> {
+  const crypto = await import('crypto')
   return crypto.createHash('md5').update(text).digest('hex')
 }
 
@@ -50,7 +50,7 @@ async function translateWithBaidu(
 
   try {
     const salt = Date.now().toString()
-    const sign = md5(BAIDU_APP_ID + text + salt + BAIDU_SECRET_KEY)
+    const sign = await md5(BAIDU_APP_ID + text + salt + BAIDU_SECRET_KEY)
     const toLang = targetLocale === 'pt' ? 'pt' : 'ru'
 
     const url = `${BAIDU_API}?appid=${BAIDU_APP_ID}&q=${encodeURIComponent(text)}&from=${sourceLocale}&to=${toLang}&salt=${salt}&sign=${sign}`
