@@ -5,7 +5,7 @@ import { useLocale } from '@/lib/translation/client'
 import { SUPPORTED_LOCALES } from '@/lib/translation/translate'
 
 export function LanguageSwitcher() {
-  const { locale, setLocale } = useLocale()
+  const { locale } = useLocale()
   const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
@@ -20,6 +20,25 @@ export function LanguageSwitcher() {
     document.addEventListener('mousedown', handleClick)
     return () => document.removeEventListener('mousedown', handleClick)
   }, [])
+
+  const handleSwitch = (code: string) => {
+    setOpen(false)
+    const currentHost = window.location.hostname
+    // Remove any existing subdomain prefix
+    const parts = currentHost.split('.')
+    let targetHost: string
+
+    if (code === 'en') {
+      // English: remove subdomain, go to main domain
+      targetHost = parts.length > 2 ? parts.slice(1).join('.') : currentHost
+    } else {
+      // PT or RU: add subdomain prefix
+      const subdomain = code === 'pt' ? 'br' : 'ru'
+      targetHost = parts.length > 2 ? `${subdomain}.${parts.slice(1).join('.')}` : `${subdomain}.${currentHost}`
+    }
+
+    window.location.href = `${window.location.protocol}//${targetHost}${window.location.pathname}`
+  }
 
   return (
     <div ref={ref} className="relative">
@@ -39,7 +58,7 @@ export function LanguageSwitcher() {
           {SUPPORTED_LOCALES.map((l) => (
             <button
               key={l.code}
-              onClick={() => { setLocale(l.code as 'en' | 'pt' | 'ru'); setOpen(false) }}
+              onClick={() => handleSwitch(l.code)}
               className={`w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-joy-gray-50 transition-colors ${
                 locale === l.code ? 'bg-joy-orange/10 text-joy-orange font-medium' : 'text-joy-gray-700'
               }`}
