@@ -468,7 +468,7 @@ function ProductsContent() {
 
             {/* Products Grid */}
             {isLoading ? (
-              <div className={cn('grid gap-3 lg:gap-4', viewMode === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1')}>
+              <div className={cn('grid gap-3 lg:gap-4', viewMode === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1')}>
                 {[...Array(6)].map((_, i) => (
                   <div key={i} className="bg-white rounded-2xl h-60 animate-pulse" />
                 ))}
@@ -501,7 +501,7 @@ function ProductsContent() {
                   </div>
                 ) : (
                   // Normal Mode Grid
-                  <div className={cn('grid gap-3 lg:gap-4', viewMode === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5' : 'grid-cols-1')}>
+                  <div className={cn('grid gap-3 lg:gap-4', viewMode === 'grid' ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4' : 'grid-cols-1')}>
                     {sortedProducts.map((product) => (
                       <ProductCard key={product.id} product={product} currency={currency} />
                     ))}
