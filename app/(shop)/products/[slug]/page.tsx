@@ -390,9 +390,26 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Title */}
-              <h1 className="font-display text-3xl font-bold text-joy-gray-900 mb-4">
+              <h1 className="font-display text-3xl font-bold text-joy-gray-900 mb-3">
                 {product.name}
               </h1>
+
+              {/* Rating & Sales */}
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex items-center gap-1">
+                  {[1,2,3,4,5].map(star => (
+                    <Icons.Star key={star} size={16} className={star <= Math.round(reviewStats.averageRating) ? 'text-joy-orange fill-joy-orange' : 'text-joy-gray-300'} />
+                  ))}
+                </div>
+                {reviewStats.averageRating > 0 && (
+                  <span className="text-sm font-semibold text-joy-gray-900">{reviewStats.averageRating.toFixed(1)}</span>
+                )}
+                {reviewStats.reviewCount > 0 && (
+                  <span className="text-sm text-joy-gray-400">({reviewStats.reviewCount} reviews)</span>
+                )}
+                <span className="text-sm text-joy-gray-400">|</span>
+                <span className="text-sm text-joy-gray-500">{product.inventory > 0 ? `${product.inventory} sold` : '0 sold'}</span>
+              </div>
 
               {/* Short Description */}
               {product.shortDesc && (
