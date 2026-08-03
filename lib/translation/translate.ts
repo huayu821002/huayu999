@@ -72,7 +72,7 @@ export async function translateProduct(
         return
       }
       const translated = await translate(value, targetLocale)
-      result[field] = translated?.translated ?? value
+      result[field] = (translated?.translated ?? value) as string | null
     })
   )
 
