@@ -34,7 +34,7 @@ async function translateWithMyMemory(
     const langPair = `${sourceLocale}|${targetLocale === 'pt' ? 'pt-br' : 'ru'}`
     const url = `${MYMEMORY_API}?q=${encodeURIComponent(text)}&langpair=${langPair}`
 
-    const res = await fetch(url, { timeout: 5000 })
+    const res = await fetch(url, { signal: AbortSignal.timeout(5000) })
     if (!res.ok) return null
 
     const data = await res.json()
