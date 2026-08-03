@@ -71,9 +71,11 @@ export async function POST(request: NextRequest) {
     const { productId, rating, comment } = body
 
     // Authenticate user
+    const authHeader = request.headers.get('authorization')
     const user = await getUserFromRequest(request)
     if (!user) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+      console.error('Review auth failed:', { hasAuthHeader: !!authHeader, authHeaderPrefix: authHeader?.slice(0, 20) })
+      return NextResponse.json({ success: false, error: 'Unauthorized', debug: { hasAuthHeader: !!authHeader } }, { status: 401 })
     }
 
     if (!productId || !rating) {
