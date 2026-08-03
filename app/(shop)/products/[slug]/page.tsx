@@ -704,10 +704,10 @@ export default function ProductDetailPage() {
                             <div className="flex items-center gap-2">
                               <div className="w-8 h-8 bg-joy-orange/10 rounded-full flex items-center justify-center">
                                 <span className="text-sm font-semibold text-joy-orange">
-                                  {review.user?.name?.[0]?.toUpperCase() || 'U'}
+                                  匿
                                 </span>
                               </div>
-                              <span className="font-medium text-joy-gray-900">{review.user?.name || 'Anonymous'}</span>
+                              <span className="font-medium text-joy-gray-900">匿名用户</span>
                             </div>
                             <div className="flex items-center gap-1">
                               {[1,2,3,4,5].map(star => (
