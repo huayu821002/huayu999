@@ -514,10 +514,19 @@ export default function ProductDetailPage() {
                       <span className="text-joy-gray-500">Inventory</span>
                       <span className="font-medium">{product.inventory} units</span>
                     </div>
-                    {tags.length > 0 && (
+                    {tags && tags.length > 0 && (
                       <div className="flex justify-between py-3 border-b border-joy-gray-100">
                         <span className="text-joy-gray-500">Tags</span>
-                        <span className="font-medium">{Array.isArray(tags) ? tags.map((t: any) => t.name || t).join(', ') : tags}</span>
+                        <span className="font-medium">
+                          {(() => {
+                            try {
+                              const parsed = JSON.parse(tags)
+                              return Array.isArray(parsed) ? parsed.map((t: any) => t.name || t).join(', ') : tags
+                            } catch {
+                              return tags
+                            }
+                          })()}
+                        </span>
                       </div>
                     )}
                   </div>
