@@ -71,7 +71,7 @@ export interface ProductVariant {
   sku?: string | null
   price?: number | null
   inventory: number
-  image?: string
+  image?: string | null
 }
 
 export interface Compliance {
