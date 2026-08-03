@@ -102,6 +102,22 @@ async function getHomePageData() {
   // 如果没有精选产品，用全部产品的前8个
   const displayProducts = featuredProducts.length > 0 ? featuredProducts : allProductsLimited
 
+  // 计算所有产品的已售数量
+  const allProductIds = [...new Set([...displayProducts, ...newArrivalProducts].map(p => p.id))]
+  const soldCounts = await prisma.orderItem.groupBy({
+    by: ['productId'],
+    where: {
+      productId: { in: allProductIds },
+      order: { status: { in: ['PROCESSING', 'SHIPPED', 'DELIVERED'] } },
+    },
+    _sum: { quantity: true },
+  })
+  const soldCountMap = new Map(soldCounts.map(s => [s.productId, s._sum.quantity || 0]))
+
+  const addSoldCount = (p: any) => ({ ...p, soldCount: soldCountMap.get(p.id) || 0 })
+  const displayProductsWithSold = displayProducts.map(addSoldCount)
+  const newArrivalProductsWithSold = newArrivalProducts.map(addSoldCount)
+
   // 解析 header 设置
   let headerSettings = defaultHeaderSettings
   if (headerFooterSetting?.value) {
@@ -121,8 +137,8 @@ async function getHomePageData() {
   }
 
   return {
-    featuredProducts: displayProducts as unknown as Product[],
-    newArrivalProducts: newArrivalProducts as unknown as Product[],
+    featuredProducts: displayProductsWithSold as unknown as Product[],
+    newArrivalProducts: newArrivalProductsWithSold as unknown as Product[],
     categories,
     trustBadges,
     headerSettings,
