@@ -42,15 +42,15 @@ export interface Product {
   description?: string | null
   shortDesc?: string | null
   price: number
-  comparePrice?: number
-  wholesalePrice?: number
-  vipPrice?: number
+  comparePrice?: number | null
+  wholesalePrice?: number | null
+  vipPrice?: number | null
   minOrderQty: number
-  weight?: number
-  dimensions?: string
+  weight?: number | null
+  dimensions?: string | null
   images: string[]
-  modelImage?: string
-  sizeChart?: string
+  modelImage?: string | null
+  sizeChart?: string | null
   sku?: string | null
   inventory: number
   category?: Category | null
@@ -69,7 +69,7 @@ export interface ProductVariant {
   name: string
   value: string
   sku?: string | null
-  price?: number
+  price?: number | null
   inventory: number
   image?: string
 }

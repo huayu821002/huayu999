@@ -28,24 +28,24 @@ interface Product {
   id: string
   name: string
   slug: string
-  description: string
-  shortDesc?: string
+  description?: string | null
+  shortDesc?: string | null
   price: number
-  comparePrice?: number
-  costPrice?: number
-  wholesalePrice?: number
-  vipPrice?: number
+  comparePrice?: number | null
+  costPrice?: number | null
+  wholesalePrice?: number | null
+  vipPrice?: number | null
   minOrderQty: number
   inventory: number
-  lowStockAlert?: number
-  weight?: number
-  dimensions?: string
+  lowStockAlert?: number | null
+  weight?: number | null
+  dimensions?: string | null
   images: string[]
-  modelImage?: string
-  sku?: string
-  barcode?: string
-  category: { id: string; name: string; slug: string } | null
-  tags?: string
+  modelImage?: string | null
+  sku?: string | null
+  barcode?: string | null
+  category?: { id: string; name: string; slug: string } | null
+  tags?: string | null
   variants: ProductVariant[]
   compliance?: { type: string; status: string } | null
   isTrending?: boolean
