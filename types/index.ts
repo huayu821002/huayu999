@@ -68,7 +68,7 @@ export interface ProductVariant {
   id: string
   name: string
   value: string
-  sku?: string
+  sku?: string | null
   price?: number
   inventory: number
   image?: string
