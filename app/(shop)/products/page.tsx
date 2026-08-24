@@ -2,7 +2,7 @@
 
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { CartDrawer } from '@/components/shop/CartDrawer'
@@ -185,13 +185,14 @@ function CategoryItem({
 
 function ProductsContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const { currency } = useCartStore()
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [isFilterOpen, setIsFilterOpen] = useState(false)
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid')
-  const [searchQuery, setSearchQuery] = useState('')
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '')
   const [sortBy, setSortBy] = useState('featured')
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
   const [expandedCats, setExpandedCats] = useState<Set<string>>(new Set())
@@ -251,13 +252,16 @@ function ProductsContent() {
   }).filter(Boolean) as any[]
 
   useEffect(() => {
-    fetchProducts()
+    const urlSearch = searchParams.get('search') || ''
+    setSearchQuery(urlSearch)
+    fetchProducts(urlSearch)
     fetchCategories()
-  }, [])
+  }, [searchParams])
 
-  const fetchProducts = async () => {
+  const fetchProducts = async (search?: string) => {
     try {
-      const res = await fetch('/api/products')
+      const url = search ? `/api/products?search=${encodeURIComponent(search)}` : '/api/products'
+      const res = await fetch(url)
       const data = await res.json()
       if (data.success) {
         setProducts(data.data)
@@ -409,6 +413,15 @@ function ProductsContent() {
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault()
+                      const params = new URLSearchParams(searchParams.toString())
+                      if (searchQuery) params.set('search', searchQuery)
+                      else params.delete('search')
+                      router.push(`/products?${params.toString()}`, { scroll: false })
+                    }
+                  }}
                   className="w-full sm:w-80 pl-10 pr-4 py-2.5 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none text-sm"
                 />
               </div>
@@ -478,7 +491,7 @@ function ProductsContent() {
                 <Icons.Search size={64} className="mx-auto mb-4 text-joy-gray-200" />
                 <h3 className="text-xl font-semibold text-joy-gray-900 mb-2">No products found</h3>
                 <p className="text-joy-gray-500 mb-6">Try adjusting your search or filter</p>
-                <Button variant="secondary" onClick={() => { setSearchQuery(''); setSelectedCategory(null); }}>
+                <Button variant="secondary" onClick={() => { setSearchQuery(''); setSelectedCategory(null); router.push('/products', { scroll: false }); }}>
                   Clear Filters
                 </Button>
               </div>
