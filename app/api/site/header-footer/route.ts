@@ -22,11 +22,7 @@ export async function GET() {
       }
     }
     
-    return NextResponse.json({ success: true, data: result }, {
-      headers: {
-        'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600',
-      }
-    })
+    return NextResponse.json({ success: true, data: result })
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to fetch settings' }, { status: 500 })
   }
