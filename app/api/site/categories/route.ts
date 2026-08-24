@@ -12,8 +12,7 @@ export async function GET() {
     
     if (setting?.value) {
       return NextResponse.json(
-      { success: true, data: JSON.parse(setting.value) },
-      { headers: { 'Cache-Control': 'public, s-maxage=300, stale-while-revalidate=600' } }
+      { success: true, data: JSON.parse(setting.value) }
     )
     }
     

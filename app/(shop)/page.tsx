@@ -56,13 +56,25 @@ async function fetchHeaderSettings() {
   }
 }
 
+// 通过 API 获取首页类目（避免 Prisma 直查缓存问题）
+async function fetchCategories() {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://fiestaflare.com'
+    const res = await fetch(`${baseUrl}/api/site/categories`, { cache: 'no-store' })
+    const data = await res.json()
+    return data.data || defaultCategories
+  } catch {
+    return defaultCategories
+  }
+}
+
 // 并行获取所有首页数据
 async function getHomePageData() {
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
   // 并行执行所有查询
-  const [featuredProducts, newArrivalProducts, allProductsLimited, categoriesSetting, trustBadgesSetting, bannersSetting] = await Promise.all([
+  const [featuredProducts, newArrivalProducts, allProductsLimited, trustBadgesSetting, bannersSetting] = await Promise.all([
     // 精选产品
     prisma.product.findMany({
       where: { isFeatured: true, isActive: true },
@@ -87,22 +99,12 @@ async function getHomePageData() {
       orderBy: { createdAt: 'desc' },
       include: { category: true },
     }),
-    prisma.siteSetting.findUnique({ where: { key: 'homepage_categories' } }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_trust_badges' } }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_banners' } }),
   ])
 
-  // 通过 API 获取 header 设置（不走 Prisma 缓存）
-  const headerSettings = await fetchHeaderSettings()
-
-  // 解析分类数据
-  let categories = defaultCategories
-  if (categoriesSetting?.value) {
-    try {
-      const parsed = JSON.parse(categoriesSetting.value)
-      if (Array.isArray(parsed) && parsed.length > 0) categories = parsed
-    } catch {}
-  }
+  // 通过 API 获取 header 设置和类目（不走 Prisma 缓存）
+  const [headerSettings, categories] = await Promise.all([fetchHeaderSettings(), fetchCategories()])
 
   // 解析信任徽章数据
   let trustBadges = defaultTrustBadges
