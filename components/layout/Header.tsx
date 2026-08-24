@@ -95,7 +95,7 @@ export function Header({ initialSettings }: HeaderProps) {
     }
   }, [isMobileMenuOpen])
 
-  // Search overlay: focus input when opened
+  // Focus input when search opens
   useEffect(() => {
     if (searchOpen) {
       setTimeout(() => searchInputRef.current?.focus(), 100)
@@ -168,161 +168,141 @@ export function Header({ initialSettings }: HeaderProps) {
   // ====== SEARCH OVERLAY ======
   if (searchOpen) {
     return (
-      <div className="fixed inset-0 z-[100] flex flex-col bg-white animate-in slide-in-from-top-0 duration-300">
-        {/* Search Header */}
-        <div className="bg-white border-b border-joy-gray-100 shadow-sm">
-          <div className="max-w-3xl mx-auto px-4 py-4">
-            <form onSubmit={handleSearchSubmit} className="flex items-center gap-3">
-              <button
-                type="button"
-                onClick={() => setSearchOpen(false)}
-                className="p-2 hover:bg-joy-gray-100 rounded-xl transition-colors flex-shrink-0"
-              >
-                <Icons.ChevronLeft size={22} className="text-joy-gray-600" />
-              </button>
-              <div className="relative flex-1 flex items-center bg-joy-gray-50 rounded-2xl border-2 border-joy-orange/30 focus-within:border-joy-orange transition-colors overflow-hidden">
-                <Icons.Search size={18} className="absolute left-4 text-joy-gray-400 pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={query}
-                  onChange={handleQueryChange}
-                  onFocus={() => query.length >= 2 && setShowDropdown(true)}
-                  placeholder="Search products, categories, brands..."
-                  className="w-full pl-12 pr-4 py-3.5 text-base bg-transparent outline-none placeholder-joy-gray-400"
-                  autoComplete="off"
-                />
-                {isLoading && (
-                  <div className="absolute right-4">
-                    <div className="w-5 h-5 border-2 border-joy-orange/30 border-t-joy-orange rounded-full animate-spin" />
-                  </div>
-                )}
-                {query && (
-                  <button
-                    type="button"
-                    onClick={() => { setQuery(''); setSuggestions(null); setShowDropdown(false); searchInputRef.current?.focus() }}
-                    className="absolute right-4 text-joy-gray-400 hover:text-joy-gray-600"
-                  >
-                    <Icons.X size={16} />
-                  </button>
-                )}
-              </div>
-              <button
-                type="submit"
-                className="px-6 py-3.5 bg-joy-orange hover:bg-joy-orange/90 text-white font-semibold rounded-2xl transition-colors flex-shrink-0"
-              >
-                Search
-              </button>
-            </form>
-          </div>
-        </div>
+      <>
+        {/* Dark backdrop — website content still visible behind */}
+        <div
+          className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm animate-in fade-in duration-200"
+          onClick={() => setSearchOpen(false)}
+        />
 
-        {/* Search Suggestions */}
-        <div className="flex-1 overflow-y-auto bg-joy-gray-50">
-          <div className="max-w-3xl mx-auto px-4 py-6">
-            {!hasResults && !isLoading && (
-              <>
-                {/* Hot Keywords */}
-                <div className="mb-6">
-                  <p className="text-xs font-bold text-joy-gray-400 uppercase tracking-wider mb-3">🔥 Trending</p>
-                  <div className="flex flex-wrap gap-2">
-                    {HOT_KEYWORDS.map((kw) => (
-                      <button
-                        key={kw}
-                        onClick={() => handleKeywordClick(kw)}
-                        className="px-4 py-2 bg-white hover:bg-joy-orange/10 text-joy-gray-600 hover:text-joy-orange text-sm rounded-full border border-joy-gray-200 hover:border-joy-orange transition-colors"
-                      >
-                        {kw}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Quick Links */}
-                <div>
-                  <p className="text-xs font-bold text-joy-gray-400 uppercase tracking-wider mb-3">Quick Links</p>
-                  <div className="space-y-1">
-                    {navLinks.slice(0, 5).map((link: any, idx: number) => (
-                      <Link
-                        key={idx}
-                        href={link.href}
-                        onClick={() => setSearchOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-joy-orange/5 rounded-xl border border-joy-gray-100 hover:border-joy-orange/30 transition-colors group"
-                      >
-                        <Icons.ChevronRight size={16} className="text-joy-gray-300 group-hover:text-joy-orange" />
-                        <span className="font-medium text-joy-gray-700 group-hover:text-joy-orange">{link.label}</span>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Category Results */}
-            {suggestions?.categories?.length > 0 && (
-              <div className="mb-6">
-                <p className="text-xs font-bold text-joy-gray-400 uppercase tracking-wider mb-3">Categories</p>
-                <div className="grid grid-cols-2 gap-3">
-                  {suggestions.categories.map((cat: any) => (
+        {/* Search bar slides down from top */}
+        <div className="fixed top-0 left-0 right-0 z-[101] animate-in slide-in-from-top duration-300">
+          <div className="bg-white border-b border-joy-gray-200 shadow-2xl">
+            <div className="max-w-3xl mx-auto px-4 py-4">
+              <form onSubmit={handleSearchSubmit} className="flex items-center gap-3">
+                <div className="relative flex-1 flex items-center bg-joy-gray-50 rounded-2xl border-2 border-joy-orange/40 focus-within:border-joy-orange transition-colors overflow-hidden">
+                  <Icons.Search size={18} className="absolute left-4 text-joy-gray-400 pointer-events-none" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={query}
+                    onChange={handleQueryChange}
+                    onFocus={() => setShowDropdown(true)}
+                    placeholder="Search products, categories, brands..."
+                    className="w-full pl-12 pr-10 py-3.5 text-base bg-transparent outline-none placeholder-joy-gray-400"
+                    autoComplete="off"
+                  />
+                  {isLoading && (
+                    <div className="absolute right-10">
+                      <div className="w-4 h-4 border-2 border-joy-orange/30 border-t-joy-orange rounded-full animate-spin" />
+                    </div>
+                  )}
+                  {query && (
                     <button
-                      key={cat.id}
-                      onClick={() => handleSuggestionCategoryClick(cat.slug)}
-                      className="flex items-center gap-3 p-3 bg-white hover:bg-joy-orange/5 rounded-xl border border-joy-gray-100 hover:border-joy-orange/30 transition-all group"
+                      type="button"
+                      onClick={() => { setQuery(''); setSuggestions(null); setShowDropdown(false) }}
+                      className="absolute right-3 p-1 hover:bg-joy-gray-200 rounded-full transition-colors"
                     >
-                      {cat.image && (
-                        <img src={cat.image} alt={cat.name} className="w-12 h-12 rounded-xl object-cover flex-shrink-0" />
-                      )}
-                      <div className="text-left">
-                        <p className="font-semibold text-joy-gray-800 group-hover:text-joy-orange transition-colors">{cat.name}</p>
-                        <p className="text-xs text-joy-gray-400 mt-0.5">Browse category →</p>
-                      </div>
+                      <Icons.X size={14} className="text-joy-gray-400" />
                     </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {/* Product Results */}
-            {suggestions?.products?.length > 0 && (
-              <div>
-                <p className="text-xs font-bold text-joy-gray-400 uppercase tracking-wider mb-3">Products</p>
-                <div className="space-y-2">
-                  {suggestions.products.map((product: any) => (
-                    <button
-                      key={product.id}
-                      onClick={() => handleSuggestionProductClick(product.slug)}
-                      className="w-full flex items-center gap-4 p-3 bg-white hover:bg-joy-orange/5 rounded-xl border border-joy-gray-100 hover:border-joy-orange/30 transition-all text-left group"
-                    >
-                      <div className="w-14 h-14 rounded-xl bg-joy-gray-100 overflow-hidden flex-shrink-0">
-                        <img src={getImage(product.images)} alt={product.name} className="w-full h-full object-cover" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-joy-gray-800 group-hover:text-joy-orange transition-colors truncate">{product.name}</p>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-joy-orange font-bold">${product.price?.toFixed(2)}</span>
-                          {product.comparePrice && product.comparePrice > product.price && (
-                            <span className="text-xs text-joy-gray-400 line-through">${product.comparePrice.toFixed(2)}</span>
-                          )}
-                          {product.category && (
-                            <span className="text-xs text-joy-gray-400 bg-joy-gray-50 px-2 py-0.5 rounded-full">{product.category.name}</span>
-                          )}
-                        </div>
-                      </div>
-                      <Icons.ChevronRight size={16} className="text-joy-gray-300 group-hover:text-joy-orange flex-shrink-0" />
-                    </button>
-                  ))}
+                  )}
                 </div>
                 <button
-                  onClick={() => { setShowDropdown(false); router.push(`/products?search=${encodeURIComponent(query)}`); setSearchOpen(false) }}
-                  className="w-full mt-4 py-3 text-center text-sm font-semibold text-joy-orange hover:text-joy-orange/80 border-t border-joy-gray-100 pt-4"
+                  type="button"
+                  onClick={() => setSearchOpen(false)}
+                  className="px-3 py-2 text-sm font-medium text-joy-gray-500 hover:text-joy-gray-700 hover:bg-joy-gray-100 rounded-xl transition-colors"
                 >
-                  See all results for &quot;{query}&quot; →
+                  Cancel
                 </button>
+                <button
+                  type="submit"
+                  className="px-5 py-3 bg-joy-orange hover:bg-joy-orange/90 text-white font-semibold rounded-2xl transition-colors text-sm"
+                >
+                  Search
+                </button>
+              </form>
+            </div>
+
+            {/* Dropdown results */}
+            {showDropdown && (
+              <div className="max-w-3xl mx-auto px-4 pb-4">
+                <div className="bg-white rounded-2xl shadow-xl border border-joy-gray-100 overflow-hidden max-h-[60vh] overflow-y-auto">
+
+                  {/* Hot Keywords — shown when no query */}
+                  {!query && (
+                    <div className="p-4 border-b border-joy-gray-100">
+                      <p className="text-xs font-bold text-joy-gray-400 uppercase tracking-wider mb-3">🔥 Trending</p>
+                      <div className="flex flex-wrap gap-2">
+                        {HOT_KEYWORDS.map((kw) => (
+                          <button
+                            key={kw}
+                            onClick={() => handleKeywordClick(kw)}
+                            className="px-3 py-1.5 bg-joy-gray-50 hover:bg-joy-orange/10 text-joy-gray-600 hover:text-joy-orange text-sm rounded-full border border-joy-gray-200 transition-colors"
+                          >
+                            {kw}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Category Results */}
+                  {suggestions?.categories?.length > 0 && (
+                    <div className="p-4 border-b border-joy-gray-100">
+                      <p className="text-xs font-bold text-joy-gray-400 uppercase tracking-wider mb-3">Categories</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {suggestions.categories.map((cat: any) => (
+                          <button
+                            key={cat.id}
+                            onClick={() => handleSuggestionCategoryClick(cat.slug)}
+                            className="flex items-center gap-3 p-3 hover:bg-joy-gray-50 rounded-xl transition-colors group"
+                          >
+                            {cat.image && (
+                              <img src={cat.image} alt={cat.name} className="w-10 h-10 rounded-lg object-cover flex-shrink-0" />
+                            )}
+                            <span className="font-medium text-joy-gray-700 group-hover:text-joy-orange text-sm">{cat.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Product Results */}
+                  {suggestions?.products?.length > 0 && (
+                    <div className="p-4">
+                      <p className="text-xs font-bold text-joy-gray-400 uppercase tracking-wider mb-3">Products</p>
+                      <div className="space-y-1">
+                        {suggestions.products.map((product: any) => (
+                          <button
+                            key={product.id}
+                            onClick={() => handleSuggestionProductClick(product.slug)}
+                            className="w-full flex items-center gap-3 p-2 hover:bg-joy-gray-50 rounded-xl transition-colors text-left group"
+                          >
+                            <div className="w-10 h-10 rounded-lg bg-joy-gray-100 overflow-hidden flex-shrink-0">
+                              <img src={getImage(product.images)} alt={product.name} className="w-full h-full object-cover" />
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium text-joy-gray-800 group-hover:text-joy-orange truncate">{product.name}</p>
+                              <p className="text-xs text-joy-orange font-semibold">${product.price?.toFixed(2)}</p>
+                            </div>
+                            <Icons.ChevronRight size={14} className="text-joy-gray-300 group-hover:text-joy-orange flex-shrink-0" />
+                          </button>
+                        ))}
+                      </div>
+                      <button
+                        onClick={() => { setShowDropdown(false); router.push(`/products?search=${encodeURIComponent(query)}`); setSearchOpen(false) }}
+                        className="w-full mt-3 py-2 text-center text-xs font-semibold text-joy-orange hover:text-joy-orange/80 border-t border-joy-gray-100 pt-3"
+                      >
+                        See all results for &quot;{query}&quot; →
+                      </button>
+                    </div>
+                  )}
+                </div>
               </div>
             )}
           </div>
         </div>
-      </div>
+      </>
     )
   }
 
