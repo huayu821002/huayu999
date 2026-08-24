@@ -39,10 +39,10 @@ export async function GET(request: Request) {
 
     // Fetch categories separately
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
-    const categoryMap = new Map(categories.map(c => [c.id, c]))
+    const categoryMap = new Map(categories.map((c: any) => [c.id, c]))
 
     // Merge category data manually
-    const productsWithCategory = products.map(p => ({
+    const productsWithCategory = products.map((p: any) => ({
       ...p,
       category: p.categoryId ? categoryMap.get(p.categoryId) || null : null,
       averageRating: p.averageRating,

@@ -24,10 +24,10 @@ export async function GET() {
     ])
 
     // Calculate stats
-    const revenue = ordersWithStats.reduce((sum, o) => sum + (o.total || 0), 0)
-    const pending = ordersWithStats.filter(o => o.status === 'PENDING').length
-    const processing = ordersWithStats.filter(o => o.status === 'PROCESSING').length
-    const shipped = ordersWithStats.filter(o => o.status === 'SHIPPED').length
+    const revenue = ordersWithStats.reduce((sum: any, o: any) => sum + (o.total || 0), 0)
+    const pending = ordersWithStats.filter((o: any) => o.status === 'PENDING').length
+    const processing = ordersWithStats.filter((o: any) => o.status === 'PROCESSING').length
+    const shipped = ordersWithStats.filter((o: any) => o.status === 'SHIPPED').length
 
     const recentOrders = await prisma.order.findMany({
       take: 5,
@@ -50,18 +50,18 @@ export async function GET() {
     })
 
     // Transform recentOrders to expected format
-    const formattedOrders = recentOrders.map(o => ({
+    const formattedOrders = recentOrders.map((o: any) => ({
       id: o.id,
       orderNumber: o.orderNumber,
       customer: o.user?.name || 'Unknown',
-      items: o.orderItems.reduce((sum, i) => sum + i.quantity, 0),
+      items: o.orderItems.reduce((sum: any, i: any) => sum + i.quantity, 0),
       total: o.total,
       status: o.status,
       createdAt: o.createdAt.toISOString(),
     }))
 
     // Transform to TopProduct format
-    const topProducts = recentProducts.map(p => {
+    const topProducts = recentProducts.map((p: any) => {
       const images = parseProductImages(p.images || '')
       return {
         id: p.id,

@@ -66,7 +66,7 @@ export async function getShippingRatesForCountry(countryCode: string): Promise<S
       return []
     }
 
-    return rates.map(rate => ({
+    return rates.map((rate: any) => ({
       id: rate.id,
       methodId: rate.methodId || '',
       name: rate.method?.name || 'Standard',
@@ -109,7 +109,7 @@ export async function calculateShippingOptions(
       return []
     }
 
-    return rates.map(rate => {
+    return rates.map((rate: any) => {
       // Weight constraints
       if (rate.minWeight > 0 && totalWeight < rate.minWeight) {
         return {
