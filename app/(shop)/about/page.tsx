@@ -5,6 +5,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { CartDrawer } from '@/components/shop/CartDrawer'
 import { FloatingButtons } from '@/components/layout/FloatingButtons'
+import { sanitizeHTML } from '@/lib/sanitize'
 
 interface SiteContent {
   section: string
@@ -71,7 +72,7 @@ export default function AboutPage() {
             {/* About Content */}
             <div className="prose prose-lg max-w-none">
               {sc('about_content')?.content ? (
-                <div dangerouslySetInnerHTML={{ __html: sc('about_content')?.content || '' }} />
+                <div dangerouslySetInnerHTML={{ __html: sanitizeHTML(sc('about_content')?.content || '') }} />
               ) : (
                 <div className="text-center py-12">
                   <p className="text-joy-gray-500 mb-4">
@@ -92,7 +93,7 @@ export default function AboutPage() {
                 </h2>
                 <div className="prose max-w-none text-joy-gray-600">
                   {sc('about_story')?.content && (
-                    <div dangerouslySetInnerHTML={{ __html: sc('about_story')?.content || '' }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHTML(sc('about_story')?.content || '') }} />
                   )}
                 </div>
               </div>

@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
 import { SHIPPING_ZONES } from '@/lib/shipping-zones'
+import { sanitizeHTML } from '@/lib/sanitize'
 
 interface SiteContent {
   id: string; section: string; title: string | null; subtitle: string | null; content: string | null; isActive: boolean; sortOrder: number
@@ -91,14 +92,22 @@ export default function AdminSettingsPage() {
 
   useEffect(() => {
     const token = localStorage.getItem('token')
-    const userStr = localStorage.getItem('user')
-    if (!token || !userStr) { router.push('/login'); return }
-    try {
-      const user = JSON.parse(userStr)
-      if (user.role !== 'ADMIN') { router.push('/login'); return }
-      setIsAdmin(true)
-    } catch { router.push('/login') }
-    setIsLoading(false)
+    if (!token) { router.push('/login'); return }
+
+    // Verify token and role server-side — not spoofable like localStorage
+    fetch('/api/admin/me', {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((res) => {
+        if (!res.ok) throw new Error('Not admin')
+        return res.json()
+      })
+      .then((data) => {
+        if (data.data?.role !== 'ADMIN') throw new Error('Not admin')
+        setIsAdmin(true)
+      })
+      .catch(() => router.push('/login'))
+      .finally(() => setIsLoading(false))
   }, [router])
 
   useEffect(() => {
@@ -1405,7 +1414,7 @@ export default function AdminSettingsPage() {
                   <div className="mt-4">
                     <h4 className="text-sm font-medium text-joy-gray-700 mb-2">Preview:</h4>
                     <div className="border rounded-xl p-4 bg-white">
-                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: pageForm.content }} />
+                      <div className="prose prose-sm max-w-none" dangerouslySetInnerHTML={{ __html: sanitizeHTML(pageForm.content) }} />
                     </div>
                   </div>
                 )}

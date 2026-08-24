@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { SignJWT } from 'jose'
+import { checkRateLimit, getClientKey } from '@/lib/rateLimit'
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is not set')
@@ -9,6 +10,22 @@ if (!process.env.JWT_SECRET) {
 const JWT_SECRET = new TextEncoder().encode(process.env.JWT_SECRET)
 
 export async function POST(request: Request) {
+  // Rate limit by client IP
+  const clientKey = getClientKey(request)
+  const { allowed, remaining, retryAfterMs } = checkRateLimit(clientKey)
+  if (!allowed) {
+    return NextResponse.json(
+      { success: false, error: 'Too many attempts. Please try again later.' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': String(Math.ceil(retryAfterMs / 1000)),
+          'X-RateLimit-Remaining': '0',
+        },
+      }
+    )
+  }
+
   try {
     const { action, email, password, name } = await request.json()
 

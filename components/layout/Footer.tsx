@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Icons } from '@/components/ui/Icons'
+import { sanitizeHTML } from '@/lib/sanitize'
 import { useLocale } from '@/lib/translation/client'
 
 const defaultTrustBadges = [
@@ -216,7 +217,7 @@ export function Footer() {
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div 
               className="text-sm text-joy-gray-400 text-center md:text-left"
-              dangerouslySetInnerHTML={{ __html: footerSettings.copyright || defaultFooterSettings.copyright }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHTML(footerSettings.copyright || defaultFooterSettings.copyright) }}
             />
             {(footerSettings.contact?.email || footerSettings.contact?.phone) && (
               <div className="flex items-center gap-4 text-sm text-joy-gray-400">

@@ -10,6 +10,7 @@ import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
 import Link from 'next/link'
 import Image from 'next/image'
+import { sanitizeHTML } from '@/lib/sanitize'
 
 interface CustomPage {
   id: string
@@ -150,7 +151,7 @@ export default function InfoPage() {
             <div className={page.template === 'sidebar' ? 'lg:w-2/3' : 'w-full'}>
               <div 
                 className="prose prose-lg max-w-none"
-                dangerouslySetInnerHTML={{ __html: page.content }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHTML(page.content) }}
               />
             </div>
 
