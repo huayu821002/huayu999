@@ -1,11 +1,10 @@
 import type { Metadata } from 'next'
 
-const BASE_URL = 'https://huayu-ebon.vercel.app'
-
 async function getSeoSettings() {
   try {
-    const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || BASE_URL}/api/site/seo`, {
-      next: { revalidate: 3600 }
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://fiestaflare.com'
+    const res = await fetch(`${baseUrl}/api/site/seo`, {
+      cache: 'no-store'
     })
     const data = await res.json()
     return data.data || {}
