@@ -1,8 +1,10 @@
 import { MetadataRoute } from 'next'
 import { prisma } from '@/lib/prisma'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'
+
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const baseUrl = 'https://huayu-ebon.vercel.app'
+  const baseUrl = SITE_URL
 
   // Static pages
   const staticPages: MetadataRoute.Sitemap = [

@@ -302,7 +302,7 @@ export default function ProductDetailPage() {
       />
 
       <main className="pt-[calc(4rem+36px)]">
-        <link rel="canonical" href={`https://huayu-ebon.vercel.app/products/${product.slug}`} />
+        <link rel="canonical" href={`${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products/${product.slug}`} />
 
         {/* Breadcrumb */}
         <div className="max-w-7xl mx-auto px-4 py-4">
@@ -778,7 +778,7 @@ export default function ProductDetailPage() {
             description: product.shortDesc || product.description?.substring(0, 200) || '',
             sku: product.sku || product.id,
             image: images[0] || '',
-            url: `https://huayu-ebon.vercel.app/products/${product.slug}`,
+            url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products/${product.slug}`,
             offers: {
               '@type': 'Offer',
               price: product.price?.toFixed(2) || '0.00',

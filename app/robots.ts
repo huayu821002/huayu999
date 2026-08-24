@@ -1,5 +1,7 @@
 import { MetadataRoute } from 'next'
 
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'
+
 export default function robots(): MetadataRoute.Robots {
   return {
     rules: {
@@ -7,6 +9,6 @@ export default function robots(): MetadataRoute.Robots {
       allow: '/',
       disallow: ['/api/', '/admin/', '/checkout/', '/account/'],
     },
-    sitemap: 'https://huayu-ebon.vercel.app/sitemap.xml',
+    sitemap: `${SITE_URL}/sitemap.xml`,
   }
 }
