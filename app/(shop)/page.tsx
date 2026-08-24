@@ -44,13 +44,25 @@ const defaultHeaderSettings = {
   ]
 }
 
+// 通过 API 获取 header 设置（避免 Prisma 直查缓存问题）
+async function fetchHeaderSettings() {
+  try {
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://fiestaflare.com'
+    const res = await fetch(`${baseUrl}/api/site/header-footer`, { cache: 'no-store' })
+    const data = await res.json()
+    return data.data?.header || defaultHeaderSettings
+  } catch {
+    return defaultHeaderSettings
+  }
+}
+
 // 并行获取所有首页数据
 async function getHomePageData() {
   const thirtyDaysAgo = new Date()
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30)
 
-  // 并行执行所有查询，每个都限制返回数量
-  const [featuredProducts, newArrivalProducts, allProductsLimited, categoriesSetting, trustBadgesSetting, headerFooterSetting, bannersSetting] = await Promise.all([
+  // 并行执行所有查询
+  const [featuredProducts, newArrivalProducts, allProductsLimited, categoriesSetting, trustBadgesSetting, bannersSetting] = await Promise.all([
     // 精选产品
     prisma.product.findMany({
       where: { isFeatured: true, isActive: true },
@@ -77,9 +89,11 @@ async function getHomePageData() {
     }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_categories' } }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_trust_badges' } }),
-    prisma.siteSetting.findUnique({ where: { key: 'header_settings' } }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_banners' } }),
   ])
+
+  // 通过 API 获取 header 设置（不走 Prisma 缓存）
+  const headerSettings = await fetchHeaderSettings()
 
   // 解析分类数据
   let categories = defaultCategories
@@ -118,14 +132,7 @@ async function getHomePageData() {
   const displayProductsWithSold = displayProducts.map(addSoldCount)
   const newArrivalProductsWithSold = newArrivalProducts.map(addSoldCount)
 
-  // 解析 header 设置
-  let headerSettings = defaultHeaderSettings
-  if (headerFooterSetting?.value) {
-    try {
-      const parsed = JSON.parse(headerFooterSetting.value)
-      if (parsed.header) headerSettings = parsed.header
-    } catch {}
-  }
+
 
   // 解析 banners
   let banners: any[] = []
