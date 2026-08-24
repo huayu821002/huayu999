@@ -226,7 +226,7 @@ export function Header({ initialSettings }: HeaderProps) {
             {/* Dropdown results */}
             {showDropdown && (
               <div className="max-w-3xl mx-auto px-4 pb-4">
-                <div className="bg-white rounded-2xl shadow-xl border border-joy-gray-100 overflow-hidden max-h-[60vh] overflow-y-auto">
+                <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-joy-gray-200 overflow-hidden max-h-[65vh] overflow-y-auto">
 
                   {/* Hot Keywords — shown when no query */}
                   {!query && (
@@ -264,6 +264,23 @@ export function Header({ initialSettings }: HeaderProps) {
                           </button>
                         ))}
                       </div>
+                    </div>
+                  )}
+
+                  {/* No Results */}
+                  {query.length >= 2 && !isLoading && !hasResults && (
+                    <div className="p-8 text-center">
+                      <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-joy-gray-100 flex items-center justify-center">
+                        <Icons.Search size={20} className="text-joy-gray-400" />
+                      </div>
+                      <p className="font-semibold text-joy-gray-700 mb-1">No results found</p>
+                      <p className="text-sm text-joy-gray-400 mb-4">Try different keywords or browse our categories</p>
+                      <button
+                        onClick={() => { setShowDropdown(false); router.push(`/products?search=${encodeURIComponent(query)}`); setSearchOpen(false) }}
+                        className="px-4 py-2 bg-joy-orange/10 hover:bg-joy-orange/20 text-joy-orange text-sm font-medium rounded-xl transition-colors"
+                      >
+                        View all results for &quot;{query}&quot;
+                      </button>
                     </div>
                   )}
 
