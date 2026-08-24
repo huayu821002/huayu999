@@ -129,7 +129,7 @@ async function getHomePageData() {
     },
     _sum: { quantity: true },
   })
-  const soldCountMap = new Map(soldCounts.map(s => [s.productId, s._sum.quantity || 0]))
+  const soldCountMap = new Map(soldCounts.map((s: any) => [s.productId, s._sum.quantity || 0]))
 
   const addSoldCount = (p: any) => ({ ...p, soldCount: soldCountMap.get(p.id) || 0 })
   const displayProductsWithSold = displayProducts.map(addSoldCount)
@@ -256,7 +256,7 @@ export default async function ShopHomePage() {
               </h2>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {categories.map((cat) => (
+              {categories.map((cat: any) => (
                 <Link key={cat.id} href={`/products?category=${cat.slug}`} className="group relative rounded-2xl overflow-hidden aspect-[4/3]">
                   <Image src={cat.image} alt={cat.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
