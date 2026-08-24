@@ -108,7 +108,7 @@ export default function AdminSettingsPage() {
     if (activeTab === 'shipping') { fetchShippingTemplates(); fetchShippingRates() }
     if (activeTab === 'payments') fetchPaymentSettings()
     if (activeTab === 'custom_pages') fetchCustomPages()
-    if (activeTab === 'header_footer') fetchHeaderFooter()
+    if (activeTab === 'header_footer') { fetchHeaderFooter(); fetchHomepageCategories() }
     if (activeTab === 'seo') fetchSeoSettings()
     if (activeTab === 'homepage') {
       fetchHomepageCategories()
@@ -209,10 +209,26 @@ export default function AdminSettingsPage() {
 
   const fetchHomepageCategories = async () => {
     try {
-      const res = await fetch('/api/admin/categories')
+      const res = await fetch('/api/admin/settings')
       const data = await res.json()
       if (data.success && data.data) {
-        setHomepageCategoryForm(data.data)
+        const catsSetting = data.data.find((s: any) => s.key === 'homepage_categories')
+        if (catsSetting?.value) {
+          try {
+            const parsed = JSON.parse(catsSetting.value)
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setHomepageCategoryForm(parsed)
+              return
+            }
+          } catch {}
+        }
+        // Fallback to default if no saved data
+        setHomepageCategoryForm([
+          { id: 'cat-1', name: 'Accessories', slug: 'accessories', image: '' },
+          { id: 'cat-2', name: 'Pet Supplies', slug: 'pet-supplies', image: '' },
+          { id: 'cat-3', name: 'Home Decor', slug: 'home-decor', image: '' },
+          { id: 'cat-4', name: 'Gifts', slug: 'gifts', image: '' },
+        ])
       }
     } catch (err) { console.error(err) }
   }
@@ -227,6 +243,7 @@ export default function AdminSettingsPage() {
       })
       if (res.ok) {
         alert('Categories saved successfully!')
+        fetchHomepageCategories()
       } else {
         alert('Failed to save categories')
       }
@@ -613,22 +630,26 @@ export default function AdminSettingsPage() {
                 <div className="space-y-4">
                   {homepageCategoryForm.map((cat, idx) => (
                     <div key={cat.id} className="border border-joy-gray-200 rounded-xl p-4">
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                        <div>
-                          <label className="block text-sm font-medium text-joy-gray-700 mb-1">Name</label>
-                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.name} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].name = e.target.value; setHomepageCategoryForm(updated); }} placeholder="Category name" />
+                      <div className="flex items-start gap-3">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 flex-1">
+                          <div>
+                            <label className="block text-sm font-medium text-joy-gray-700 mb-1">Name</label>
+                            <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.name} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].name = e.target.value; setHomepageCategoryForm(updated); }} placeholder="Category name" />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-joy-gray-700 mb-1">Link URL</label>
+                            <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.slug} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].slug = e.target.value; setHomepageCategoryForm(updated); }} placeholder="/products or https://..." />
+                          </div>
+                          <div>
+                            <label className="block text-sm font-medium text-joy-gray-700 mb-1">Image URL</label>
+                            <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.image} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].image = e.target.value; setHomepageCategoryForm(updated); }} placeholder="https://images.unsplash.com/..." />
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-sm font-medium text-joy-gray-700 mb-1">Link URL</label>
-                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.slug} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].slug = e.target.value; setHomepageCategoryForm(updated); }} placeholder="/products or https://..." />
-                        </div>
-                        <div className="lg:col-span-2">
-                          <label className="block text-sm font-medium text-joy-gray-700 mb-1">Image URL</label>
-                          <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.image} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].image = e.target.value; setHomepageCategoryForm(updated); }} placeholder="https://images.unsplash.com/..." />
-                        </div>
+                        <button onClick={() => { const updated = homepageCategoryForm.filter((_, i) => i !== idx); setHomepageCategoryForm(updated); }} className="mt-7 p-2 hover:bg-red-50 rounded-lg text-red-400" title="Delete category"><Icons.Trash2 size={18} /></button>
                       </div>
                     </div>
                   ))}
+                  <button onClick={() => setHomepageCategoryForm([...homepageCategoryForm, { id: `cat-${Date.now()}`, name: '', slug: '', image: '' }])} className="w-full py-3 border-2 border-dashed border-joy-gray-300 rounded-xl text-sm text-joy-gray-500 hover:border-joy-orange hover:text-joy-orange flex items-center justify-center gap-2"><Icons.Plus size={18} />Add Category</button>
                 </div>
               </div>
 
@@ -1099,6 +1120,43 @@ export default function AdminSettingsPage() {
                     </div>
                   </div>
                 </div>
+              </div>
+
+              {/* Shop by Category Section */}
+              <div className="bg-white rounded-2xl shadow-sm p-6">
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2 flex items-center gap-2"><Icons.Image size={20} className="text-joy-orange" />Shop by Category</h2>
+                <p className="text-sm text-joy-gray-500 mb-6">Edit homepage category cards (image, name, link)</p>
+
+                <div className="space-y-4 mb-4">
+                  {homepageCategoryForm.map((cat: any, idx: number) => (
+                    <div key={cat.id} className="border border-joy-gray-200 rounded-xl p-4">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-xs font-medium text-joy-gray-500 mb-1">Name</label>
+                              <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.name} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].name = e.target.value; setHomepageCategoryForm(updated); }} placeholder="Category name" />
+                            </div>
+                            <div>
+                              <label className="block text-xs font-medium text-joy-gray-500 mb-1">Slug</label>
+                              <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.slug} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].slug = e.target.value; setHomepageCategoryForm(updated); }} placeholder="e.g. accessories" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-xs font-medium text-joy-gray-500 mb-1">Image URL</label>
+                            <input type="text" className="w-full px-3 py-2 rounded-lg border border-joy-gray-200 text-sm" value={cat.image} onChange={e => { const updated = [...homepageCategoryForm]; updated[idx].image = e.target.value; setHomepageCategoryForm(updated); }} placeholder="https://images.unsplash.com/..." />
+                          </div>
+                        </div>
+                        <button onClick={() => { const updated = homepageCategoryForm.filter((_: any, i: number) => i !== idx); setHomepageCategoryForm(updated); }} className="mt-6 p-2 hover:bg-red-50 rounded-lg text-red-400" title="Delete category"><Icons.Trash2 size={18} /></button>
+                      </div>
+                    </div>
+                  ))}
+                  <button onClick={() => setHomepageCategoryForm([...homepageCategoryForm, { id: `cat-${Date.now()}`, name: '', slug: '', image: '' }])} className="w-full py-3 border-2 border-dashed border-joy-gray-300 rounded-xl text-sm text-joy-gray-500 hover:border-joy-orange hover:text-joy-orange flex items-center justify-center gap-2"><Icons.Plus size={18} />Add Category</button>
+                </div>
+
+                <button onClick={saveCategories} disabled={isSaving} className="w-full py-3 bg-joy-orange text-white rounded-xl font-semibold hover:bg-joy-orange/90 transition-colors disabled:opacity-50">
+                  {isSaving ? 'Saving...' : 'Save Categories'}
+                </button>
               </div>
 
               {/* Footer Section */}
