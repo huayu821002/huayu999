@@ -169,8 +169,8 @@ export default async function ShopHomePage() {
             '@context': 'https://schema.org',
             '@type': 'Organization',
             name: 'Huayu Wholesale',
-            url: 'https://huayu-ebon.vercel.app',
-            logo: 'https://huayu-ebon.vercel.app/logo.png',
+            url: process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com',
+            logo: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/logo.png`,
             description: 'B2B small wholesale platform for accessories, pet supplies, creative gifts, and home décor.',
             contactPoint: {
               '@type': 'ContactPoint',

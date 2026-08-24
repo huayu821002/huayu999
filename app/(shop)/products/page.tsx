@@ -356,7 +356,7 @@ function ProductsContent() {
 
   return (
     <>
-      <link rel="canonical" href="https://huayu-ebon.vercel.app/products" />
+      <link rel="canonical" href={`${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products`} />
 
       {/* Page Header */}
       <div className="bg-joy-gray-50 border-b border-joy-gray-100">
@@ -382,7 +382,7 @@ function ProductsContent() {
           '@type': 'CollectionPage',
           name: 'Huayu Wholesale Products',
           description: 'Wholesale products including accessories, pet supplies, home decor and gifts.',
-          url: 'https://huayu-ebon.vercel.app/products',
+          url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products`,
         })
       }} />
 
