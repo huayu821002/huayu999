@@ -115,7 +115,7 @@ export function Header({ initialSettings }: HeaderProps) {
     if (q.length < 2) { setSuggestions(null); return }
     setIsLoading(true)
     try {
-      const res = await fetch(`/api/site/search/suggestions?q=${encodeURIComponent(q)}`)
+      const res = await fetch(`/api/site/search/suggestions?q=${encodeURIComponent(q)}&t=${Date.now()}`)
       const data = await res.json()
       if (data.success) setSuggestions(data.data)
     } catch { setSuggestions(null) }
@@ -177,7 +177,7 @@ export function Header({ initialSettings }: HeaderProps) {
 
         {/* Search bar slides down from top */}
         <div className="fixed top-0 left-0 right-0 z-[101] animate-in slide-in-from-top duration-300">
-          <div className="bg-white border-b border-joy-gray-200 shadow-2xl">
+          <div className="bg-joy-gray-50 border-b border-joy-gray-200 shadow-2xl">
             <div className="max-w-3xl mx-auto px-4 py-4">
               <form onSubmit={handleSearchSubmit} className="flex items-center gap-3">
                 <div className="relative flex-1 flex items-center bg-joy-gray-50 rounded-2xl border-2 border-joy-orange/40 focus-within:border-joy-orange transition-colors overflow-hidden">
@@ -226,7 +226,7 @@ export function Header({ initialSettings }: HeaderProps) {
             {/* Dropdown results */}
             {showDropdown && (
               <div className="max-w-3xl mx-auto px-4 pb-4">
-                <div className="bg-white/95 backdrop-blur-md rounded-2xl shadow-2xl border border-joy-gray-200 overflow-hidden max-h-[65vh] overflow-y-auto">
+                <div className="bg-white rounded-2xl shadow-2xl border border-joy-gray-200 overflow-hidden max-h-[65vh] overflow-y-auto">
 
                   {/* Hot Keywords — shown when no query */}
                   {!query && (
