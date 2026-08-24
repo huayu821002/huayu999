@@ -1,11 +1,16 @@
-import { jwtVerify, createRemoteJWKSet } from 'jose'
+import { jwtVerify, SignJWT } from 'jose'
 
-const JWT_SECRET = process.env.JWT_SECRET || 'joyhub-wholesale-secret-key-change-in-production-2024'
+function getJwtSecret() {
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error('JWT_SECRET environment variable is not set')
+  }
+  return new TextEncoder().encode(secret)
+}
 
-// For HS256 tokens (simple secret)
 export async function verifyToken(token: string): Promise<{ userId: string; email: string; role: string } | null> {
   try {
-    const secret = new TextEncoder().encode(JWT_SECRET)
+    const secret = getJwtSecret()
     const { payload } = await jwtVerify(token, secret)
     return payload as { userId: string; email: string; role: string }
   } catch {
@@ -16,17 +21,17 @@ export async function verifyToken(token: string): Promise<{ userId: string; emai
 // Check if user is admin from localStorage token
 export async function checkAdmin(): Promise<boolean> {
   if (typeof window === 'undefined') return false
-  
+
   const token = localStorage.getItem('token')
   if (!token) return false
-  
+
   const user = localStorage.getItem('user')
   if (!user) return false
-  
+
   try {
     const userData = JSON.parse(user)
     if (userData.role !== 'ADMIN') return false
-    
+
     // Verify token is still valid
     const payload = await verifyToken(token)
     return payload !== null && payload.role === 'ADMIN'

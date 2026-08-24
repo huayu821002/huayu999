@@ -9,7 +9,10 @@ async function verifyAdminToken(request: NextRequest): Promise<boolean> {
   if (!authHeader?.startsWith('Bearer ')) return false
 
   const token = authHeader.slice(7)
-  const JWT_SECRET = process.env.JWT_SECRET || 'joyhub-wholesale-secret-key-change-in-production-2024'
+  const JWT_SECRET = process.env.JWT_SECRET
+
+  // No fallback — reject if not configured
+  if (!JWT_SECRET) return false
 
   try {
     const secret = new TextEncoder().encode(JWT_SECRET)
