@@ -1,38 +1,61 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { jwtVerify } from 'jose'
 
 const LOCALE_COOKIE = 'NEXT_LOCALE'
 
-export function middleware(request: NextRequest) {
-  const hostname = request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
-  
-  // Extract subdomain (br.fiestaflare.com -> br, ru.fiestaflare.com -> ru)
-  const subdomain = hostname.split('.')[0]
-  
-  const localeMap: Record<string, string> = {
-    br: 'pt',
-    ru: 'ru',
+async function verifyAdminToken(request: NextRequest): Promise<boolean> {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader?.startsWith('Bearer ')) return false
+
+  const token = authHeader.slice(7)
+  const JWT_SECRET = process.env.JWT_SECRET || 'joyhub-wholesale-secret-key-change-in-production-2024'
+
+  try {
+    const secret = new TextEncoder().encode(JWT_SECRET)
+    const { payload } = await jwtVerify(token, secret)
+    return payload.role === 'ADMIN'
+  } catch {
+    return false
   }
-  
+}
+
+export async function middleware(request: NextRequest) {
+  const { pathname } = request.nextUrl
+
+  // Admin route protection
+  if (pathname.startsWith('/api/admin')) {
+    const isAdmin = await verifyAdminToken(request)
+    if (!isAdmin) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Admin access required' },
+        { status: 401 }
+      )
+    }
+  }
+
+  // Locale detection
+  const hostname = request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
+  const subdomain = hostname.split('.')[0]
+  const localeMap: Record<string, string> = { br: 'pt', ru: 'ru' }
   const detectedLocale = localeMap[subdomain]
-  
+
   if (detectedLocale) {
-    // Set cookie for server components to read
     const response = NextResponse.next()
     response.cookies.set(LOCALE_COOKIE, detectedLocale, {
       path: '/',
-      maxAge: 60 * 60 * 24 * 30, // 30 days
+      maxAge: 60 * 60 * 24 * 30,
       sameSite: 'lax',
     })
     return response
   }
-  
+
   return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    // Match all paths except static files and api routes
-    '/((?!_next/static|_next/image|favicon.ico|api/).*)',
+    '/api/admin/:path*',
+    '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }
