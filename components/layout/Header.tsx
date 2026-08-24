@@ -7,6 +7,7 @@ import { cn } from '@/lib/utils'
 import { useCartStore, useUIStore, useUserStore } from '@/lib/store'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { parseProductImages } from '@/lib/imageUtils'
+import { sanitizeHTML } from '@/lib/sanitize'
 import { Icons } from '@/components/ui/Icons'
 import type { Currency } from '@/types'
 
@@ -337,7 +338,7 @@ export function Header({ initialSettings }: HeaderProps) {
       {headerSettings.promoBanner?.enabled && (
         <div
           className="bg-gradient-to-r from-joy-orange via-joy-pink to-joy-green text-white text-center py-2 text-sm font-medium"
-          dangerouslySetInnerHTML={{ __html: headerSettings.promoBanner?.text || '' }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHTML(headerSettings.promoBanner?.text || '') }}
         />
       )}
 

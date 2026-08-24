@@ -7,6 +7,7 @@ import { CartDrawer } from '@/components/shop/CartDrawer'
 import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
+import { sanitizeHTML } from '@/lib/sanitize'
 
 interface SiteContent {
   section: string
@@ -270,7 +271,7 @@ export default function ContactPage() {
                 {/* Custom HTML Content */}
                 {sc('contact_extra')?.content && (
                   <div className="mt-8 pt-8 border-t border-joy-gray-100">
-                    <div dangerouslySetInnerHTML={{ __html: sc('contact_extra')!.content! }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHTML(sc('contact_extra')!.content!) }} />
                   </div>
                 )}
               </div>
