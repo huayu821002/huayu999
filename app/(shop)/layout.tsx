@@ -1,4 +1,5 @@
 import type { Metadata } from 'next'
+import { ClientLayout } from '@/components/home/ClientLayout'
 
 async function getSeoSettings() {
   try {
@@ -48,5 +49,5 @@ export default async function ShopLayout({
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return <ClientLayout>{children}</ClientLayout>
 }

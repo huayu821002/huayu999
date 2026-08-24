@@ -10,6 +10,7 @@ import { CartDrawer } from '@/components/shop/CartDrawer'
 import { SubscribeModal } from '@/components/shop/SubscribeModal'
 import { ProductCard } from '@/components/shop/ProductCard'
 import { HeroCarousel } from '@/components/home/HeroCarousel'
+import { HeroSearchBar } from '@/components/home/HeroSearchBar'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import type { Product } from '@/types'
@@ -183,6 +184,11 @@ export default async function ShopHomePage() {
 
         {/* Hero Carousel */}
         <HeroCarousel initialBanners={banners} />
+
+        {/* Hero Search Bar */}
+        <section className="py-8 px-4 bg-gradient-to-b from-white to-joy-gray-50">
+          <HeroSearchBar />
+        </section>
 
         {/* Trust Badges */}
         <section className="bg-joy-gray-50 py-8 border-b">
