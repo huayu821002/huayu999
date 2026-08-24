@@ -16,7 +16,7 @@ export async function GET() {
     ]
 
     // Create CSV rows
-    const rows = products.map(p => [
+    const rows = products.map((p: any) => [
       p.name,
       p.slug,
       p.sku || '',
@@ -34,7 +34,7 @@ export async function GET() {
     // Build CSV content
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...rows.map((row: any) => row.map((cell: any) => `"${cell}"`).join(','))
     ].join('\n')
 
     return new NextResponse(csvContent, {

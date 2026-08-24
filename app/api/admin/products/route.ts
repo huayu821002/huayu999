@@ -35,8 +35,8 @@ export async function GET(request: Request) {
     }
 
     // Merge category data manually
-    const categoryMap = new Map(categories.map(c => [c.id, c]))
-    const productsWithCategory = products.map(p => ({
+    const categoryMap = new Map(categories.map((c: any) => [c.id, c]))
+    const productsWithCategory = products.map((p: any) => ({
       ...p,
       category: p.categoryId ? categoryMap.get(p.categoryId) || null : null
     }))
