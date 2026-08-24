@@ -153,14 +153,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo Credentials */}
-          {mode === 'login' && (
-            <div className="mt-6 p-4 bg-joy-orange/10 rounded-xl">
-              <p className="text-sm font-medium text-joy-orange mb-2">Demo Admin Account:</p>
-              <p className="text-xs text-joy-gray-600">Email: admin@fiestaflare.com</p>
-              <p className="text-xs text-joy-gray-600">Password: admin123</p>
-            </div>
-          )}
+
         </div>
 
         {/* Register Link */}
