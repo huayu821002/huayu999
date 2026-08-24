@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
         id: true,
         name: true,
         price: true,
-        compareAtPrice: true,
+        comparePrice: true,
         images: true,
         slug: true,
         category: { select: { name: true, slug: true } },
