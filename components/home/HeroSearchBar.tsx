@@ -5,6 +5,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
 import { Icons } from '@/components/ui/Icons'
+import { parseProductImages } from '@/lib/imageUtils'
 
 interface SuggestionProduct {
   id: string
@@ -97,16 +98,8 @@ export function HeroSearchBar() {
   }
 
   const getImage = (images: string | string[] | undefined) => {
-    if (!images) return '/placeholder.png'
-    if (Array.isArray(images)) {
-      try {
-        const parsed = JSON.parse(images[0])
-        return parsed.url || images[0]
-      } catch {
-        return images[0]
-      }
-    }
-    return images
+    const arr = parseProductImages(images)
+    return arr[0] || '/placeholder.png'
   }
 
   const hasResults = suggestions && (

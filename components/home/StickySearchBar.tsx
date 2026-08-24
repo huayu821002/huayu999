@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter, usePathname } from 'next/navigation'
 import { Icons } from '@/components/ui/Icons'
+import { parseProductImages } from '@/lib/imageUtils'
 
 export function StickySearchBar() {
   const router = useRouter()
@@ -133,7 +134,7 @@ export function StickySearchBar() {
                         className="w-full flex items-center gap-2.5 p-2 rounded-lg hover:bg-joy-gray-50 transition-colors text-left"
                       >
                         <div className="w-8 h-8 rounded-lg bg-joy-gray-100 overflow-hidden flex-shrink-0">
-                          {p.images && <img src={JSON.parse(p.images)[0]} alt={p.name} className="w-full h-full object-cover" />}
+                          {p.images && <img src={parseProductImages(p.images)[0]} alt={p.name} className="w-full h-full object-cover" />}
                         </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-joy-gray-700 truncate">{p.name}</p>
