@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { verifyToken } from '@/lib/auth'
 
 interface ScrapedProduct {
   title: string
@@ -12,6 +13,18 @@ interface ScrapedProduct {
 
 export async function POST(request: Request) {
   try {
+    // 验证用户身份 — 需要 admin
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const token = authHeader.slice(7)
+    const user = await verifyToken(token)
+    if (!user || user.role !== 'ADMIN') {
+      return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+    }
+
     const { url } = await request.json()
 
     if (!url) {
