@@ -314,6 +314,7 @@ export default function AdminProductsPage() {
               </label>
               <Button variant="secondary" onClick={() => window.open('/api/admin/products/import', '_blank')}><Icons.Download size={18} className="mr-2" />Export CSV</Button>
               <Button variant="secondary" onClick={() => setShowScraperModal(true)}><Icons.Globe size={18} className="mr-2" />Scrape Product</Button>
+              <Button variant="secondary" onClick={() => router.push('/admin/products/import')}><Icons.Link size={18} className="mr-2" />Import URLs</Button>
               <Button onClick={openAdd}><Icons.Plus size={18} className="mr-2" />Add Product</Button>
             </div>
           </div>
