@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { prisma } from '@/lib/prisma'
 
 // 支持的平台
 const SUPPORTED_PLATFORMS = {
@@ -46,6 +45,15 @@ async function parseProductUrl(url: string) {
     // 解析商品信息
     const product = parseHtml(html, url, platform)
     
+    // 如果主要字段为空，尝试平台特定解析
+    if (!product.name || !product.price) {
+      const platformData = parsePlatformSpecific(html, url, platform)
+      product.name = product.name || platformData.name
+      product.price = product.price || platformData.price
+      product.images = product.images.length > 0 ? product.images : platformData.images
+      product.description = product.description || platformData.description
+    }
+    
     return {
       url,
       platform,
@@ -57,7 +65,7 @@ async function parseProductUrl(url: string) {
   }
 }
 
-// 解析HTML获取商品数据
+// 解析HTML获取商品数据（通用）
 function parseHtml(html: string, url: string, platform: string) {
   const result: any = {
     name: '',
@@ -70,27 +78,65 @@ function parseHtml(html: string, url: string, platform: string) {
     platform,
   }
   
-  // 尝试从 JSON-LD 获取数据
-  const jsonLdMatch = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/i)
-  if (jsonLdMatch) {
-    try {
-      const jsonLd = JSON.parse(jsonLdMatch[1])
-      if (jsonLd.name) result.name = jsonLd.name
-      if (jsonLd.description) result.description = jsonLd.description
-      if (jsonLd.offers?.price) {
-        result.price = jsonLd.offers.price
-        result.currency = jsonLd.offers.priceCurrency || 'USD'
-      }
-      if (jsonLd.image) {
-        result.images = Array.isArray(jsonLd.image) ? jsonLd.image : [jsonLd.image]
-      }
-    } catch {}
+  // 1. 尝试从 JSON-LD 获取数据（支持多个JSON-LD块）
+  const jsonLdMatches = html.match(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi)
+  if (jsonLdMatches) {
+    for (const match of jsonLdMatches) {
+      try {
+        const jsonContent = match.replace(/<script[^>]*type=["']application\/ld\+json["'][^>]*>/i, '').replace(/<\/script>/i, '')
+        const jsonLd = JSON.parse(jsonContent)
+        
+        // 查找 Product 类型
+        if (jsonLd['@type'] === 'Product' || jsonLd['@type'] === 'IndividualProduct') {
+          if (jsonLd.name) result.name = jsonLd.name
+          if (jsonLd.description) result.description = jsonLd.description
+          if (jsonLd.offers) {
+            const offers = Array.isArray(jsonLd.offers) ? jsonLd.offers[0] : jsonLd.offers
+            if (offers.price) result.price = offers.price
+            if (offers.priceCurrency) result.currency = offers.priceCurrency
+          }
+          if (jsonLd.image) {
+            result.images = Array.isArray(jsonLd.image) ? jsonLd.image : [jsonLd.image]
+          }
+          if (jsonLd.sku) result.sku = jsonLd.sku
+        }
+        
+        // 遍历 JSON-LD 查找有用字段
+        const findInObject = (obj: any) => {
+          if (!obj) return
+          if (obj.name && !result.name) result.name = obj.name
+          if (obj.description && !result.description) result.description = obj.description
+          if (obj.price && !result.price) result.price = String(obj.price)
+          if (obj.priceCurrency && !result.price) result.currency = obj.priceCurrency
+          if (obj.image && result.images.length === 0) {
+            result.images = Array.isArray(obj.image) ? obj.image : [obj.image]
+          }
+          if (obj.sku && !result.sku) result.sku = obj.sku
+        }
+        findInObject(jsonLd)
+        
+        // 如果是数组，遍历查找
+        if (Array.isArray(jsonLd)) {
+          for (const item of jsonLd) {
+            findInObject(item)
+          }
+        }
+      } catch {}
+    }
   }
   
-  // 从 meta og: 标签获取
+  // 2. 从 meta og: 标签获取
   const ogTitleMatch = html.match(/<meta[^>]+property=["']og:title["'][^>]+content=["']([^"']+)["']/i)
   if (!result.name && ogTitleMatch) {
     result.name = decodeHtmlEntities(ogTitleMatch[1])
+  }
+  
+  // 兼容 title 标签
+  if (!result.name) {
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i)
+    if (titleMatch) {
+      result.name = decodeHtmlEntities(titleMatch[1]).split('|')[0].split('-')[0].trim()
+    }
   }
   
   const ogDescMatch = html.match(/<meta[^>]+property=["']og:description["'][^>]+content=["']([^"']+)["']/i)
@@ -99,27 +145,107 @@ function parseHtml(html: string, url: string, platform: string) {
   }
   
   const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i)
-  if (ogImageMatch) {
+  if (ogImageMatch && result.images.length === 0) {
     result.images = [ogImageMatch[1]]
   }
   
-  // 尝试从页面特定元素获取价格
-  if (!result.price) {
-    const priceMatch = html.match(/(?:price|amount)["\s:]+[^"$]*?([\d,]+\.?\d*)/i)
+  // 3. Twitter card
+  const twitterImageMatch = html.match(/<meta[^>]+name=["']twitter:image["'][^>]+content=["']([^"']+)["']/i)
+  if (twitterImageMatch && result.images.length === 0) {
+    result.images = [twitterImageMatch[1]]
+  }
+  
+  // 4. 商品ID/货号
+  const skuMatch = html.match(/data-sku=["']([^"']+)["']/i) || 
+                   html.match(/itemid=["']([^"']+)["']/i) ||
+                   html.match(/productId\s*:\s*["'](\d+)["']/i)
+  if (skuMatch) {
+    result.sku = skuMatch[1]
+  }
+  
+  // 5. 清理描述（移除HTML标签）
+  if (result.description) {
+    result.description = result.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  }
+  
+  // 6. 生成SKU（如果没有）
+  if (!result.sku) {
+    const timestamp = Date.now().toString(36)
+    const random = Math.random().toString(36).substring(2, 6)
+    result.sku = `SKU-${platform.toUpperCase()}-${timestamp}-${random}`.toUpperCase()
+  }
+  
+  return result
+}
+
+// 平台特定解析
+function parsePlatformSpecific(html: string, url: string, platform: string) {
+  const result: any = {
+    name: '',
+    price: '',
+    images: [],
+    description: '',
+  }
+  
+  if (platform === 'aliexpress') {
+    // AliExpress 特定解析
+    // 尝试从 script 标签中提取数据
+    const dataMatch = html.match(/window\.\w+\s*=\s*(\{[^;]+\})/i)
+    if (dataMatch) {
+      try {
+        // 提取标题
+        const titleMatch = dataMatch[1].match(/subject\s*:\s*["']([^"']+)["']/i)
+        if (titleMatch) result.name = titleMatch[1]
+        
+        // 提取价格
+        const priceMatch = dataMatch[1].match(/price\s*:\s*["']?([\d.,]+)["']?/i)
+        if (priceMatch) result.price = priceMatch[1].replace(/,/g, '')
+      } catch {}
+    }
+    
+    // 尝试从特定meta获取
+    const subjectMatch = html.match(/<meta[^>]+name=["']subject["'][^>]+content=["']([^"']+)["']/i)
+    if (subjectMatch) result.name = decodeHtmlEntities(subjectMatch[1])
+    
+    // AliExpress 图片
+    const imageIdsMatch = html.match(/imageBigMapURLs\s*=\s*\[([^\]]+)\]/i)
+    if (imageIdsMatch) {
+      try {
+        const ids = imageIdsMatch[1].split(',').map((s: string) => s.trim().replace(/['"]/g, ''))
+        result.images = ids.map((id: string) => `https://ae01.alicdn.com/kf/${id}.jpg`)
+      } catch {}
+    }
+  }
+  
+  if (platform === '1688') {
+    // 1688 特定解析
+    const titleMatch = html.match(/<meta[^>]+name=["']keywords["'][^>]+content=["']([^"']+)["']/i)
+    if (titleMatch) {
+      const keywords = decodeHtmlEntities(titleMatch[1])
+      result.name = keywords.split(',')[0]
+    }
+    
+    // 1688 图片
+    const imageMatch = html.match(/(https?:\/\/cbu01\.alicdn\.com\/[^"'\s]+)/i)
+    if (imageMatch) {
+      result.images = [imageMatch[1]]
+    }
+    
+    // 价格
+    const priceMatch = html.match(/(?:price|cost)\s*["\s:]+[^"$]*?([\d,]+\.?\d*)/i)
     if (priceMatch) {
       result.price = priceMatch[1].replace(/,/g, '')
     }
   }
   
-  // 清理描述（移除HTML标签）
-  if (result.description) {
-    result.description = result.description.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim()
+  if (platform === 'alibaba') {
+    // Alibaba 特定解析
+    const titleMatch = html.match(/<meta[^>]+name=["']subject["'][^>]+content=["']([^"']+)["']/i)
+    if (titleMatch) result.name = decodeHtmlEntities(titleMatch[1])
+    
+    const priceMatch = html.match(/<span[^>]+class=["'][^"']*price[^"']*["'][^>]*>([\d.,]+)/i)
+    if (priceMatch) result.price = priceMatch[1].replace(/,/g, '')
   }
-  
-  // 生成SKU
-  const timestamp = Date.now().toString(36)
-  const random = Math.random().toString(36).substring(2, 6)
-  result.sku = `SKU-${platform.toUpperCase()}-${timestamp}-${random}`.toUpperCase()
   
   return result
 }
@@ -132,6 +258,12 @@ function decodeHtmlEntities(text: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .replace(/&#39;/g, "'")
+    .replace(/&#x27;/g, "'")
+    .replace(/&#x2F;/g, '/')
+    .replace(/&mdash;/g, '-')
+    .replace(/&ndash;/g, '-')
+    .replace(/&hellip;/g, '...')
+    .replace(/&hellip;/g, '...')
     .trim()
 }
 
