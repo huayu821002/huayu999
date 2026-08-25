@@ -154,7 +154,7 @@ export default function ImportProductsPage() {
             >
               {isParsing ? (
                 <>
-                  <Icons.Loader size={18} className="animate-spin" />
+                  <Icons.RefreshCw size={18} className="animate-spin" />
                   解析中...
                 </>
               ) : (
@@ -230,7 +230,7 @@ export default function ImportProductsPage() {
               >
                 {isImporting ? (
                   <>
-                    <Icons.Loader size={18} className="animate-spin" />
+                    <Icons.RefreshCw size={18} className="animate-spin" />
                     导入中...
                   </>
                 ) : (
