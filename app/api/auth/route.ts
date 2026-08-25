@@ -67,7 +67,7 @@ export async function POST(request: Request) {
         role: user.role,
       })
         .setProtectedHeader({ alg: 'HS256' })
-        .setExpirationTime('7d')
+        .setExpirationTime('365d')
         .sign(JWT_SECRET)
 
       return NextResponse.json({
@@ -112,7 +112,7 @@ export async function POST(request: Request) {
         role: user.role,
       })
         .setProtectedHeader({ alg: 'HS256' })
-        .setExpirationTime('7d')
+        .setExpirationTime('365d')
         .sign(JWT_SECRET)
 
       return NextResponse.json({
