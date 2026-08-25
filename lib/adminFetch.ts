@@ -2,8 +2,8 @@
 export function adminFetch(url: string, options: RequestInit = {}) {
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null
   
-  const headers: HeadersInit = {
-    ...options.headers,
+  const headers: Record<string, string> = {
+    ...(typeof options.headers === 'object' && options.headers !== null ? options.headers as Record<string, string> : {}),
   }
   
   if (token) {
