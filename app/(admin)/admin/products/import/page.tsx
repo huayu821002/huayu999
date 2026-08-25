@@ -267,7 +267,7 @@ export default function ImportProductsPage() {
         {/* Tips */}
         <div className="bg-blue-50 border border-blue-200 rounded-2xl p-6 mt-6">
           <h3 className="font-semibold text-blue-900 mb-2 flex items-center gap-2">
-            <Icons.Lightbulb size={18} />
+            <Icons.Sparkles size={18} />
             使用提示
           </h3>
           <ul className="text-sm text-blue-700 space-y-1">
