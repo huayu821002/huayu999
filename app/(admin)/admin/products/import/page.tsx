@@ -119,7 +119,7 @@ export default function ImportProductsPage() {
         <div className="mb-8">
           <div className="flex items-center gap-3 mb-2">
             <button onClick={() => router.push('/admin/products')} className="p-2 hover:bg-gray-200 rounded-lg">
-              <Icons.ArrowLeft size={20} />
+              <Icons.ChevronLeft size={20} />
             </button>
             <h1 className="text-2xl font-bold text-joy-gray-900">批量导入商品</h1>
           </div>
