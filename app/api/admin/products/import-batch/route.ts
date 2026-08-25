@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
             slug,
             price: parseFloat(product.price) || 0,
             
-            images: product.images?.length > 0 ? JSON.stringify(product.images) : null,
+            images: (product.images && product.images.length > 0) ? JSON.stringify(product.images) : null,
             description: product.description || '',
             sku: product.sku || `SKU-${Date.now()}`,
             isActive: false, // 草稿状态，默认不显示
