@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
             name: product.name || '未命名商品',
             slug,
             price: parseFloat(product.price) || 0,
-            currency: product.currency || 'USD',
+            
             images: product.images?.length > 0 ? JSON.stringify(product.images) : null,
             description: product.description || '',
             sku: product.sku || `SKU-${Date.now()}`,
