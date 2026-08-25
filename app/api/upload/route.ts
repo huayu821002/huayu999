@@ -1,7 +1,20 @@
 import { NextResponse } from 'next/server'
+import { verifyToken } from '@/lib/auth'
 
 export async function POST(request: Request) {
   try {
+    // 验证用户身份 — 需要登录
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const token = authHeader.slice(7)
+    const user = await verifyToken(token)
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 })
+    }
+
     const formData = await request.formData()
     const file = formData.get('file') as File
     

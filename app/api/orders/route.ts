@@ -1,20 +1,38 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { verifyToken } from '@/lib/auth'
 
+// GET /api/orders — 需要登录，用户只能查看自己的订单，admin 可以查看所有
 export async function GET(request: Request) {
   try {
+    // 验证用户身份
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader?.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const token = authHeader.slice(7)
+    const user = await verifyToken(token)
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status')
-    const userId = searchParams.get('userId')
+    const requestedUserId = searchParams.get('userId')
 
     const where: Record<string, unknown> = {}
 
-    if (status) {
-      where.status = status
+    // 非 admin 只能查看自己的订单
+    if (user.role !== 'ADMIN') {
+      where.userId = user.userId
+    } else if (requestedUserId) {
+      // admin 可以指定查看某个用户的订单
+      where.userId = requestedUserId
     }
 
-    if (userId) {
-      where.userId = userId
+    if (status) {
+      where.status = status
     }
 
     const orders = await prisma.order.findMany({
@@ -32,6 +50,7 @@ export async function GET(request: Request) {
   }
 }
 
+// POST /api/orders — 公开接口（用于创建批量订单，无需登录）
 export async function POST(request: Request) {
   try {
     const body = await request.json()
