@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface Banner {
   id: string
@@ -54,7 +55,7 @@ export default function AdminBanners() {
   const fetchBanners = async () => {
     try {
       // Fetch banners from settings API
-      const res = await fetch('/api/admin/settings?key=homepage_banners')
+      const res = await adminFetch('/api/admin/settings?key=homepage_banners')
       const data = await res.json()
       if (data.success && data.data) {
         const bannerSetting = data.data.find((s: any) => s.key === 'homepage_banners')
@@ -137,7 +138,7 @@ export default function AdminBanners() {
     try {
       const validBanners = banners.filter(b => b.image)
       // Use the existing settings API to save banners
-      const res = await fetch('/api/admin/settings', {
+      const res = await adminFetch('/api/admin/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ key: 'homepage_banners', value: JSON.stringify(validBanners) })

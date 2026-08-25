@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface ShippingRate {
   id?: string
@@ -78,7 +79,7 @@ export default function ShippingSettingsPage() {
 
   const fetchRates = async () => {
     try {
-      const res = await fetch('/api/admin/shipping-rates')
+      const res = await adminFetch('/api/admin/shipping-rates')
       if (res.ok) {
         const data = await res.json()
         setRates(data.data || [])
