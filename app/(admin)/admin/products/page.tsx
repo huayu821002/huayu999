@@ -8,6 +8,7 @@ import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { ProductScraper } from '@/components/admin/ProductScraper'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface Variant {
   id: string
@@ -95,7 +96,7 @@ export default function AdminProductsPage() {
 
   const fetchProducts = async () => {
     try {
-      const res = await fetch('/api/admin/products')
+      const res = await adminFetch('/api/admin/products')
       const data = await res.json()
       if (data.success) setProducts(data.data)
     } catch (err) { console.error(err) }
@@ -103,7 +104,7 @@ export default function AdminProductsPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/admin/categories')
+      const res = await adminFetch('/api/admin/categories')
       const data = await res.json()
       if (data.success) setCategories(data.data)
     } catch (err) { console.error(err) }
@@ -297,7 +298,7 @@ export default function AdminProductsPage() {
                 const formData = new FormData()
                 formData.append('file', file)
                 try {
-                  const res = await fetch('/api/admin/products/import', { method: 'POST', body: formData })
+                  const res = await adminFetch('/api/admin/products/import', { method: 'POST', body: formData })
                   const data = await res.json()
                   if (data.success !== undefined) {
                     alert(`Imported: ${data.success}, Failed: ${data.failed}\n${data.errors?.slice(0,3).join('\n') || ''}`)

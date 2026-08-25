@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/lib/utils'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface DashboardStats {
   revenue: number
@@ -80,7 +81,7 @@ export default function AdminDashboard() {
 
   const fetchDashboardData = async () => {
     try {
-      const res = await fetch('/api/admin/dashboard')
+      const res = await adminFetch('/api/admin/dashboard')
       const data = await res.json()
       if (data.success) {
         setStats(data.data.stats)

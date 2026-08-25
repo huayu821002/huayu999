@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface Customer {
   id: string
@@ -42,7 +43,7 @@ export default function AdminCustomersPage() {
 
   const fetchCustomers = async () => {
     try {
-      const res = await fetch('/api/admin/customers')
+      const res = await adminFetch('/api/admin/customers')
       const data = await res.json()
       if (data.success) setCustomers(data.data)
     } catch (err) { console.error(err) }

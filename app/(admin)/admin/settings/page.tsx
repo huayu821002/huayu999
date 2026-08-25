@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
 import { SHIPPING_ZONES } from '@/lib/shipping-zones'
 import { sanitizeHTML } from '@/lib/sanitize'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface SiteContent {
   id: string; section: string; title: string | null; subtitle: string | null; content: string | null; isActive: boolean; sortOrder: number
@@ -127,7 +128,7 @@ export default function AdminSettingsPage() {
 
   const fetchCategories = async () => {
     try {
-      const res = await fetch('/api/admin/product-categories')
+      const res = await adminFetch('/api/admin/product-categories')
       const data = await res.json()
       if (data.success) setCategories(data.data)
     } catch (err) { console.error(err) }
@@ -135,7 +136,7 @@ export default function AdminSettingsPage() {
 
   const fetchHomepageContent = async () => {
     try {
-      const res = await fetch('/api/admin/site-content')
+      const res = await adminFetch('/api/admin/site-content')
       const data = await res.json()
       if (data.success) {
         const cm: Record<string, SiteContent> = {}
@@ -152,7 +153,7 @@ export default function AdminSettingsPage() {
 
   const fetchShippingTemplates = async () => {
     try {
-      const res = await fetch('/api/admin/shipping-methods')
+      const res = await adminFetch('/api/admin/shipping-methods')
       const data = await res.json()
       if (data.success) setShippingTemplates(data.data)
     } catch (err) { console.error(err) }
@@ -174,7 +175,7 @@ export default function AdminSettingsPage() {
 
   const fetchSeoSettings = async () => {
     try {
-      const res = await fetch('/api/admin/seo')
+      const res = await adminFetch('/api/admin/seo')
       const data = await res.json()
       if (data.success) setSeoSettings(data.data)
     } catch (err) { console.error(err) }
@@ -182,7 +183,7 @@ export default function AdminSettingsPage() {
 
   const fetchCustomPages = async () => {
     try {
-      const res = await fetch('/api/admin/pages')
+      const res = await adminFetch('/api/admin/pages')
       const data = await res.json()
       if (data.success) setCustomPages(data.data)
     } catch (err) { console.error(err) }
@@ -190,7 +191,7 @@ export default function AdminSettingsPage() {
 
   const fetchHeaderFooter = async () => {
     try {
-      const res = await fetch('/api/admin/header-footer')
+      const res = await adminFetch('/api/admin/header-footer')
       const data = await res.json()
       if (data.success) {
         setHeaderSettings(data.data.header)
@@ -202,7 +203,7 @@ export default function AdminSettingsPage() {
   const saveHeaderFooter = async () => {
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/header-footer', {
+      const res = await adminFetch('/api/admin/header-footer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ header: headerSettings, footer: footerSettings })
@@ -218,7 +219,7 @@ export default function AdminSettingsPage() {
 
   const fetchHomepageCategories = async () => {
     try {
-      const res = await fetch('/api/admin/settings')
+      const res = await adminFetch('/api/admin/settings')
       const data = await res.json()
       if (data.success && data.data) {
         const catsSetting = data.data.find((s: any) => s.key === 'homepage_categories')
@@ -245,7 +246,7 @@ export default function AdminSettingsPage() {
   const saveCategories = async () => {
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/categories', {
+      const res = await adminFetch('/api/admin/categories', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(homepageCategoryForm)
@@ -262,7 +263,7 @@ export default function AdminSettingsPage() {
 
   const fetchTrustBadges = async () => {
     try {
-      const res = await fetch('/api/admin/homepage-blocks')
+      const res = await adminFetch('/api/admin/homepage-blocks')
       const data = await res.json()
       if (data.success && data.data) {
         if (data.data.trustBadges) setTrustBadgeForm(data.data.trustBadges)
@@ -274,7 +275,7 @@ export default function AdminSettingsPage() {
   const saveTrustBadges = async () => {
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/homepage-blocks', {
+      const res = await adminFetch('/api/admin/homepage-blocks', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ trustBadges: trustBadgeForm, footerPromo: footerPromoForm })
@@ -290,7 +291,7 @@ export default function AdminSettingsPage() {
 
   const fetchPaymentSettings = async () => {
     try {
-      const res = await fetch('/api/admin/payment-settings')
+      const res = await adminFetch('/api/admin/payment-settings')
       const data = await res.json()
       if (data.success && data.data) {
         setPaymentSettings(data.data)
@@ -301,7 +302,7 @@ export default function AdminSettingsPage() {
   const saveSeoSettings = async () => {
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/seo', {
+      const res = await adminFetch('/api/admin/seo', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(seoSettings)
@@ -316,7 +317,7 @@ export default function AdminSettingsPage() {
   const savePaymentSettings = async () => {
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/payment-settings', {
+      const res = await adminFetch('/api/admin/payment-settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(paymentSettings)
@@ -355,7 +356,7 @@ export default function AdminSettingsPage() {
     if (!categoryForm.name) return
     setIsSaving(true)
     try {
-      const res = await fetch('/api/admin/product-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(categoryForm) })
+      const res = await adminFetch('/api/admin/product-categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(categoryForm) })
       const data = await res.json()
       if (data.success) { setShowCategoryModal(false); fetchCategories() } else alert(data.error)
     } catch { alert('Failed to save category') }
@@ -424,7 +425,7 @@ export default function AdminSettingsPage() {
             isActive: rateForm.isActive,
             methodId: selectedTemplate?.id || null
           }
-          const res = await fetch('/api/admin/shipping-rates', {
+          const res = await adminFetch('/api/admin/shipping-rates', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
@@ -519,7 +520,7 @@ export default function AdminSettingsPage() {
     setIsSaving(true)
     try {
       const form = homepageForm[section]
-      const res = await fetch('/api/admin/site-content', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ section, ...form }) })
+      const res = await adminFetch('/api/admin/site-content', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ section, ...form }) })
       const data = await res.json()
       if (data.success) { fetchHomepageContent(); alert('Saved!') } else alert(data.error)
     } catch { alert('Failed to save') }
@@ -532,7 +533,7 @@ export default function AdminSettingsPage() {
       for (const section of sections) {
         const form = homepageForm[section]
         if (form) {
-          await fetch('/api/admin/site-content', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ section, ...form }) })
+          await adminFetch('/api/admin/site-content', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ section, ...form }) })
         }
       }
       fetchHomepageContent()

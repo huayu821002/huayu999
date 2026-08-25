@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import { cn } from '@/lib/utils'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface OrderItem {
   id?: string
@@ -97,7 +98,7 @@ export default function AdminOrdersPage() {
 
   const fetchOrders = async () => {
     try {
-      const res = await fetch('/api/admin/orders')
+      const res = await adminFetch('/api/admin/orders')
       const data = await res.json()
       if (data.success) setOrders(data.data)
     } catch (err) { console.error(err) } finally {
