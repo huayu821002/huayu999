@@ -112,7 +112,7 @@ export default function AdminProductsPage() {
 
   const fetchVariants = async (productId: string) => {
     try {
-      const res = await fetch(`/api/admin/products/${productId}/variants`)
+      const res = await adminFetch(`/api/admin/products/${productId}/variants`)
       const data = await res.json()
       if (data.success) setProductVariants(data.data)
     } catch (err) { console.error(err) }
@@ -189,7 +189,7 @@ export default function AdminProductsPage() {
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this product? This cannot be undone.')) return
     try {
-      const res = await fetch(`/api/admin/products/${id}`, { method: 'DELETE' })
+      const res = await adminFetch(`/api/admin/products/${id}`, { method: 'DELETE' })
       if (res.ok) fetchProducts()
       else alert('Failed to delete product')
     } catch { alert('Failed to delete product') }
@@ -200,7 +200,7 @@ export default function AdminProductsPage() {
     try {
       const url = editingProduct ? `/api/admin/products/${editingProduct.id}` : '/api/admin/products'
       const method = editingProduct ? 'PUT' : 'POST'
-      const res = await fetch(url, {
+      const res = await adminFetch(url, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
@@ -220,7 +220,7 @@ export default function AdminProductsPage() {
     if (!editingProduct || !variantForm.name || !variantForm.value) return
     setIsSaving(true)
     try {
-      const res = await fetch(`/api/admin/products/${editingProduct.id}/variants`, {
+      const res = await adminFetch(`/api/admin/products/${editingProduct.id}/variants`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(variantForm),
@@ -239,7 +239,7 @@ export default function AdminProductsPage() {
   const handleDeleteVariant = async (variantId: string) => {
     if (!confirm('Delete this variant?')) return
     try {
-      await fetch(`/api/admin/products/${editingProduct!.id}/variants/${variantId}`, { method: 'DELETE' })
+      await adminFetch(`/api/admin/products/${editingProduct!.id}/variants/${variantId}`, { method: 'DELETE' })
       fetchVariants(editingProduct!.id)
     } catch { alert('Failed to delete variant') }
   }
@@ -444,7 +444,7 @@ export default function AdminProductsPage() {
                                   const uploadFormData = new FormData()
                                   uploadFormData.append('file', file)
                                   try {
-                                    const res = await fetch('/api/upload', { method: 'POST', body: uploadFormData })
+                                    const res = await adminFetch('/api/upload', { method: 'POST', body: uploadFormData })
                                     const data = await res.json()
                                     if (data.success) {
                                       addImage(data.url, i)
