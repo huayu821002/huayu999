@@ -628,11 +628,11 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              {/* Shop by Category Section */}
+              {/* Browse by Collection Section */}
               <div className="bg-white rounded-2xl shadow-sm p-6">
                 <div className="flex items-center justify-between mb-6">
                   <div>
-                    <h2 className="font-semibold text-lg text-joy-gray-900">Shop by Category</h2>
+                    <h2 className="font-semibold text-lg text-joy-gray-900">Browse by Collection</h2>
                     <p className="text-sm text-joy-gray-500 mt-1">Custom homepage category blocks - image, name, and link</p>
                   </div>
                   <Button size="sm" onClick={saveCategories} isLoading={isSaving}>Save All</Button>
@@ -1132,9 +1132,9 @@ export default function AdminSettingsPage() {
                 </div>
               </div>
 
-              {/* Shop by Category Section */}
+              {/* Browse by Collection Section */}
               <div className="bg-white rounded-2xl shadow-sm p-6">
-                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2 flex items-center gap-2"><Icons.Image size={20} className="text-joy-orange" />Shop by Category</h2>
+                <h2 className="font-semibold text-lg text-joy-gray-900 mb-2 flex items-center gap-2"><Icons.Image size={20} className="text-joy-orange" />Browse by Collection</h2>
                 <p className="text-sm text-joy-gray-500 mb-6">Edit homepage category cards (image, name, link)</p>
 
                 <div className="space-y-4 mb-4">
