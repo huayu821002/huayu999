@@ -9,6 +9,7 @@ import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { parseProductImages } from '@/lib/imageUtils'
 import { sanitizeHTML } from '@/lib/sanitize'
 import { Icons } from '@/components/ui/Icons'
+import { CompactCategories } from '@/components/layout/CompactCategories'
 import type { Currency } from '@/types'
 
 const CURRENCIES: { code: Currency; symbol: string; name: string }[] = [
@@ -44,6 +45,7 @@ export function Header({ initialSettings }: HeaderProps) {
   const router = useRouter()
   const [isScrolled, setIsScrolled] = useState(false)
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
+  const [categoriesOpen, setCategoriesOpen] = useState(false)
   const { items, setCurrency, currency } = useCartStore()
   const { isAuthenticated } = useUserStore()
   const { mobileMenuOpen, isMobileMenuOpen, mobileMenuClose } = useUIStore()
@@ -361,32 +363,50 @@ export function Header({ initialSettings }: HeaderProps) {
 
           {/* Desktop Nav */}
           <nav className="hidden lg:flex items-center gap-1">
-            {navLinks.map((link: any, idx: number) => (
-              <div key={idx} className="relative">
-                {link.children ? (
+            {navLinks.map((link: any, idx: number) => {
+              const isProducts = link.href === '/products' || link.label === 'Products'
+              if (isProducts) {
+                return (
                   <button
-                    onClick={() => setActiveDropdown(activeDropdown === link.label ? null : link.label)}
+                    key={idx}
+                    onClick={() => setCategoriesOpen(true)}
                     className={cn(
                       'flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                      pathname === link.href ? 'text-joy-orange' : 'text-joy-gray-700 hover:bg-joy-gray-100'
+                      categoriesOpen ? 'text-joy-orange bg-joy-orange/10' : 'text-joy-gray-700 hover:bg-joy-gray-100'
                     )}
                   >
                     {link.label}
-                    <Icons.ChevronDown size={14} />
+                    <Icons.ChevronDown size={14} className={cn('transition-transform', categoriesOpen && 'rotate-180')} />
                   </button>
-                ) : (
-                  <Link
-                    href={link.href}
-                    className={cn(
-                      'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
-                      pathname === link.href ? 'text-joy-orange' : 'text-joy-gray-700 hover:bg-joy-gray-100'
-                    )}
-                  >
-                    {link.label}
-                  </Link>
-                )}
-              </div>
-            ))}
+                )
+              }
+              return (
+                <div key={idx} className="relative">
+                  {link.children ? (
+                    <button
+                      onClick={() => setActiveDropdown(activeDropdown === link.label ? null : link.label)}
+                      className={cn(
+                        'flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                        pathname === link.href ? 'text-joy-orange' : 'text-joy-gray-700 hover:bg-joy-gray-100'
+                      )}
+                    >
+                      {link.label}
+                      <Icons.ChevronDown size={14} />
+                    </button>
+                  ) : (
+                    <Link
+                      href={link.href}
+                      className={cn(
+                        'px-4 py-2 rounded-lg text-sm font-medium transition-colors',
+                        pathname === link.href ? 'text-joy-orange' : 'text-joy-gray-700 hover:bg-joy-gray-100'
+                      )}
+                    >
+                      {link.label}
+                    </Link>
+                  )}
+                </div>
+              )
+            })}
           </nav>
 
           {/* Right Actions */}
@@ -453,19 +473,37 @@ export function Header({ initialSettings }: HeaderProps) {
       {isMobileMenuOpen && (
         <div className="lg:hidden bg-white border-t border-joy-gray-100">
           <nav className="max-w-7xl mx-auto px-4 py-4 space-y-1">
-            {navLinks.map((link: any, idx: number) => (
-              <Link
-                key={idx}
-                href={link.href}
-                onClick={mobileMenuClose}
-                className="block px-4 py-3 rounded-lg text-joy-gray-700 hover:bg-joy-gray-100 font-medium"
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link: any, idx: number) => {
+              const isProducts = link.href === '/products' || link.label === 'Products'
+              if (isProducts) {
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => { mobileMenuClose(); setCategoriesOpen(true) }}
+                    className="block w-full text-left px-4 py-3 rounded-lg text-joy-gray-700 hover:bg-joy-gray-100 font-medium flex items-center justify-between"
+                  >
+                    {link.label}
+                    <Icons.ChevronRight size={16} />
+                  </button>
+                )
+              }
+              return (
+                <Link
+                  key={idx}
+                  href={link.href}
+                  onClick={mobileMenuClose}
+                  className="block px-4 py-3 rounded-lg text-joy-gray-700 hover:bg-joy-gray-100 font-medium"
+                >
+                  {link.label}
+                </Link>
+              )
+            })}
           </nav>
         </div>
       )}
+
+      {/* Compact Categories Dropdown */}
+      <CompactCategories isOpen={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
     </header>
   )
 }
