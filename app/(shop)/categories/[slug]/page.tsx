@@ -1,9 +1,18 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
+import { headers } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { CategoryClient } from './CategoryClient'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'
+
+function detectLocale(acceptLanguage: string | null): string {
+  if (!acceptLanguage) return 'en'
+  const lang = acceptLanguage.toLowerCase()
+  if (lang.includes('pt') || lang.includes('pt-br')) return 'pt'
+  if (lang.includes('ru')) return 'ru'
+  return 'en'
+}
 
 interface Props {
   params: { slug: string }
@@ -12,11 +21,19 @@ interface Props {
 
 // Fetch category SEO from SeoSetting or build defaults
 async function getCategorySeo(slug: string, name: string) {
+  const headersList = headers()
+  const acceptLanguage = headersList.get('accept-language')
+  const locale = detectLocale(acceptLanguage)
   try {
     const setting = await prisma.seoSetting.findUnique({
-      where: { pageType_pageSlug_locale: { pageType: 'category', pageSlug: slug, locale: 'en' } }
+      where: { pageType_pageSlug_locale: { pageType: 'category', pageSlug: slug, locale } }
     })
     if (setting && setting.title) return setting
+    // Fallback to English
+    const fallback = await prisma.seoSetting.findUnique({
+      where: { pageType_pageSlug_locale: { pageType: 'category', pageSlug: slug, locale: 'en' } }
+    })
+    if (fallback && fallback.title) return fallback
   } catch {}
 
   // Build defaults
