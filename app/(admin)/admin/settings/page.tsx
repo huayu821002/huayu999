@@ -1369,7 +1369,7 @@ export default function AdminSettingsPage() {
                         const formData = new FormData()
                         formData.append('file', file)
                         try {
-                          const res = await fetch('/api/upload', { method: 'POST', body: formData })
+                          const res = await adminFetch('/api/upload', { method: 'POST', body: formData })
                           const data = await res.json()
                           if (data.success) {
                             const imgTag = `<img src="${data.url}" alt="${file.name}" style="max-width:100%;height:auto;" />`
