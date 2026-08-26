@@ -39,7 +39,7 @@ export function CompactCategories({ isOpen, onClose }: CompactCategoriesProps) {
     if (isOpen) fetchCategories()
   }, [isOpen])
 
-  // Lock body scroll on mobile
+  // Lock body scroll
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden'
@@ -48,17 +48,6 @@ export function CompactCategories({ isOpen, onClose }: CompactCategoriesProps) {
     }
     return () => { document.body.style.overflow = '' }
   }, [isOpen])
-
-  // Close on outside click
-  useEffect(() => {
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-    if (isOpen) document.addEventListener('mousedown', handleClick)
-    return () => document.removeEventListener('mousedown', handleClick)
-  }, [isOpen, onClose])
 
   if (!isOpen) return null
 
