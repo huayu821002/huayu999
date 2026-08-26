@@ -18,6 +18,7 @@
     "@heroicons/react": "^2.1.5",
     "@prisma/client": "^5.18.0",
     "@stripe/stripe-js": "^4.4.0",
+    "@tinymce/tinymce-react": "^6.3.0",
     "@types/dompurify": "^3.0.5",
     "axios": "^1.7.7",
     "bcryptjs": "^2.4.3",
@@ -36,6 +37,7 @@
     "sonner": "^1.7.0",
     "stripe": "^16.10.0",
     "tailwind-merge": "^2.5.2",
+    "tinymce": "^8.8.2",
     "zustand": "^4.5.5"
   },
   "devDependencies": {
