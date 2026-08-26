@@ -369,7 +369,7 @@ export function Header({ initialSettings }: HeaderProps) {
                 return (
                   <button
                     key={idx}
-                    onClick={() => setCategoriesOpen(true)}
+                    onClick={() => setCategoriesOpen(!categoriesOpen)}
                     className={cn(
                       'flex items-center gap-1 px-4 py-2 rounded-lg text-sm font-medium transition-colors',
                       categoriesOpen ? 'text-joy-orange bg-joy-orange/10' : 'text-joy-gray-700 hover:bg-joy-gray-100'
