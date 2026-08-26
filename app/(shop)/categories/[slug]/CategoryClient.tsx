@@ -17,6 +17,7 @@ interface Category {
   slug: string
   description?: string | null
   image?: string | null
+  bannerImage?: string | null
   parent?: { name: string; slug: string } | null
   children?: { id: string; name: string; slug: string }[]
 }
@@ -52,10 +53,10 @@ export function CategoryClient({ category, initialProducts, currentSort, current
       <div className="pt-28 pb-16">
 
         {/* Category Hero Banner */}
-        {category.image && (
+        {(category.bannerImage || category.image) && (
           <div className="relative h-48 md:h-64 lg:h-72 overflow-hidden mb-8">
             <img
-              src={category.image}
+              src={category.bannerImage || category.image || ''}
               alt={category.name}
               className="w-full h-full object-cover"
             />

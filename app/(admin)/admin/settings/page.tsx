@@ -13,7 +13,7 @@ import { adminFetch } from '@/lib/adminFetch'
 interface SiteContent {
   id: string; section: string; title: string | null; subtitle: string | null; content: string | null; isActive: boolean; sortOrder: number
 }
-interface Category { id: string; name: string; slug: string; description: string | null; parentId: string | null; image?: string | null; productCount?: number }
+interface Category { id: string; name: string; slug: string; description: string | null; parentId: string | null; image?: string | null; bannerImage?: string | null; productCount?: number }
 interface CategoryNode extends Category { children: CategoryNode[] }
 interface ShippingMethod {
   id: string; name: string; code: string; description: string | null
@@ -39,7 +39,7 @@ export default function AdminSettingsPage() {
   const [categories, setCategories] = useState<Category[]>([])
   const [showCategoryModal, setShowCategoryModal] = useState(false)
   const [editingCategory, setEditingCategory] = useState<Category | null>(null)
-  const [categoryForm, setCategoryForm] = useState<{ id?: string; name: string; slug: string; description: string; parentId: string; image: string }>({ name: '', slug: '', description: '', parentId: '', image: '' })
+  const [categoryForm, setCategoryForm] = useState<{ id?: string; name: string; slug: string; description: string; parentId: string; image: string; bannerImage: string }>({ name: '', slug: '', description: '', parentId: '', image: '', bannerImage: '' })
 
   // Homepage
   const [homepageContent, setHomepageContent] = useState<Record<string, SiteContent>>({})
@@ -350,8 +350,8 @@ export default function AdminSettingsPage() {
   const handleSave = () => { setIsSaving(true); setTimeout(() => setIsSaving(false), 1000) }
 
   // Category handlers
-  const openAddCategory = (parentId?: string) => { setEditingCategory(null); setCategoryForm({ name: '', slug: '', description: '', parentId: parentId || '', image: '' }); setShowCategoryModal(true) }
-  const openEditCategory = (cat: Category) => { setEditingCategory(cat); setCategoryForm({ id: cat.id, name: cat.name, slug: cat.slug, description: cat.description || '', parentId: cat.parentId || '', image: cat.image || '' }); setShowCategoryModal(true) }
+  const openAddCategory = (parentId?: string) => { setEditingCategory(null); setCategoryForm({ name: '', slug: '', description: '', parentId: parentId || '', image: '', bannerImage: '' }); setShowCategoryModal(true) }
+  const openEditCategory = (cat: Category) => { setEditingCategory(cat); setCategoryForm({ id: cat.id, name: cat.name, slug: cat.slug, description: cat.description || '', parentId: cat.parentId || '', image: cat.image || '', bannerImage: cat.bannerImage || '' }); setShowCategoryModal(true) }
   const handleCategorySubmit = async () => {
     if (!categoryForm.name) return
     setIsSaving(true)
@@ -1286,6 +1286,8 @@ export default function AdminSettingsPage() {
               <Input label="Category Name *" placeholder="e.g., Electronics" value={categoryForm.name} onChange={e => setCategoryForm({...categoryForm, name: e.target.value})} />
               <Input label="Slug" placeholder="electronics" value={categoryForm.slug} onChange={e => setCategoryForm({...categoryForm, slug: e.target.value})} />
               <Input label="Description" placeholder="Optional" value={categoryForm.description} onChange={e => setCategoryForm({...categoryForm, description: e.target.value})} />
+              <Input label="Category Image (List Thumbnail)" placeholder="https://images.unsplash.com/..." value={categoryForm.image} onChange={e => setCategoryForm({...categoryForm, image: e.target.value})} />
+              <Input label="Banner Image (Category Page Hero)" placeholder="https://images.unsplash.com/..." value={categoryForm.bannerImage} onChange={e => setCategoryForm({...categoryForm, bannerImage: e.target.value})} />
               <div><label className="block text-sm font-medium text-joy-gray-700 mb-2">Parent Category</label>
                 <select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange" value={categoryForm.parentId} onChange={e => setCategoryForm({...categoryForm, parentId: e.target.value})}>
                   <option value="">-- Main Category --</option>
