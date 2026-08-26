@@ -233,3 +233,20 @@ model SiteSetting {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
+
+model SeoSetting {
+  id          String   @id @default(cuid())
+  pageType    String   // homepage | category | product | custom
+  pageSlug    String   // category slug, product slug, or custom identifier
+  locale      String   @default("en") // en | pt | ru
+  title       String   @default("")
+  description String   @default("")
+  keywords    String   @default("")
+  ogTitle     String   @default("")
+  ogDescription String @default("")
+  canonicalUrl String  @default("")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([pageType, pageSlug, locale])
+}

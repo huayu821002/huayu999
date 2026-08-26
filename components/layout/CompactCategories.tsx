@@ -77,7 +77,7 @@ export function CompactCategories({ isOpen, onClose }: CompactCategoriesProps) {
                       <div key={cat.id}>
                         {/* Parent category */}
                         <Link
-                          href={`/products?category=${cat.slug}`}
+                          href={`/categories/${cat.slug}`}
                           onClick={onClose}
                           className="block py-1.5 text-sm font-semibold text-joy-gray-800 hover:text-joy-orange transition-colors"
                         >
@@ -89,7 +89,7 @@ export function CompactCategories({ isOpen, onClose }: CompactCategoriesProps) {
                             {cat.children.slice(0, 5).map((sub) => (
                               <Link
                                 key={sub.id}
-                                href={`/products?category=${sub.slug}`}
+                                href={`/categories/${sub.slug}`}
                                 onClick={onClose}
                                 className="block py-1 text-xs text-joy-gray-500 hover:text-joy-orange transition-colors"
                               >
@@ -189,7 +189,7 @@ export function CompactCategories({ isOpen, onClose }: CompactCategoriesProps) {
                   <div key={cat.id}>
                     {/* Parent */}
                     <Link
-                      href={`/products?category=${cat.slug}`}
+                      href={`/categories/${cat.slug}`}
                       onClick={onClose}
                       className="flex items-center gap-3 py-3 px-3 rounded-xl hover:bg-joy-gray-50 transition-colors"
                     >
@@ -210,7 +210,7 @@ export function CompactCategories({ isOpen, onClose }: CompactCategoriesProps) {
                         {cat.children.map((sub) => (
                           <Link
                             key={sub.id}
-                            href={`/products?category=${sub.slug}`}
+                            href={`/categories/${sub.slug}`}
                             onClick={onClose}
                             className="flex items-center gap-2 py-2 px-3 rounded-lg text-sm text-joy-gray-600 hover:bg-joy-orange/5 hover:text-joy-orange transition-colors"
                           >

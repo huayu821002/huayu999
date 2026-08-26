@@ -769,6 +769,19 @@ export default function ProductDetailPage() {
           </div>
         </div>
 
+        {/* BreadcrumbList Schema */}
+        <script type="application/ld+json" dangerouslySetInnerHTML={{
+          __html: JSON.stringify({
+            '@context': 'https://schema.org',
+            '@type': 'BreadcrumbList',
+            itemListElement: [
+              { '@type': 'ListItem', position: 1, name: 'Home', item: process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com' },
+              ...(product.category?.slug ? [{ '@type': 'ListItem', position: 2, name: product.category.name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/categories/${product.category.slug}` }] : []),
+              { '@type': 'ListItem', position: product.category?.slug ? 3 : 2, name: product.name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products/${product.slug}` },
+            ]
+          })
+        }} />
+
         {/* SEO: JSON-LD Product Schema */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{
           __html: JSON.stringify({

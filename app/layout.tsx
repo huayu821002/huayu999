@@ -51,6 +51,14 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${inter.variable} ${poppins.variable}`}>
+      <head>
+        {/* Preconnect to critical third-party origins */}
+        <link rel="preconnect" href="https://images.unsplash.com" />
+        <link rel="preconnect" href="https://picsum.photos" />
+        <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+        {/* Favicon */}
+        <link rel="icon" href="/favicon.ico" sizes="any" />
+      </head>
       <body className="min-h-screen bg-joy-gray-50 antialiased">
         <Providers>
           {children}

@@ -155,7 +155,7 @@ export function Header({ initialSettings }: HeaderProps) {
   const handleSuggestionCategoryClick = (slug: string) => {
     setShowDropdown(false)
     setSearchOpen(false)
-    router.push(`/products?category=${slug}`)
+    router.push(`/categories/${slug}`)
   }
 
   const getImage = (images: any) => {

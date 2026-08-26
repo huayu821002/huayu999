@@ -251,7 +251,7 @@ export default async function ShopHomePage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {categories.map((cat: any) => (
-                <Link key={cat.id} href={`/products?category=${cat.slug}`} className="group relative rounded-2xl overflow-hidden aspect-[4/3]">
+                <Link key={cat.id} href={`/categories/${cat.slug}`} className="group relative rounded-2xl overflow-hidden aspect-[4/3]">
                   <Image src={cat.image} alt={cat.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
                   <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
                   <div className="absolute bottom-4 left-4 right-4">

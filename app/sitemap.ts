@@ -22,6 +22,40 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     },
   ]
 
+  // Category pages (parent categories only)
+  let categories: { slug: string; updatedAt: Date | null }[] = []
+  try {
+    categories = await prisma.category.findMany({
+      select: { slug: true, updatedAt: true },
+      where: { parentId: null },
+    })
+  } catch (e) {
+    console.error('Sitemap: failed to fetch categories', e)
+  }
+
+  const categoryPages: MetadataRoute.Sitemap = categories.map(c => ({
+    url: `${baseUrl}/categories/${c.slug}`,
+    lastModified: c.updatedAt ? new Date(c.updatedAt) : new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.8,
+  }))
+
+  // Child categories
+  let childCategories: { slug: string; updatedAt: Date | null }[] = []
+  try {
+    childCategories = await prisma.category.findMany({
+      select: { slug: true, updatedAt: true },
+      where: { NOT: { parentId: null } },
+    })
+  } catch (e) {}
+
+  const childCategoryPages: MetadataRoute.Sitemap = childCategories.map(c => ({
+    url: `${baseUrl}/categories/${c.slug}`,
+    lastModified: c.updatedAt ? new Date(c.updatedAt) : new Date(),
+    changeFrequency: 'weekly',
+    priority: 0.7,
+  }))
+
   // Get products from DB
   let products: { slug: string; updatedAt: Date | null }[] = []
   try {
@@ -40,5 +74,5 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.8,
   }))
 
-  return [...staticPages, ...productPages]
+  return [...staticPages, ...categoryPages, ...childCategoryPages, ...productPages]
 }
