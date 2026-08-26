@@ -19,10 +19,10 @@ const defaultFooterSettings = {
     {
       title: "Products",
       links: [
-        { href: "/products?category=accessories", label: "Accessories & Jewelry" },
-        { href: "/products?category=pet-supplies", label: "Pet Supplies" },
-        { href: "/products?category=gifts", label: "Creative Gifts" },
-        { href: "/products?category=home-decor", label: "Home Décor" }
+        { href: "/categories/accessories", label: "Accessories & Jewelry" },
+        { href: "/categories/pet-supplies", label: "Pet Supplies" },
+        { href: "/categories/gifts", label: "Creative Gifts" },
+        { href: "/categories/home-decor", label: "Home Décor" }
       ]
     },
     {

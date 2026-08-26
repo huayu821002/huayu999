@@ -1,25 +1,46 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
 export const dynamic = 'force-dynamic'
 
-const defaultSeo = {
-  title: 'Huayu Wholesale | B2B Cross-border E-commerce Platform',
-  description: 'B2B small wholesale platform for high-quality accessories, pet supplies, creative novelty gifts, and home décor. $50 minimum mixed order. Ships worldwide.',
-  keywords: 'wholesale, Yiwu accessories, pet supplies, novelty gifts, B2B, small wholesale, cross-border e-commerce',
-  ogImage: '',
-}
-
-export async function GET() {
+// GET /api/site/seo?pageType=category&pageSlug=party-supplies&locale=en
+export async function GET(request: NextRequest) {
   try {
-    const setting = await prisma.siteSetting.findUnique({
-      where: { key: 'seo_settings' }
+    const { searchParams } = new URL(request.url)
+    const pageType = searchParams.get('pageType') || 'homepage'
+    const pageSlug = searchParams.get('pageSlug') || 'homepage'
+    const locale = searchParams.get('locale') || 'en'
+
+    const setting = await prisma.seoSetting.findUnique({
+      where: {
+        pageType_pageSlug_locale: {
+          pageType,
+          pageSlug,
+          locale,
+        }
+      }
     })
-    if (setting?.value) {
-      return NextResponse.json({ success: true, data: JSON.parse(setting.value) })
+
+    if (setting) {
+      return NextResponse.json({ success: true, data: setting })
     }
-    return NextResponse.json({ success: true, data: defaultSeo })
-  } catch (error) {
-    return NextResponse.json({ success: true, data: defaultSeo })
+
+    // Fallback: try English if not found
+    if (locale !== 'en') {
+      const fallback = await prisma.seoSetting.findUnique({
+        where: {
+          pageType_pageSlug_locale: {
+            pageType,
+            pageSlug,
+            locale: 'en',
+          }
+        }
+      })
+      if (fallback) return NextResponse.json({ success: true, data: fallback })
+    }
+
+    return NextResponse.json({ success: true, data: null })
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
 }

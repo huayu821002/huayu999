@@ -44,6 +44,7 @@ export const Icons = {
   Plus: LucideIcons.Plus,
   Minus: LucideIcons.Minus,
   Trash2: LucideIcons.Trash2,
+  Edit3: LucideIcons.Edit3,
   Copy: LucideIcons.Copy,
   ExternalLink: LucideIcons.ExternalLink,
   Instagram: LucideIcons.Instagram,
