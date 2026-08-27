@@ -10,6 +10,7 @@ import { SHIPPING_ZONES } from '@/lib/shipping-zones'
 import { sanitizeHTML } from '@/lib/sanitize'
 import { adminFetch } from '@/lib/adminFetch'
 
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 interface SiteContent {
   id: string; section: string; title: string | null; subtitle: string | null; content: string | null; isActive: boolean; sortOrder: number
 }
@@ -1390,27 +1391,12 @@ export default function AdminSettingsPage() {
                   </div>
                 </div>
                 
-                {/* Simple WYSIWYG Toolbar */}
-                <div className="border-2 border-joy-gray-200 rounded-xl overflow-hidden focus-within:border-joy-orange">
-                  <div className="bg-joy-gray-50 px-3 py-2 flex flex-wrap gap-1 border-b border-joy-gray-200">
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<h2></h2>'})} className="px-2 py-1 text-sm font-bold hover:bg-joy-gray-200 rounded">H2</button>
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<h3></h3>'})} className="px-2 py-1 text-sm font-bold hover:bg-joy-gray-200 rounded">H3</button>
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<p></p>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">P</button>
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<strong></strong>'})} className="px-2 py-1 text-sm font-bold hover:bg-joy-gray-200 rounded">B</button>
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<em></em>'})} className="px-2 py-1 text-sm italic hover:bg-joy-gray-200 rounded">I</button>
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<ul><li></li></ul>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">• List</button>
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<ol><li></li></ol>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">1. List</button>
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<a href=""></a>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">Link</button>
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<hr/>'})} className="px-2 py-1 text-sm hover:bg-joy-gray-200 rounded">HR</button>
-                    <button type="button" onClick={() => setPageForm({...pageForm, content: pageForm.content + '<blockquote></blockquote>'})} className="px-2 py-1 text-sm italic hover:bg-joy-gray-200 rounded">Quote</button>
-                  </div>
-                  <textarea
-                    className="w-full px-4 py-3 min-h-[250px] font-mono text-sm border-0 focus:ring-0"
-                    placeholder="<h2>Your Content</h2>&#10;<p>Write your page content here with HTML formatting...</p>&#10;&#10;<p>Use the toolbar above or write HTML directly.</p>"
-                    value={pageForm.content}
-                    onChange={e => setPageForm({...pageForm, content: e.target.value})}
-                  />
-                </div>
+                {/* TipTap WYSIWYG Editor */}
+                <RichTextEditor
+                  content={pageForm.content || ''}
+                  onChange={content => setPageForm({ ...pageForm, content })}
+                  placeholder="<h2>Your Content</h2><p>Start writing your page content here...</p>"
+                />
                 
                 {/* Content Preview */}
                 {pageForm.content && (
