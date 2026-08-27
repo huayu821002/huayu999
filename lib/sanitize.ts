@@ -1,38 +1,28 @@
-/**
- * Lightweight server-side HTML sanitizer.
- * Strips dangerous tags, attributes, and protocols without JSDOM dependency.
- */
-
-const DANGEROUS_TAGS = /<(script|style|iframe|object|embed|form|input|button|select|textarea|link|meta|base|svg|math)(\s|>|\/)/gi
-const DANGEROUS_ATTRS = /\s(on\w+|href|src|action|formaction|data|style)\s*=\s*(?!(?:background|href|src|poster|longdesc|png|sandbox|allow|allowfullscreen)(?:\s|>|"|'))/gi
-const JAVASCRIPT_PROTO = /javascript\s*:/gi
+import DOMPurify from 'isomorphic-dompurify'
 
 /**
- * Strip dangerous HTML tags, attributes, and protocols.
- * Preserves basic formatting tags and links.
+ * Sanitize HTML using DOMPurify - properly handles img tags with URLs.
  */
 export function sanitizeHTML(input: string): string {
   if (!input) return ''
-
-  let clean = input
-
-  // Step 1: Remove dangerous tags entirely
-  clean = clean.replace(DANGEROUS_TAGS, '')
-
-  // Step 2: Remove event handler attributes (onclick, onerror, onload, etc.)
-  clean = clean.replace(DANGEROUS_ATTRS, ' ')
-
-  // Step 3: Remove javascript: links
-  clean = clean.replace(JAVASCRIPT_PROTO, '')
-
-  // Step 4: Remove data: URLs (except safe image types)
-  clean = clean.replace(/data\s*:\s*(?!image\/(png|jpeg|jpg|gif|webp))/gi, '')
-
-  return clean
+  return DOMPurify.sanitize(input, {
+    ALLOWED_TAGS: [
+      'p', 'br', 'strong', 'b', 'em', 'i', 'u', 's', 'strike',
+      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
+      'ul', 'ol', 'li',
+      'blockquote', 'pre', 'code',
+      'a', 'img',
+      'table', 'thead', 'tbody', 'tr', 'th', 'td',
+      'div', 'span',
+      'hr', 'br',
+    ],
+    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'class', 'style', 'target', 'rel'],
+    ALLOW_DATA_ATTR: false,
+  })
 }
 
 /**
- * Sanitize plain text (no HTML) — escape for safe display.
+ * Escape plain text for safe display.
  */
 export function escapeHtml(text: string): string {
   if (!text) return ''
