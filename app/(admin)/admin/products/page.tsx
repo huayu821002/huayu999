@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
+import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { adminFetch } from '@/lib/adminFetch'
 
 interface Variant {
@@ -424,7 +425,7 @@ export default function AdminProductsPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-joy-gray-700 mb-2">Description *</label>
-                  <textarea className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none min-h-[100px]" placeholder="Full description..." value={form.description} onChange={(e) => setForm({...form, description: e.target.value})} />
+                  <RichTextEditor content={form.description} onChange={(v) => setForm({...form, description: v})} placeholder="Full description..." />
                 </div>
                 <Input label="Short Description" placeholder="Brief description" value={form.shortDesc} onChange={(e) => setForm({...form, shortDesc: e.target.value})} />
                 <div className="flex items-center gap-6">
