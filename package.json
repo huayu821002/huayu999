@@ -14,6 +14,7 @@
     "@supabase/supabase-js": "^2.0.0"
   },
   "dependencies": {
+    "@ckeditor/ckeditor5-react": "^11.2.0",
     "@headlessui/react": "^2.1.2",
     "@heroicons/react": "^2.1.5",
     "@prisma/client": "^5.18.0",
@@ -27,6 +28,7 @@
     "@types/dompurify": "^3.0.5",
     "axios": "^1.7.7",
     "bcryptjs": "^2.4.3",
+    "ckeditor5": "^48.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^3.6.0",
