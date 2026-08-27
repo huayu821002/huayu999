@@ -109,7 +109,7 @@ export default function InfoPage() {
               fill
               className="object-cover"
             />
-            <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-t from-orange-900/60 to-transparent" />
             <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
               <h1 className="font-display text-3xl md:text-4xl font-bold">{page.title}</h1>
               {page.excerpt && (
@@ -121,7 +121,7 @@ export default function InfoPage() {
 
         {/* Hero (if no featured image) */}
         {!page.featuredImage && (
-          <section className="bg-gradient-to-br from-joy-gray-900 via-joy-gray-800 to-joy-gray-900 text-white py-16 lg:py-20">
+          <section className="bg-gradient-to-br from-orange-600 via-orange-500 to-orange-600 text-white py-16 lg:py-20">
             <div className={containerClass + ' mx-auto px-4 text-center'}>
               <h1 className="font-display text-4xl md:text-5xl font-bold mb-4">
                 {page.title}
