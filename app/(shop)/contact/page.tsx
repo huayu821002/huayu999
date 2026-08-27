@@ -1,285 +1,200 @@
-'use client'
-
-import { useState, useEffect } from 'react'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { CartDrawer } from '@/components/shop/CartDrawer'
-import { FloatingButtons } from '@/components/layout/FloatingButtons'
-import { Button } from '@/components/ui/Button'
+import { FloatingButtons } from '@/components/shop/FloatingButtons'
 import { Icons } from '@/components/ui/Icons'
-import { sanitizeHTML } from '@/lib/sanitize'
+import Link from 'next/link'
 
-interface SiteContent {
-  section: string
-  title: string | null
-  subtitle: string | null
-  content: string | null
-}
-
-interface ContactInfo {
-  email?: string
-  whatsapp?: string
-  phone?: string
-  address?: string
-  hours?: string
-}
+export const metadata = { title: 'Contact Us - Fiestaflare' }
 
 export default function ContactPage() {
-  const [content, setContent] = useState<Record<string, SiteContent>>({})
-  const [isLoading, setIsLoading] = useState(true)
-  const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    company: '',
-    message: '',
-  })
-  const [isSubmitting, setIsSubmitting] = useState(false)
-  const [submitSuccess, setSubmitSuccess] = useState(false)
-
-  useEffect(() => {
-    fetchContent()
-  }, [])
-
-  const fetchContent = async () => {
-    try {
-      const res = await fetch('/api/admin/site-content')
-      const data = await res.json()
-      if (data.success) {
-        const contentMap: Record<string, SiteContent> = {}
-        data.data.forEach((item: SiteContent) => { contentMap[item.section] = item })
-        setContent(contentMap)
-      }
-    } catch (err) {
-      console.error('Failed to fetch content:', err)
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
-  const sc = (section: string) => content[section]
-
-  const getContactInfo = (): ContactInfo => {
-    try {
-      if (sc('contact_info')?.content) {
-        return JSON.parse(sc('contact_info')!.content!)
-      }
-    } catch {}
-    return {
-      email: 'sales@fiestaflare.com',
-      whatsapp: '+86 158 5791 1234',
-      hours: 'Mon-Fri 9:00-18:00 CST',
-    }
-  }
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setIsSubmitting(true)
-    
-    // Simulate form submission (in production, this would call an API)
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    
-    setSubmitSuccess(true)
-    setFormData({ name: '', email: '', company: '', message: '' })
-    setIsSubmitting(false)
-    
-    setTimeout(() => setSubmitSuccess(false), 5000)
-  }
-
-  const contactInfo = getContactInfo()
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" />
-      </div>
-    )
-  }
-
   return (
-    <div className="min-h-screen bg-white">
-      <Header />
+    <>
       <CartDrawer />
       <FloatingButtons />
       <main className="pt-[calc(4rem+36px)]">
-        {/* Hero Section */}
-        <section className="bg-gradient-to-br from-joy-gray-900 via-joy-gray-800 to-joy-gray-900 text-white py-20 lg:py-28">
+        {/* Hero */}
+        <section className="bg-gradient-to-br from-orange-600 via-orange-500 to-orange-600 text-white py-16 lg:py-20">
           <div className="max-w-4xl mx-auto px-4 text-center">
-            <h1 className="font-display text-4xl md:text-5xl font-bold mb-4">
-              {sc('contact_hero')?.title || 'Contact Us'}
-            </h1>
-            <p className="text-xl text-joy-gray-300">
-              {sc('contact_hero')?.subtitle || 'We are here to help with your wholesale inquiries'}
+            <h1 className="font-display text-4xl md:text-5xl font-bold mb-4">Contact Us</h1>
+            <p className="text-xl text-white/90 max-w-2xl mx-auto">
+              Have questions? We'd love to hear from you. Send us a message and we'll respond as soon as possible.
             </p>
           </div>
         </section>
 
-        {/* Contact Content */}
-        <section className="py-16">
-          <div className="max-w-6xl mx-auto px-4">
-            <div className="grid lg:grid-cols-2 gap-12">
-              {/* Contact Form */}
-              <div>
-                <h2 className="font-display text-2xl font-bold text-joy-gray-900 mb-6">
-                  {sc('contact_form')?.title || 'Send us a Message'}
-                </h2>
-                
-                {submitSuccess && (
-                  <div className="mb-6 p-4 bg-joy-green/10 border border-joy-green/20 rounded-xl text-joy-green">
-                    Thank you for your message! We will get back to you within 24 hours.
-                  </div>
-                )}
-                
-                <form onSubmit={handleSubmit} className="space-y-4">
+        {/* Breadcrumb */}
+        <div className="max-w-4xl mx-auto px-4 py-4">
+          <nav className="flex items-center gap-2 text-sm text-joy-gray-500">
+            <Link href="/" className="hover:text-joy-orange">Home</Link>
+            <Icons.ChevronRight size={14} />
+            <span className="text-joy-gray-900">Contact Us</span>
+          </nav>
+        </div>
+
+        {/* Main Content */}
+        <section className="max-w-4xl mx-auto px-4 pb-16">
+          <div className="grid lg:grid-cols-3 gap-10">
+
+            {/* Contact Form */}
+            <div className="lg:col-span-2">
+              <div className="bg-white rounded-2xl border border-joy-gray-200 p-6 lg:p-8 shadow-sm">
+                <h2 className="text-xl font-bold text-joy-gray-900 mb-6">Send us a message</h2>
+                <form id="contact-form" className="space-y-5">
                   <div>
-                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                      Your Name *
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-1.5">
+                      Contact Name <span className="text-red-500">*</span>
                     </label>
                     <input
                       type="text"
+                      name="name"
                       required
-                      value={formData.name}
-                      onChange={(e) => setFormData({...formData, name: e.target.value})}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none"
-                      placeholder="John Smith"
+                      placeholder="Your full name"
+                      className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none transition-colors"
                     />
                   </div>
-                  <div className="grid md:grid-cols-2 gap-4">
+                  <div className="grid sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                        Email *
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1.5">
+                        Email <span className="text-joy-orange">*</span>
                       </label>
                       <input
                         type="email"
+                        name="email"
                         required
-                        value={formData.email}
-                        onChange={(e) => setFormData({...formData, email: e.target.value})}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none"
-                        placeholder="john@company.com"
+                        placeholder="you@example.com"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none transition-colors"
                       />
                     </div>
                     <div>
-                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                        Company
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-1.5">
+                        Phone
                       </label>
                       <input
-                        type="text"
-                        value={formData.company}
-                        onChange={(e) => setFormData({...formData, company: e.target.value})}
-                        className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none"
-                        placeholder="Your Company Ltd."
+                        type="tel"
+                        name="phone"
+                        placeholder="+1 234 567 8900"
+                        className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none transition-colors"
                       />
                     </div>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                      Message *
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-1.5">
+                      Subject
                     </label>
-                    <textarea
-                      required
-                      rows={5}
-                      value={formData.message}
-                      onChange={(e) => setFormData({...formData, message: e.target.value})}
-                      className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none resize-none"
-                      placeholder="Tell us about your business and what products you are interested in..."
+                    <input
+                      type="text"
+                      name="subject"
+                      placeholder="What is this about?"
+                      className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none transition-colors"
                     />
                   </div>
-                  <Button type="submit" size="xl" isLoading={isSubmitting} className="w-full">
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-1.5">
+                      Message <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      name="message"
+                      required
+                      rows={5}
+                      placeholder="Tell us what you need..."
+                      className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none transition-colors resize-none"
+                    />
+                  </div>
+                  <button
+                    type="submit"
+                    className="w-full bg-joy-orange text-white font-semibold py-3.5 rounded-xl hover:bg-orange-600 transition-colors text-lg"
+                  >
                     Send Message
-                  </Button>
+                  </button>
                 </form>
+                <p id="form-message" className="mt-4 text-center text-sm hidden" />
               </div>
+            </div>
 
-              {/* Contact Info */}
-              <div>
-                <h2 className="font-display text-2xl font-bold text-joy-gray-900 mb-6">
-                  {sc('contact_info')?.title || 'Get in Touch'}
-                </h2>
-                
-                <div className="space-y-6">
-                  {contactInfo.email && (
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-joy-orange/10 flex items-center justify-center flex-shrink-0">
-                        <Icons.Mail size={20} className="text-joy-orange" />
-                      </div>
+            {/* Contact Info */}
+            <div>
+              <div className="bg-gradient-to-br from-orange-50 to-white rounded-2xl border border-orange-100 p-6 space-y-6">
+                <div>
+                  <h3 className="font-bold text-joy-gray-900 mb-3">Get in Touch</h3>
+                  <div className="space-y-3">
+                    <div className="flex items-start gap-3">
+                      <span style={{ fontSize: '1.2rem' }}>📧</span>
                       <div>
-                        <h3 className="font-semibold text-joy-gray-900">Email</h3>
-                        <a href={`mailto:${contactInfo.email}`} className="text-joy-orange hover:underline">
-                          {contactInfo.email}
-                        </a>
+                        <p className="text-sm font-medium text-joy-gray-700">Email</p>
+                        <a href="mailto:support@fiestaflare.com" className="text-sm text-joy-orange hover:underline">support@fiestaflare.com</a>
                       </div>
                     </div>
-                  )}
-                  
-                  {contactInfo.whatsapp && (
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-green-500/10 flex items-center justify-center flex-shrink-0">
-                        <Icons.WhatsApp size={20} className="text-green-500" />
-                      </div>
+                    <div className="flex items-start gap-3">
+                      <span style={{ fontSize: '1.2rem' }}>💬</span>
                       <div>
-                        <h3 className="font-semibold text-joy-gray-900">WhatsApp</h3>
-                        <a 
-                          href={`https://wa.me/${contactInfo.whatsapp.replace(/[^0-9]/g, '')}`} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-joy-orange hover:underline"
-                        >
-                          {contactInfo.whatsapp}
-                        </a>
+                        <p className="text-sm font-medium text-joy-gray-700">WhatsApp</p>
+                        <p className="text-sm text-joy-gray-600">Available for business inquiries</p>
                       </div>
                     </div>
-                  )}
-                  
-                  {contactInfo.phone && (
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
-                        <Icons.Phone size={20} className="text-blue-500" />
-                      </div>
+                    <div className="flex items-start gap-3">
+                      <span style={{ fontSize: '1.2rem' }}>📍</span>
                       <div>
-                        <h3 className="font-semibold text-joy-gray-900">Phone</h3>
-                        <a href={`tel:${contactInfo.phone}`} className="text-joy-orange hover:underline">
-                          {contactInfo.phone}
-                        </a>
+                        <p className="text-sm font-medium text-joy-gray-700">Location</p>
+                        <p className="text-sm text-joy-gray-600">Yiwu, Zhejiang, China</p>
                       </div>
                     </div>
-                  )}
-                  
-                  {contactInfo.address && (
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-purple-500/10 flex items-center justify-center flex-shrink-0">
-                        <Icons.MapPin size={20} className="text-purple-500" />
-                      </div>
+                    <div className="flex items-start gap-3">
+                      <span style={{ fontSize: '1.2rem' }}>🕐</span>
                       <div>
-                        <h3 className="font-semibold text-joy-gray-900">Address</h3>
-                        <p className="text-joy-gray-600">{contactInfo.address}</p>
+                        <p className="text-sm font-medium text-joy-gray-700">Response Time</p>
+                        <p className="text-sm text-joy-gray-600">Within 24 hours</p>
                       </div>
                     </div>
-                  )}
-                  
-                  {contactInfo.hours && (
-                    <div className="flex items-start gap-4">
-                      <div className="w-12 h-12 rounded-xl bg-joy-navy/10 flex items-center justify-center flex-shrink-0">
-                        <Icons.Package size={20} className="text-joy-navy" />
-                      </div>
-                      <div>
-                        <h3 className="font-semibold text-joy-gray-900">Business Hours</h3>
-                        <p className="text-joy-gray-600">{contactInfo.hours}</p>
-                      </div>
-                    </div>
-                  )}
+                  </div>
                 </div>
 
-                {/* Custom HTML Content */}
-                {sc('contact_extra')?.content && (
-                  <div className="mt-8 pt-8 border-t border-joy-gray-100">
-                    <div dangerouslySetInnerHTML={{ __html: sanitizeHTML(sc('contact_extra')!.content!) }} />
+                <div className="border-t border-orange-100 pt-5">
+                  <p className="text-sm font-medium text-joy-gray-700 mb-2">We speak:</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full font-medium">English</span>
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full font-medium">Português</span>
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full font-medium">Русский</span>
+                    <span className="text-xs bg-orange-100 text-orange-700 px-2.5 py-1 rounded-full font-medium">中文</span>
                   </div>
-                )}
+                </div>
               </div>
             </div>
           </div>
         </section>
       </main>
-      <Footer />
-    </div>
+
+      <script dangerouslySetInnerHTML={{ __html: `
+        document.getElementById('contact-form').addEventListener('submit', async function(e) {
+          e.preventDefault();
+          var btn = this.querySelector('button[type=submit]');
+          var msg = document.getElementById('form-message');
+          btn.disabled = true;
+          btn.textContent = 'Sending...';
+          var formData = new FormData(this);
+          var data = Object.fromEntries(formData.entries());
+          try {
+            var res = await fetch('/api/contact', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+            var json = await res.json();
+            if (res.ok) {
+              msg.textContent = '✅ Message sent successfully! We will get back to you within 24 hours.';
+              msg.className = 'mt-4 text-center text-sm text-green-600';
+              msg.classList.remove('hidden');
+              this.reset();
+            } else {
+              msg.textContent = '❌ ' + (json.error || 'Failed to send. Please try again.');
+              msg.className = 'mt-4 text-center text-sm text-red-600';
+              msg.classList.remove('hidden');
+            }
+          } catch(err) {
+            msg.textContent = '❌ Network error. Please try again.';
+            msg.className = 'mt-4 text-center text-sm text-red-600';
+            msg.classList.remove('hidden');
+          }
+          btn.disabled = false;
+          btn.textContent = 'Send Message';
+        });
+      ` }} />
+    </>
   )
 }

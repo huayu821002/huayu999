@@ -30,7 +30,7 @@ const defaultHeaderSettings = {
     { href: "/products?collection=trending-now", label: "🔥 Trending" },
     { href: "/products?collection=pet-me", label: "🐾 Pet & Me" },
     { href: "/info/about-us", label: "About" },
-    { href: "/info/contact", label: "Contact" }
+    { href: "/contact", label: "Contact Us" }
   ]
 }
 
