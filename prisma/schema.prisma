@@ -251,3 +251,14 @@ model SeoSetting {
 
   @@unique([pageType, pageSlug, locale])
 }
+
+model Contact {
+  id         String   @id @default(cuid())
+  name       String
+  email      String
+  phone      String?
+  subject    String?
+  message    String
+  isRead     Boolean  @default(false)
+  createdAt  DateTime @default(now())
+}
