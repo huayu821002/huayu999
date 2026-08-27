@@ -40,7 +40,9 @@ export async function POST(request: Request) {
     // 生成唯一文件名
     const ext = file.name.split('.').pop() || 'jpg'
     const filename = `${randomUUID()}.${ext}`
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
+
+    // 上传到项目根目录的 uploads/（不在 public/ 里，部署不会被清空）
+    const uploadDir = path.join(process.cwd(), 'uploads')
 
     // 确保目录存在
     if (!existsSync(uploadDir)) {
@@ -52,8 +54,10 @@ export async function POST(request: Request) {
     const filepath = path.join(uploadDir, filename)
     await writeFile(filepath, buffer)
 
-    const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'
-    const url = `${siteUrl}/uploads/${filename}`
+    // URL 前缀：优先用环境变量，也可以是外部存储的 URL
+    // 例如: https://fiestaflare.com/uploads 或 https://your-cdn.com/fiestaflare
+    const uploadUrl = process.env.NEXT_PUBLIC_UPLOAD_URL || 'https://fiestaflare.com/uploads'
+    const url = `${uploadUrl.replace(/\/$/, '')}/${filename}`
 
     return NextResponse.json({ success: true, url })
   } catch (error) {
