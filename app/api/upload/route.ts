@@ -41,8 +41,8 @@ export async function POST(request: Request) {
     const ext = file.name.split('.').pop() || 'jpg'
     const filename = `${randomUUID()}.${ext}`
 
-    // 上传到项目根目录的 uploads/（不在 public/ 里，部署不会被清空）
-    const uploadDir = path.join(process.cwd(), 'uploads')
+    // 上传到 public/uploads（符号链接到持久目录，部署后自动重建）
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
 
     // 确保目录存在
     if (!existsSync(uploadDir)) {
