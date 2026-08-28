@@ -285,6 +285,7 @@ model Warehouse {
   updatedAt DateTime @updatedAt
   inventories ProductWarehouseInventory[]
   shippingRates WarehouseShippingRate[]
+  warehouseShippingRates ShippingRate[]
 }
 
 model ProductWarehouseInventory {
