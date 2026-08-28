@@ -6,16 +6,31 @@ import { Icons } from '@/components/ui/Icons'
 export function Newsletter() {
   const [email, setEmail] = useState('')
   const [status, setStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!email) return
     setStatus('loading')
-    // Simulate subscription - in production would call an API
-    setTimeout(() => {
-      setStatus('success')
-      setEmail('')
-    }, 1000)
+    setErrorMsg('')
+    try {
+      const res = await fetch('/api/newsletter', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      })
+      const data = await res.json()
+      if (res.ok && data.success) {
+        setStatus('success')
+        setEmail('')
+      } else {
+        setStatus('error')
+        setErrorMsg(data.error || 'Failed to subscribe')
+      }
+    } catch {
+      setStatus('error')
+      setErrorMsg('Network error. Please try again.')
+    }
   }
 
   return (
@@ -37,23 +52,28 @@ export function Newsletter() {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="flex gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              required
-              placeholder="Enter your email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="flex-1 px-4 py-3 rounded-xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:bg-white/30"
-            />
-            <button
-              type="submit"
-              disabled={status === 'loading'}
-              className="px-6 py-3 bg-white text-joy-orange font-semibold rounded-xl hover:bg-orange-50 transition-colors disabled:opacity-50"
-            >
-              {status === 'loading' ? '...' : 'Subscribe'}
-            </button>
-          </form>
+          <>
+            <form onSubmit={handleSubmit} className="flex gap-3 max-w-md mx-auto">
+              <input
+                type="email"
+                required
+                placeholder="Enter your email"
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                className="flex-1 px-4 py-3 rounded-xl bg-white/20 border border-white/30 text-white placeholder-white/60 focus:outline-none focus:bg-white/30"
+              />
+              <button
+                type="submit"
+                disabled={status === 'loading'}
+                className="px-6 py-3 bg-white text-joy-orange font-semibold rounded-xl hover:bg-orange-50 transition-colors disabled:opacity-50"
+              >
+                {status === 'loading' ? '...' : 'Subscribe'}
+              </button>
+            </form>
+            {status === 'error' && (
+              <p className="text-red-200 text-sm mt-3">{errorMsg}</p>
+            )}
+          </>
         )}
         <p className="text-white/60 text-xs mt-4">
           No spam. Unsubscribe anytime.
