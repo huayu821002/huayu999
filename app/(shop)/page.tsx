@@ -10,6 +10,7 @@ import { CartDrawer } from '@/components/shop/CartDrawer'
 import { SubscribeModal } from '@/components/shop/SubscribeModal'
 import { ProductCard } from '@/components/shop/ProductCard'
 import { HeroCarousel } from '@/components/home/HeroCarousel'
+import { TrendingProducts } from '@/components/home/TrendingProducts'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import type { Product } from '@/types'
@@ -240,6 +241,9 @@ export default async function ShopHomePage() {
             </div>
           </section>
         )}
+
+        {/* Trending Products */}
+        <TrendingProducts />
 
         {/* Categories */}
         <section className="py-16">
