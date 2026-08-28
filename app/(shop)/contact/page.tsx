@@ -10,6 +10,7 @@ export const metadata = { title: 'Contact Us - Fiestaflare' }
 export default function ContactPage() {
   return (
     <>
+      <Header />
       <CartDrawer />
       <FloatingButtons />
       <main className="pt-[calc(4rem+36px)]">
@@ -163,6 +164,8 @@ export default function ContactPage() {
           </div>
         </section>
       </main>
+
+      <Footer />
 
       <script dangerouslySetInnerHTML={{ __html: `
         document.getElementById('contact-form').addEventListener('submit', async function(e) {
