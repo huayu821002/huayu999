@@ -15,6 +15,8 @@ interface ShippingRate {
   estimatedDays: string | null
   isActive: boolean
   methodId?: string | null
+  warehouseId?: string | null
+  warehouseName?: string
 }
 
 const allCountries = [
@@ -72,6 +74,7 @@ const allCountries = [
 
 export default function ShippingSettingsPage() {
   const [rates, setRates] = useState<ShippingRate[]>([])
+  const [warehouses, setWarehouses] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [showModal, setShowModal] = useState(false)
@@ -91,8 +94,19 @@ export default function ShippingSettingsPage() {
     }
   }
 
+  const fetchWarehouses = async () => {
+    try {
+      const res = await adminFetch('/api/admin/warehouses')
+      const data = await res.json()
+      if (data.success) setWarehouses(data.data || [])
+    } catch (error) {
+      console.error('Failed to fetch warehouses:', error)
+    }
+  }
+
   useEffect(() => {
     fetchRates()
+    fetchWarehouses()
   }, [])
 
   const handleSave = async (rate: ShippingRate) => {
@@ -148,6 +162,7 @@ export default function ShippingSettingsPage() {
         maxWeight: 0,
         estimatedDays: null,
         isActive: true,
+        warehouseId: null,
       })
     }
     setShowModal(true)
@@ -206,7 +221,10 @@ export default function ShippingSettingsPage() {
                 <div className="flex items-center gap-4">
                   <div className={`w-3 h-3 rounded-full ${rate.isActive ? 'bg-green-500' : 'bg-gray-300'}`} />
                   <div>
-                    <p className="font-medium text-joy-gray-900">{rate.countryName} <span className="text-joy-gray-400 text-sm">({rate.countryCode})</span></p>
+                    <p className="font-medium text-joy-gray-900">{rate.countryName} <span className="text-joy-gray-400 text-sm">({rate.countryCode})</span>
+                      {rate.warehouseId && <span className="ml-2 text-xs bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full">📦 {warehouses.find(w => w.id === rate.warehouseId)?.name || rate.warehouseId}</span>}
+                      {!rate.warehouseId && <span className="ml-2 text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded-full">Global</span>}
+                    </p>
                     <p className="text-sm text-joy-gray-500">
                       Base: ${Number(rate.baseCost).toFixed(2)} | Per kg: ${Number(rate.costPerKg).toFixed(2)} | Free over: ${Number(rate.freeThreshold).toFixed(2)}
                       {rate.estimatedDays && ` | Est: ${rate.estimatedDays}`}
@@ -309,6 +327,20 @@ export default function ShippingSettingsPage() {
                   placeholder="e.g., 7-14 days"
                   className="w-full border border-joy-gray-200 rounded-lg px-3 py-2"
                 />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-joy-gray-700 mb-1">Warehouse (Optional)</label>
+                <select
+                  value={editingRate.warehouseId || ''}
+                  onChange={(e) => setEditingRate({ ...editingRate, warehouseId: e.target.value || null })}
+                  className="w-full border border-joy-gray-200 rounded-lg px-3 py-2"
+                >
+                  <option value="">Global (No specific warehouse)</option>
+                  {warehouses.filter(w => w.isActive).map(w => (
+                    <option key={w.id} value={w.id}>{w.name} ({w.country})</option>
+                  ))}
+                </select>
+                <p className="text-xs text-joy-gray-500 mt-1">Leave empty to apply to all warehouses</p>
               </div>
               <div className="flex items-center gap-2">
                 <input
