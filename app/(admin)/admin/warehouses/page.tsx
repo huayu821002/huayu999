@@ -196,7 +196,7 @@ export default function WarehousesPage() {
                             {w.isDefault && <span className="text-joy-orange font-medium">✓ Default</span>}
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <button onClick={() => openEditWarehouse(w)} className="text-joy-orange hover:text-orange-600 mr-3"><Icons.Edit2 size={16} /></button>
+                            <button onClick={() => openEditWarehouse(w)} className="text-joy-orange hover:text-orange-600 mr-3"><Icons.Edit3 size={16} /></button>
                             <button onClick={() => handleDeleteWarehouse(w.id)} className="text-red-500 hover:text-red-700"><Icons.Trash2 size={16} /></button>
                           </td>
                         </tr>
@@ -245,7 +245,7 @@ export default function WarehousesPage() {
                             </span>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            <button onClick={() => openEditRate(r)} className="text-joy-orange hover:text-orange-600 mr-3"><Icons.Edit2 size={16} /></button>
+                            <button onClick={() => openEditRate(r)} className="text-joy-orange hover:text-orange-600 mr-3"><Icons.Edit3 size={16} /></button>
                             <button onClick={() => handleDeleteRate(r.id)} className="text-red-500 hover:text-red-700"><Icons.Trash2 size={16} /></button>
                           </td>
                         </tr>
