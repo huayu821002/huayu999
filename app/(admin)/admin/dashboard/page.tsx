@@ -349,6 +349,13 @@ export default function AdminDashboard() {
               <h3 className="font-semibold text-joy-gray-900">Subscribers</h3>
               <p className="text-sm text-joy-gray-500">Newsletter emails</p>
             </Link>
+            <Link href="/admin/warehouses" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="w-12 h-12 rounded-xl bg-joy-blue/10 flex items-center justify-center mb-4 group-hover:bg-joy-blue/20 transition-colors">
+                <Icons.MapPin size={24} className="text-joy-blue" />
+              </div>
+              <h3 className="font-semibold text-joy-gray-900">Warehouses</h3>
+              <p className="text-sm text-joy-gray-500">Overseas warehouses</p>
+            </Link>
           </div>
         </div>
       </main>

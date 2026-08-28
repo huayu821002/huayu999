@@ -78,6 +78,8 @@ export default function ProductDetailPage() {
   const [reviewSubmitted, setReviewSubmitted] = useState(false)
   const [reviewable, setReviewable] = useState(false)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [warehouseInventories, setWarehouseInventories] = useState<any[]>([])
+  const [selectedWarehouseId, setSelectedWarehouseId] = useState<string>('')
 
   // Translation
   const t = useTranslation.bind(null, 'product', '')
@@ -154,6 +156,8 @@ export default function ProductDetailPage() {
           fetchReviews(data.data.id)
           setReviewStats({ averageRating: data.data.averageRating || 0, reviewCount: data.data.reviewCount || 0 })
         }
+        // Fetch warehouse inventory
+        fetchWarehouseInventory(data.data.id)
       } else {
         setError(data.error || 'Product not found')
       }
@@ -240,10 +244,34 @@ export default function ProductDetailPage() {
     }
   }
 
+  const fetchWarehouseInventory = async (productId: string) => {
+    try {
+      const res = await fetch(`/api/products/${params.slug}/inventory`)
+      const data = await res.json()
+      if (data.success && data.data) {
+        setWarehouseInventories(data.data.inventories || [])
+        // Set default warehouse (preferred: warehouse with stock, fallback: default warehouse)
+        const inventories = data.data.inventories || []
+        const inStock = inventories.find((inv: any) => inv.quantity > 0)
+        if (inStock) {
+          setSelectedWarehouseId(inStock.warehouseId)
+        } else if (data.data.defaultWarehouse) {
+          setSelectedWarehouseId(data.data.defaultWarehouse.id)
+        } else if (inventories.length > 0) {
+          setSelectedWarehouseId(inventories[0].warehouseId)
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch warehouse inventory:', err)
+    }
+  }
+
   const handleAddToCart = async () => {
     if (!product) return
     setIsAdding(true)
     const currentVariant = product.variants?.find(v => v.id === selectedVariant)
+    // Get selected warehouse info
+    const selectedWarehouse = warehouseInventories.find(i => i.warehouseId === selectedWarehouseId)?.warehouse
     // Convert API product to cart-compatible format
     const cartProduct = {
       ...product,
@@ -254,7 +282,7 @@ export default function ProductDetailPage() {
       ...currentVariant,
       sku: currentVariant.sku || undefined,
     } : undefined
-    useCartStore.getState().addItem(cartProduct as any, quantity, cartVariant as any)
+    useCartStore.getState().addItem(cartProduct as any, quantity, cartVariant as any, selectedWarehouseId, selectedWarehouse?.name)
     await new Promise(resolve => setTimeout(resolve, 500))
     setIsAdding(false)
   }
@@ -480,6 +508,42 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
+              {/* Warehouse Selection */}
+              {warehouseInventories.length > 0 && (
+                <div className="mb-6">
+                  <label className="block text-sm font-medium text-joy-gray-700 mb-2">
+                    Select Warehouse
+                  </label>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {warehouseInventories.map((inv) => (
+                      <button
+                        key={inv.warehouseId}
+                        onClick={() => setSelectedWarehouseId(inv.warehouseId)}
+                        className={cn(
+                          'p-3 rounded-xl border-2 text-left transition-all',
+                          selectedWarehouseId === inv.warehouseId
+                            ? 'border-joy-orange bg-orange-50'
+                            : 'border-joy-gray-200 hover:border-joy-gray-300'
+                        )}
+                      >
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="font-medium text-sm text-joy-gray-900">{inv.warehouse.name}</span>
+                          {inv.warehouse.isDefault && (
+                            <span className="text-xs text-joy-orange">Default</span>
+                          )}
+                        </div>
+                        <div className={cn('text-sm font-semibold', inv.quantity > 0 ? 'text-joy-green' : 'text-red-500')}>
+                          {inv.quantity > 0 ? `${inv.quantity} in stock` : 'Out of stock'}
+                        </div>
+                        {inv.quantity > 0 && inv.quantity < 20 && (
+                          <div className="text-xs text-red-500 mt-0.5">Low stock</div>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Quantity Selector */}
               <div className="mb-6">
                 <label className="block text-sm font-medium text-joy-gray-700 mb-2">
@@ -507,7 +571,9 @@ export default function ProductDetailPage() {
                     </button>
                   </div>
                   <span className={`text-sm ${product.inventory < 20 ? 'text-red-500 font-medium' : 'text-joy-gray-500'}`}>
-                    {product.inventory} in stock
+                    {warehouseInventories.length > 0 && selectedWarehouseId
+                      ? (warehouseInventories.find(i => i.warehouseId === selectedWarehouseId)?.quantity || 0) + ' available'
+                      : product.inventory + ' in stock'}
                   </span>
                 </div>
               </div>

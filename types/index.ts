@@ -82,6 +82,8 @@ export interface CartItem {
   product: Product
   quantity: number
   variant?: ProductVariant
+  warehouseId?: string
+  warehouseName?: string
 }
 
 export interface Cart {
