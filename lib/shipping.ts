@@ -87,12 +87,15 @@ export async function getShippingRatesForCountry(countryCode: string): Promise<S
 export async function calculateShippingOptions(
   countryCode: string,
   totalWeight: number,
-  subtotal: number
+  subtotal: number,
+  warehouseId?: string
 ): Promise<ShippingOption[]> {
   try {
-    const rates = await prisma.shippingRate.findMany({
+    // First, try to find rates for the specific warehouse
+    let rates = await prisma.shippingRate.findMany({
       where: {
         isActive: true,
+        warehouseId: warehouseId || null, // Match warehouse-specific or global rates
         OR: [
           { countryCode: countryCode.toUpperCase() },
           { countryCode: 'ALL' },
@@ -103,6 +106,24 @@ export async function calculateShippingOptions(
       },
       orderBy: { sortOrder: 'asc' },
     })
+
+    // If no warehouse-specific rates found, fall back to global rates
+    if (rates.length === 0 && warehouseId) {
+      rates = await prisma.shippingRate.findMany({
+        where: {
+          isActive: true,
+          warehouseId: null, // Only global rates
+          OR: [
+            { countryCode: countryCode.toUpperCase() },
+            { countryCode: 'ALL' },
+          ]
+        },
+        include: {
+          method: true
+        },
+        orderBy: { sortOrder: 'asc' },
+      })
+    }
 
     if (rates.length === 0) {
       // No shipping templates configured - return empty
@@ -158,6 +179,7 @@ export async function calculateShippingOptions(
         freeShipping: isFree,
         isFree,
         available: true,
+        warehouseId: rate.warehouseId,
       }
     })
   } catch (error) {

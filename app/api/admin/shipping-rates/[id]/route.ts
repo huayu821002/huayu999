@@ -14,7 +14,7 @@ export async function GET(request: Request, { params }: { params: { id: string }
 export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
   try {
     const body = await request.json()
-    const { countryCode, countryName, baseCost, costPerKg, freeThreshold, minWeight, maxWeight, estimatedDays, isActive, sortOrder, methodId } = body
+    const { countryCode, countryName, baseCost, costPerKg, freeThreshold, minWeight, maxWeight, estimatedDays, isActive, sortOrder, methodId, warehouseId } = body
     const rate = await prisma.shippingRate.update({
       where: { id: params.id },
       data: {
@@ -28,6 +28,7 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
         isActive,
         sortOrder,
         methodId: methodId || null,
+        warehouseId: warehouseId || null,
       }
     })
     return NextResponse.json({ success: true, data: rate })

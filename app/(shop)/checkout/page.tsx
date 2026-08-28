@@ -90,11 +90,14 @@ export default function CheckoutPage() {
       setSelectedShipping('')
       return
     }
+    // Get warehouseId from first cart item (all items should ideally use the same warehouse)
+    const firstItemWithWarehouse = items.find(item => (item as any).warehouseId)
+    const warehouseId = firstItemWithWarehouse ? (firstItemWithWarehouse as any).warehouseId : undefined
     try {
       const res = await fetch('/api/shipping/calculate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ subtotal, weight: totalWeight, country: shippingForm.country }),
+        body: JSON.stringify({ subtotal, weight: totalWeight, country: shippingForm.country, warehouseId }),
       })
       const data = await res.json()
       if (data.success && data.data && data.data.length > 0) {

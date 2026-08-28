@@ -13,9 +13,9 @@ export async function GET(request: Request) {
     const rates = await prisma.shippingRate.findMany({
       where,
       orderBy: { sortOrder: 'asc' },
-      include: { method: { select: { name: true, code: true } } }
+      include: { method: { select: { name: true, code: true } }, warehouse: { select: { name: true } } }
     })
-    return NextResponse.json({ success: true, data: rates })
+    return NextResponse.json({ success: true, data: rates.map((r: any) => ({ ...r, warehouseName: r.warehouse?.name })) })
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 })
   }
@@ -25,7 +25,7 @@ export async function GET(request: Request) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    const { countryCode, countryName, baseCost, costPerKg, freeThreshold, minWeight, maxWeight, estimatedDays, isActive, sortOrder, methodId } = body
+    const { countryCode, countryName, baseCost, costPerKg, freeThreshold, minWeight, maxWeight, estimatedDays, isActive, sortOrder, methodId, warehouseId } = body
     const rate = await prisma.shippingRate.create({
       data: {
         countryCode, countryName,
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
         isActive: isActive ?? true,
         sortOrder: sortOrder ?? 0,
         methodId: methodId || null,
+        warehouseId: warehouseId || null,
       }
     })
     return NextResponse.json({ success: true, data: rate })

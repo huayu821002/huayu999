@@ -226,6 +226,7 @@ model ShippingRate {
   updatedAt     DateTime @updatedAt
   methodId      String?
   method        ShippingMethod? @relation(fields: [methodId], references: [id])
+  warehouseId   String?  // Optional: if set, this rate applies when shipping from this warehouse
 }
 
 model SiteSetting {
