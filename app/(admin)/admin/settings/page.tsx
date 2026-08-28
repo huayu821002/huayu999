@@ -50,13 +50,14 @@ export default function AdminSettingsPage() {
   const [shippingTemplates, setShippingTemplates] = useState<any[]>([])
   const [selectedTemplate, setSelectedTemplate] = useState<any>(null)
   const [shippingRates, setShippingRates] = useState<any[]>([])
+  const [warehouses, setWarehouses] = useState<any[]>([])
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [editingTemplate, setEditingTemplate] = useState<any>(null)
   const [templateForm, setTemplateForm] = useState({ name: '', code: '', description: '', isActive: true, sortOrder: '0' })
   const [showRateModal, setShowRateModal] = useState(false)
   const [editingRate, setEditingRate] = useState<any>(null)
   const [selectedCountries, setSelectedCountries] = useState<string[]>([])
-  const [rateForm, setRateForm] = useState({ countryCode: '', countryName: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0' })
+  const [rateForm, setRateForm] = useState({ countryCode: '', countryName: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0', warehouseId: '' })
 
   // Custom Pages
   const [customPages, setCustomPages] = useState<any[]>([])
@@ -116,7 +117,7 @@ export default function AdminSettingsPage() {
     if (!isAdmin) return
     if (activeTab === 'categories') fetchCategories()
     if (activeTab === 'homepage') fetchHomepageContent()
-    if (activeTab === 'shipping') { fetchShippingTemplates(); fetchShippingRates() }
+    if (activeTab === 'shipping') { fetchShippingTemplates(); fetchShippingRates(); fetchWarehouses() }
     if (activeTab === 'payments') fetchPaymentSettings()
     if (activeTab === 'custom_pages') fetchCustomPages()
     if (activeTab === 'header_footer') { fetchHeaderFooter(); fetchHomepageCategories() }
@@ -166,6 +167,14 @@ export default function AdminSettingsPage() {
       const res = await fetch(url)
       const data = await res.json()
       if (data.success) setShippingRates(data.data)
+    } catch (err) { console.error(err) }
+  }
+
+  const fetchWarehouses = async () => {
+    try {
+      const res = await adminFetch('/api/admin/warehouses')
+      const data = await res.json()
+      if (data.success) setWarehouses(data.data || [])
     } catch (err) { console.error(err) }
   }
 
@@ -390,8 +399,8 @@ export default function AdminSettingsPage() {
   }
 
   // Rate handlers
-  const openAddRate = () => { setEditingRate(null); setSelectedCountries([]); setRateForm({ countryCode: '', countryName: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0' }); setShowRateModal(true) }
-  const openEditRate = (r: any) => { setEditingRate(r); setSelectedCountries([r.countryCode]); setRateForm({ countryCode: r.countryCode, countryName: r.countryName, baseCost: String(r.baseCost), costPerKg: String(r.costPerKg), freeThreshold: String(r.freeThreshold), minWeight: String(r.minWeight || 0), maxWeight: String(r.maxWeight || 0), estimatedDays: r.estimatedDays || '', isActive: r.isActive, sortOrder: String(r.sortOrder || 0) }); setShowRateModal(true) }
+  const openAddRate = () => { setEditingRate(null); setSelectedCountries([]); setRateForm({ countryCode: '', countryName: '', baseCost: '0', costPerKg: '0', freeThreshold: '0', minWeight: '0', maxWeight: '0', estimatedDays: '', isActive: true, sortOrder: '0', warehouseId: '' }); setShowRateModal(true) }
+  const openEditRate = (r: any) => { setEditingRate(r); setSelectedCountries([r.countryCode]); setRateForm({ countryCode: r.countryCode, countryName: r.countryName, baseCost: String(r.baseCost), costPerKg: String(r.costPerKg), freeThreshold: String(r.freeThreshold), minWeight: String(r.minWeight || 0), maxWeight: String(r.maxWeight || 0), estimatedDays: r.estimatedDays || '', isActive: r.isActive, sortOrder: String(r.sortOrder || 0), warehouseId: r.warehouseId || '' }); setShowRateModal(true) }
   const handleRateSubmit = async () => {
     if (selectedCountries.length === 0) {
       alert('Please select at least one country')
@@ -401,7 +410,7 @@ export default function AdminSettingsPage() {
     try {
       if (editingRate) {
         // Editing single rate
-        const body = { ...rateForm, methodId: selectedTemplate?.id || null }
+        const body = { ...rateForm, methodId: selectedTemplate?.id || null, warehouseId: rateForm.warehouseId || null }
         const res = await fetch(`/api/admin/shipping-rates/${editingRate.id}`, {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
@@ -424,7 +433,8 @@ export default function AdminSettingsPage() {
             maxWeight: rateForm.maxWeight,
             estimatedDays: rateForm.estimatedDays,
             isActive: rateForm.isActive,
-            methodId: selectedTemplate?.id || null
+            methodId: selectedTemplate?.id || null,
+            warehouseId: rateForm.warehouseId || null
           }
           const res = await adminFetch('/api/admin/shipping-rates', {
             method: 'POST',
@@ -864,6 +874,7 @@ export default function AdminSettingsPage() {
                               <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Free At</th>
                               <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Weight</th>
                               <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Days</th>
+                              <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Warehouse</th>
                               <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Status</th>
                               <th className="text-left text-xs font-medium text-joy-gray-500 uppercase px-4 py-3">Actions</th>
                             </tr>
@@ -880,6 +891,13 @@ export default function AdminSettingsPage() {
                                 <td className="px-4 py-3 text-joy-gray-700">{Number(r.freeThreshold) > 0 ? `$${r.freeThreshold}` : '-'}</td>
                                 <td className="px-4 py-3 text-joy-gray-700 text-xs">{r.minWeight > 0 || r.maxWeight > 0 ? `${r.minWeight || 0}-${r.maxWeight || '∞'}kg` : '-'}</td>
                                 <td className="px-4 py-3 text-joy-gray-700">{r.estimatedDays || '-'}</td>
+                                <td className="px-4 py-3">
+                                  {r.warehouseId ? (
+                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-600">📦 {warehouses.find(w => w.id === r.warehouseId)?.name || r.warehouseId}</span>
+                                  ) : (
+                                    <span className="px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">Global</span>
+                                  )}
+                                </td>
                                 <td className="px-4 py-3"><span className={`px-2 py-1 rounded-full text-xs font-medium ${r.isActive ? 'bg-joy-green/10 text-joy-green' : 'bg-joy-gray-100 text-joy-gray-600'}`}>{r.isActive ? 'Active' : 'Inactive'}</span></td>
                                 <td className="px-4 py-3">
                                   <div className="flex items-center gap-1">
@@ -1587,6 +1605,22 @@ export default function AdminSettingsPage() {
                 <input type="checkbox" id="rateActive" checked={rateForm.isActive} onChange={e => setRateForm({...rateForm, isActive: e.target.checked})} className="rounded" />
                 <label htmlFor="rateActive" className="text-sm text-joy-gray-700">Active</label>
               </div>
+              {warehouses.length > 0 && (
+                <div>
+                  <label className="block text-sm font-medium text-joy-gray-700 mb-1">Warehouse (Optional)</label>
+                  <select
+                    value={rateForm.warehouseId}
+                    onChange={e => setRateForm({...rateForm, warehouseId: e.target.value})}
+                    className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none"
+                  >
+                    <option value="">Global (All warehouses)</option>
+                    {warehouses.filter((w: any) => w.isActive).map((w: any) => (
+                      <option key={w.id} value={w.id}>{w.name} ({w.country})</option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-joy-gray-500 mt-1">Leave empty to apply to all warehouses. Select a warehouse to ship from a specific location.</p>
+                </div>
+              )}
             </div>
             <div className="px-6 py-4 border-t border-joy-gray-100 flex justify-end gap-3">
               <Button variant="secondary" onClick={() => setShowRateModal(false)}>Cancel</Button>
