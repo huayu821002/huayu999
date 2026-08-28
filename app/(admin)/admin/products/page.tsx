@@ -60,6 +60,8 @@ export default function AdminProductsPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [products, setProducts] = useState<Product[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [warehouses, setWarehouses] = useState<any[]>([])
+  const [warehouseInventory, setWarehouseInventory] = useState<Record<string, string>>({})
   const [searchQuery, setSearchQuery] = useState('')
   const [showProductModal, setShowProductModal] = useState(false)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -91,6 +93,7 @@ export default function AdminProductsPage() {
     if (!isAdmin) return
     fetchProducts()
     fetchCategories()
+    fetchWarehouses()
   }, [isAdmin])
 
   const fetchProducts = async () => {
@@ -106,6 +109,28 @@ export default function AdminProductsPage() {
       const res = await adminFetch('/api/admin/categories')
       const data = await res.json()
       if (data.success) setCategories(data.data)
+    } catch (err) { console.error(err) }
+  }
+
+  const fetchWarehouses = async () => {
+    try {
+      const res = await adminFetch('/api/admin/warehouses')
+      const data = await res.json()
+      if (data.success) setWarehouses(data.data.filter((w: any) => w.isActive))
+    } catch (err) { console.error(err) }
+  }
+
+  const fetchWarehouseInventory = async (productId: string) => {
+    try {
+      const res = await adminFetch(`/api/admin/product-inventory?productId=${productId}`)
+      const data = await res.json()
+      if (data.success && data.data) {
+        const invMap: Record<string, string> = {}
+        data.data.forEach((inv: any) => {
+          invMap[inv.warehouseId] = String(inv.quantity)
+        })
+        setWarehouseInventory(invMap)
+      }
     } catch (err) { console.error(err) }
   }
 
@@ -128,6 +153,7 @@ export default function AdminProductsPage() {
   const openAdd = () => {
     setEditingProduct(null)
     setProductVariants([])
+    setWarehouseInventory({})
     setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false })
     setShowProductModal(true)
   }
@@ -136,6 +162,7 @@ export default function AdminProductsPage() {
   const openEdit = (product: Product) => {
     setEditingProduct(product)
     setProductVariants([])
+    setWarehouseInventory({})
     setForm({
       name: product.name, sku: product.sku, description: product.description, shortDesc: product.shortDesc || '',
       price: String(product.price), comparePrice: product.comparePrice ? String(product.comparePrice) : '',
@@ -147,6 +174,7 @@ export default function AdminProductsPage() {
     })
     setShowProductModal(true)
     fetchVariants(product.id)
+    fetchWarehouseInventory(product.id)
   }
 
   const handleDelete = async (id: string) => {
@@ -170,6 +198,19 @@ export default function AdminProductsPage() {
       })
       const data = await res.json()
       if (data.success) {
+        // Save warehouse inventory
+        const savedProductId = editingProduct ? editingProduct.id : data.data?.id
+        if (savedProductId) {
+          for (const [warehouseId, quantity] of Object.entries(warehouseInventory)) {
+            if (quantity && parseInt(quantity as string) > 0) {
+              await adminFetch('/api/admin/product-inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ productId: savedProductId, warehouseId, quantity: parseInt(quantity as string) }),
+              })
+            }
+          }
+        }
         setShowProductModal(false)
         fetchProducts()
       } else {
@@ -374,6 +415,32 @@ export default function AdminProductsPage() {
                   <Input label="Low Stock Alert" type="number" placeholder="10" value={form.lowStockAlert} onChange={(e) => setForm({...form, lowStockAlert: e.target.value})} />
                   <Input label="Weight (kg)" type="number" step="0.01" placeholder="0.5" value={form.weight || ''} onChange={(e) => setForm({...form, weight: e.target.value})} />
                 </div>
+                {/* Warehouse Inventory */}
+                {warehouses.length > 0 && (
+                  <div className="bg-joy-gray-50 rounded-xl p-4">
+                    <h4 className="font-medium text-joy-gray-900 mb-3">Warehouse Inventory</h4>
+                    <p className="text-xs text-joy-gray-500 mb-3">Set inventory for each warehouse. Leave empty or 0 if not available.</p>
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      {warehouses.map(w => (
+                        <div key={w.id} className="bg-white rounded-lg p-3 border border-joy-gray-200">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="text-sm font-medium text-joy-gray-900">{w.name}</span>
+                            {w.isDefault && <span className="text-xs text-joy-orange">Default</span>}
+                          </div>
+                          <input
+                            type="number"
+                            min="0"
+                            placeholder="0"
+                            value={warehouseInventory[w.id] || ''}
+                            onChange={e => setWarehouseInventory({ ...warehouseInventory, [w.id]: e.target.value })}
+                            className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none"
+                          />
+                          <p className="text-xs text-joy-gray-400 mt-1">{w.country}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
                 {/* Product Images - Multi Upload */}
                 <div>
                   <label className="block text-sm font-medium text-joy-gray-700 mb-2">Product Images (up to 5)</label>
