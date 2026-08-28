@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
-import { existsSync } from 'fs'
-import path from 'path'
 import { verifyToken } from '@/lib/auth'
-import { randomUUID } from 'crypto'
 
 export async function POST(request: Request) {
   try {
@@ -37,27 +33,37 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'File too large. Max 32MB' }, { status: 400 })
     }
 
-    // 生成唯一文件名
-    const ext = file.name.split('.').pop() || 'jpg'
-    const filename = `${randomUUID()}.${ext}`
-
-    // 上传到 public/uploads（符号链接到持久目录，部署后自动重建）
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
-
-    // 确保目录存在
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
+    // 上传到 imgbb（永久存储，不受部署影响）
+    const imgbbApiKey = process.env.IMGBB_API_KEY
+    if (!imgbbApiKey) {
+      return NextResponse.json({ success: false, error: 'Image upload service not configured' }, { status: 500 })
     }
 
     const bytes = await file.arrayBuffer()
-    const buffer = Buffer.from(bytes)
-    const filepath = path.join(uploadDir, filename)
-    await writeFile(filepath, buffer)
+    const base64 = Buffer.from(bytes).toString('base64')
 
-    // URL 前缀：优先用环境变量，也可以是外部存储的 URL
-    // 例如: https://fiestaflare.com/uploads 或 https://your-cdn.com/fiestaflare
-    const uploadUrl = process.env.NEXT_PUBLIC_UPLOAD_URL || 'https://fiestaflare.com/uploads'
-    const url = `${uploadUrl.replace(/\/$/, '')}/${filename}`
+    const imgbbFormData = new FormData()
+    imgbbFormData.append('image', base64)
+    imgbbFormData.append('key', imgbbApiKey)
+
+    const imgbbResponse = await fetch('https://api.imgbb.com/1/upload', {
+      method: 'POST',
+      body: imgbbFormData,
+    })
+
+    if (!imgbbResponse.ok) {
+      console.error('imgbb upload failed:', await imgbbResponse.text())
+      return NextResponse.json({ success: false, error: 'Failed to upload image' }, { status: 500 })
+    }
+
+    const imgbbResult = await imgbbResponse.json()
+    
+    if (!imgbbResult.success) {
+      return NextResponse.json({ success: false, error: 'Image upload failed' }, { status: 500 })
+    }
+
+    // 返回 imgbb 的 URL
+    const url = imgbbResult.data.url
 
     return NextResponse.json({ success: true, url })
   } catch (error) {
