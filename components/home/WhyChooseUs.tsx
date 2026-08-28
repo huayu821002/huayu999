@@ -29,9 +29,9 @@ const reasons = [
     desc: 'Professional team ready to assist you',
   },
   {
-    icon: 'RefreshCw',
-    title: 'Easy Returns',
-    desc: '30-day hassle-free return policy',
+    icon: 'Edit3',
+    title: 'Customization',
+    desc: 'Logo, packaging & brand customization available',
   },
 ]
 
@@ -56,7 +56,7 @@ export function WhyChooseUs() {
                 {item.icon === 'ShieldCheck' && <Icons.ShieldCheck size={28} className="text-joy-orange" />}
                 {item.icon === 'Package' && <Icons.Package size={28} className="text-joy-orange" />}
                 {item.icon === 'Headphones' && <Icons.Headphones size={28} className="text-joy-orange" />}
-                {item.icon === 'RefreshCw' && <Icons.RefreshCw size={28} className="text-joy-orange" />}
+                {item.icon === 'Edit3' && <Icons.Edit3 size={28} className="text-joy-orange" />}
               </div>
               <h3 className="font-semibold text-sm text-joy-gray-900 mb-1">{item.title}</h3>
               <p className="text-xs text-joy-gray-500">{item.desc}</p>
