@@ -211,15 +211,30 @@ export default function ProductDetailPage() {
 
   const fetchRelatedProducts = async (categorySlug: string, currentProductId: string) => {
     try {
+      // Fetch same category products
       const res = await fetch(`/api/products?category=${categorySlug}`)
       const data = await res.json()
+      let related: Product[] = []
+      
       if (data.success && data.data) {
-        const related: Product[] = data.data
+        related = data.data
           .filter((p: any) => p.id !== currentProductId)
           .slice(0, 8)
-          .map((p: any) => p)
-        setRelatedProducts(related)
       }
+
+      // Fallback: if less than 4, fetch all products and fill
+      if (related.length < 4) {
+        const allRes = await fetch('/api/products')
+        const allData = await allRes.json()
+        if (allData.success && allData.data) {
+          const others = allData.data
+            .filter((p: any) => p.id !== currentProductId && !related.find((r: any) => r.id === p.id))
+            .slice(0, 8 - related.length)
+          related = [...related, ...others]
+        }
+      }
+
+      setRelatedProducts(related.slice(0, 8))
     } catch (err) {
       console.error('Failed to fetch related products:', err)
     }
