@@ -1,9 +1,11 @@
 import { NextResponse } from 'next/server'
-import { writeFile, mkdir } from 'fs/promises'
+import { writeFile, mkdir, readFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
 import { verifyToken } from '@/lib/auth'
 import { randomUUID } from 'crypto'
+
+const PERSISTENT_UPLOAD_DIR = '/home/u828392799/domains/fiestaflare.com/uploads'
 
 export async function POST(request: Request) {
   try {
@@ -42,20 +44,17 @@ export async function POST(request: Request) {
     const filename = `${randomUUID()}.${ext}`
 
     // 上传到持久目录（部署后不会被清空）
-    const uploadDir = '/home/u828392799/domains/fiestaflare.com/uploads'
-
-    // 确保目录存在
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
+    if (!existsSync(PERSISTENT_UPLOAD_DIR)) {
+      await mkdir(PERSISTENT_UPLOAD_DIR, { recursive: true })
     }
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    const filepath = path.join(uploadDir, filename)
+    const filepath = path.join(PERSISTENT_UPLOAD_DIR, filename)
     await writeFile(filepath, buffer)
 
-    // URL 指向 /uploads 路径
-    const url = `https://fiestaflare.com/uploads/${filename}`
+    // 返回相对路径，前端通过 /api/uploads/xxx 访问
+    const url = `/api/uploads/${filename}`
 
     return NextResponse.json({ success: true, url })
   } catch (error) {
