@@ -16,7 +16,6 @@ import { SocialProof } from '@/components/home/SocialProof'
 import { QuickQuote } from '@/components/home/QuickQuote'
 import { Newsletter } from '@/components/home/Newsletter'
 import { CategorySpotlight } from '@/components/home/CategorySpotlight'
-import { QualityLogistics } from '@/components/home/QualityLogistics'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import type { Product } from '@/types'
@@ -254,28 +253,6 @@ export default async function ShopHomePage() {
         {/* Trending Products */}
         <TrendingProducts />
 
-        {/* Categories */}
-        <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4">
-            <div className="flex items-center justify-between mb-8">
-              <h2 className="font-display text-2xl font-bold text-joy-gray-900">
-                Browse by Collection
-              </h2>
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-              {categories.map((cat: any) => (
-                <Link key={cat.id} href={`/categories/${cat.slug}`} className="group relative rounded-2xl overflow-hidden aspect-[4/3]">
-                  <Image src={cat.image} alt={cat.name} fill className="object-cover group-hover:scale-105 transition-transform duration-300" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                  <div className="absolute bottom-4 left-4 right-4">
-                    <p className="font-semibold text-lg text-white">{cat.name}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        </section>
-
         {/* Category Spotlight */}
         <CategorySpotlight />
 
@@ -315,9 +292,6 @@ export default async function ShopHomePage() {
 
         {/* Social Proof */}
         <SocialProof />
-
-        {/* Quality & Logistics */}
-        <QualityLogistics />
 
         {/* Quick Quote */}
         <QuickQuote />
