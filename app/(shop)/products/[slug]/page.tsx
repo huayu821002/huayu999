@@ -15,6 +15,7 @@ import { useCartStore, useWishlistStore } from '@/lib/store'
 import { parseProductImages, parseImageUrl } from '@/lib/imageUtils'
 import { useLocale, useTranslation } from '@/lib/translation/client'
 import { useProductTranslation } from '@/lib/translation/useProductTranslation'
+import { sanitizeHTML } from '@/lib/sanitize'
 
 interface ProductVariant {
   id: string
@@ -591,11 +592,10 @@ export default function ProductDetailPage() {
 
             <div className="py-8">
               {activeTab === 'description' && (displayProduct?.description || product.description) && (
-                <div className="prose max-w-none">
-                  {(displayProduct?.description || product.description || '').split('\n').map((p, i) => (
-                    <p key={i} className="mb-4 text-joy-gray-700">{p}</p>
-                  ))}
-                </div>
+                <div 
+                  className="prose max-w-none text-joy-gray-700"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHTML(displayProduct?.description || product.description || '') }}
+                />
               )}
 
               {activeTab === 'specs' && (
