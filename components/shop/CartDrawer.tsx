@@ -118,6 +118,11 @@ export function CartDrawer() {
                         {item.variant.name}: {item.variant.value}
                       </p>
                     )}
+                    {item.warehouseName && (
+                      <p className="text-xs text-joy-blue mb-1">
+                        📦 {item.warehouseName}
+                      </p>
+                    )}
                     <p className="text-sm text-joy-gray-500 mb-2">
                       SKU: {item.product.sku}
                     </p>

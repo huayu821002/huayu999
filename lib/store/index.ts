@@ -7,7 +7,7 @@ interface CartState {
   items: CartItem[]
   currency: Currency
   isOpen: boolean
-  addItem: (product: Product, quantity?: number, variant?: ProductVariant) => void
+  addItem: (product: Product, quantity?: number, variant?: ProductVariant, warehouseId?: string, warehouseName?: string) => void
   removeItem: (itemId: string) => void
   updateQuantity: (itemId: string, quantity: number) => void
   clearCart: () => void
@@ -25,10 +25,11 @@ export const useCartStore = create<CartState>()(
       currency: 'USD',
       isOpen: false,
 
-      addItem: (product, quantity = 1, variant) => {
+      addItem: (product, quantity = 1, variant, warehouseId, warehouseName) => {
         set((state) => {
+          // Find existing item with same product, variant, AND warehouse
           const existingItemIndex = state.items.findIndex(
-            (item) => item.product.id === product.id && item.variant?.id === variant?.id
+            (item) => item.product.id === product.id && item.variant?.id === variant?.id && item.warehouseId === warehouseId
           )
 
           if (existingItemIndex > -1) {
@@ -41,10 +42,12 @@ export const useCartStore = create<CartState>()(
             items: [
               ...state.items,
               {
-                id: `${product.id}-${variant?.id || 'default'}-${Date.now()}`,
+                id: `${product.id}-${variant?.id || 'default'}-${warehouseId || 'default'}-${Date.now()}`,
                 product,
                 quantity,
                 variant,
+                warehouseId,
+                warehouseName,
               },
             ],
             isOpen: true,
