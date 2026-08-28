@@ -89,6 +89,7 @@ model Product {
   orderItems  OrderItem[]
   cartItems   CartItem[]
   reviews     Review[]
+  warehouseInventories ProductWarehouseInventory[]
 
   @@index([isActive, isFeatured, createdAt])
   @@index([isActive, createdAt])
