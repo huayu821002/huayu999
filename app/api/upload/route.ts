@@ -41,8 +41,8 @@ export async function POST(request: Request) {
     const ext = file.name.split('.').pop() || 'jpg'
     const filename = `${randomUUID()}.${ext}`
 
-    // 上传到 public/uploads（符号链接到持久目录，部署后自动重建）
-    const uploadDir = path.join(process.cwd(), 'public', 'uploads')
+    // 上传到持久目录（部署后不会被清空）
+    const uploadDir = '/home/u828392799/domains/fiestaflare.com/uploads'
 
     // 确保目录存在
     if (!existsSync(uploadDir)) {
@@ -54,10 +54,8 @@ export async function POST(request: Request) {
     const filepath = path.join(uploadDir, filename)
     await writeFile(filepath, buffer)
 
-    // URL 前缀：优先用环境变量，也可以是外部存储的 URL
-    // 例如: https://fiestaflare.com/uploads 或 https://your-cdn.com/fiestaflare
-    const uploadUrl = process.env.NEXT_PUBLIC_UPLOAD_URL || 'https://fiestaflare.com/uploads'
-    const url = `${uploadUrl.replace(/\/$/, '')}/${filename}`
+    // URL 指向 /uploads 路径
+    const url = `https://fiestaflare.com/uploads/${filename}`
 
     return NextResponse.json({ success: true, url })
   } catch (error) {
