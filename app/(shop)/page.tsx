@@ -11,6 +11,12 @@ import { SubscribeModal } from '@/components/shop/SubscribeModal'
 import { ProductCard } from '@/components/shop/ProductCard'
 import { HeroCarousel } from '@/components/home/HeroCarousel'
 import { TrendingProducts } from '@/components/home/TrendingProducts'
+import { WhyChooseUs } from '@/components/home/WhyChooseUs'
+import { SocialProof } from '@/components/home/SocialProof'
+import { QuickQuote } from '@/components/home/QuickQuote'
+import { Newsletter } from '@/components/home/Newsletter'
+import { CategorySpotlight } from '@/components/home/CategorySpotlight'
+import { QualityLogistics } from '@/components/home/QualityLogistics'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import type { Product } from '@/types'
@@ -242,6 +248,9 @@ export default async function ShopHomePage() {
           </section>
         )}
 
+        {/* Why Choose Us */}
+        <WhyChooseUs />
+
         {/* Trending Products */}
         <TrendingProducts />
 
@@ -266,6 +275,9 @@ export default async function ShopHomePage() {
             </div>
           </div>
         </section>
+
+        {/* Category Spotlight */}
+        <CategorySpotlight />
 
         {/* Featured Products */}
         <section className="py-16 bg-joy-gray-50">
@@ -300,6 +312,18 @@ export default async function ShopHomePage() {
             )}
           </div>
         </section>
+
+        {/* Social Proof */}
+        <SocialProof />
+
+        {/* Quality & Logistics */}
+        <QualityLogistics />
+
+        {/* Quick Quote */}
+        <QuickQuote />
+
+        {/* Newsletter */}
+        <Newsletter />
       </main>
       <Footer />
       <FloatingButtons />
