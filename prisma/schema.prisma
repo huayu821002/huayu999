@@ -262,3 +262,10 @@ model Contact {
   isRead     Boolean  @default(false)
   createdAt  DateTime @default(now())
 }
+
+model Subscriber {
+  id        String   @id @default(cuid())
+  email    String   @unique
+  isActive Boolean  @default(true)
+  createdAt DateTime @default(now())
+}
