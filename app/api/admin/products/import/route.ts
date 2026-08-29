@@ -99,15 +99,6 @@ export async function POST(request: Request) {
           continue
         }
 
-        // Find category if provided
-        let categoryId = null
-        if (row.category) {
-          const category = await prisma.category.findFirst({
-            where: { name: row.category }
-          })
-          categoryId = category?.id || null
-        }
-
         // Parse images
         let images = null
         if (row.images) {
@@ -126,7 +117,6 @@ export async function POST(request: Request) {
             inventory: parseInt(row.inventory) || 0,
             weight: row.weight ? parseFloat(row.weight) : null,
             images,
-            categoryId,
             isActive: row.isactive === 'true' || row.isactive === '1' || !row.isactive,
           }
         })
