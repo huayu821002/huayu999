@@ -130,6 +130,8 @@ export default function AdminProductsPage() {
           invMap[inv.warehouseId] = String(inv.quantity)
         })
         setWarehouseInventory(invMap)
+        const total = Object.values(invMap).reduce((sum: number, qty: string) => sum + (parseInt(qty) || 0), 0)
+        setForm((prev: any) => ({...prev, inventory: String(total)}))
       }
     } catch (err) { console.error(err) }
   }
@@ -411,7 +413,7 @@ export default function AdminProductsPage() {
                   <Input label="Min Order Qty" type="number" placeholder="1" value={form.minOrderQty} onChange={(e) => setForm({...form, minOrderQty: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
-                  <Input label="Inventory *" type="number" placeholder="0" value={form.inventory} onChange={(e) => setForm({...form, inventory: e.target.value})} />
+                  <Input label="Inventory *" type="number" placeholder="0" value={form.inventory} readOnly className="bg-joy-gray-50" />
                   <Input label="Low Stock Alert" type="number" placeholder="10" value={form.lowStockAlert} onChange={(e) => setForm({...form, lowStockAlert: e.target.value})} />
                   <Input label="Weight (kg)" type="number" step="0.01" placeholder="0.5" value={form.weight || ''} onChange={(e) => setForm({...form, weight: e.target.value})} />
                 </div>
@@ -432,7 +434,12 @@ export default function AdminProductsPage() {
                             min="0"
                             placeholder="0"
                             value={warehouseInventory[w.id] || ''}
-                            onChange={e => setWarehouseInventory({ ...warehouseInventory, [w.id]: e.target.value })}
+                            onChange={e => {
+                              const newInv = { ...warehouseInventory, [w.id]: e.target.value }
+                              setWarehouseInventory(newInv)
+                              const total = Object.values(newInv).reduce((sum, qty) => sum + (parseInt(qty as string) || 0), 0)
+                              setForm({...form, inventory: String(total)})
+                            }}
                             className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none"
                           />
                           <p className="text-xs text-joy-gray-400 mt-1">{w.country}</p>
