@@ -26,7 +26,7 @@ export async function GET() {
       p.costPrice?.toString() || '',
       p.inventory.toString(),
       p.weight?.toString() || '',
-      p.category?.name || '',
+      p.categories?.[0]?.name || '',
       p.images || '',
       p.isActive,
     ])
