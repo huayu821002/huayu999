@@ -9,6 +9,7 @@ import { ProductCard } from '@/components/shop/ProductCard'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
 import { useCartStore } from '@/lib/store'
+import { BatchOrderModal } from '@/components/shop/BatchOrderModal'
 import type { Product } from '@/types'
 
 interface Category {
@@ -39,6 +40,7 @@ export function CategoryClient({ category, initialProducts, currentSort, current
   const router = useRouter()
   const [products] = useState(initialProducts)
   const [sort, setSort] = useState(currentSort)
+  const [showBatchOrder, setShowBatchOrder] = useState(false)
   const { items } = useCartStore()
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0)
 
@@ -130,6 +132,15 @@ export function CategoryClient({ category, initialProducts, currentSort, current
               )}
             </p>
             <div className="flex items-center gap-3">
+              {products.length > 0 && (
+                <button
+                  onClick={() => setShowBatchOrder(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-joy-orange text-white rounded-xl text-sm font-medium hover:bg-joy-orange/90 transition-colors"
+                >
+                  <Icons.ShoppingCart size={16} />
+                  Batch Order
+                </button>
+              )}
               <label className="text-sm text-joy-gray-500">Sort:</label>
               <select
                 value={sort}
@@ -163,6 +174,13 @@ export function CategoryClient({ category, initialProducts, currentSort, current
         </div>
       </div>
       <Footer />
+
+      {/* Batch Order Modal */}
+      <BatchOrderModal
+        isOpen={showBatchOrder}
+        onClose={() => setShowBatchOrder(false)}
+        products={products}
+      />
     </div>
   )
 }

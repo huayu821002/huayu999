@@ -91,6 +91,8 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, data: product })
   } catch (error: any) {
     console.error('Admin products POST error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to create product', details: error?.message }, { status: 500 })
+    console.error('Error code:', error?.code)
+    console.error('Error meta:', error?.meta)
+    return NextResponse.json({ success: false, error: 'Failed to create product', details: error?.message, code: error?.code }, { status: 500 })
   }
 }
