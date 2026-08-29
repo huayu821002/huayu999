@@ -44,6 +44,7 @@ interface Product {
   isTrending: boolean
   tags: string | null
   createdAt: string
+  categories?: { id: string; name: string; slug: string }[]
 }
 
 interface Category {
