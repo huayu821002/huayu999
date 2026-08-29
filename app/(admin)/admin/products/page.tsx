@@ -491,7 +491,7 @@ export default function AdminProductsPage() {
                               }}
                               className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none mb-1"
                             />
-                            <p className="text-xs text-joy-gray-400">per unit ({idx === 0 ? '100%' : idx === 1 ? '90%' : '85%'})</p>
+                            <p className="text-xs text-joy-gray-400">per unit</p>
                           </div>
                         ))}
                       </div>
