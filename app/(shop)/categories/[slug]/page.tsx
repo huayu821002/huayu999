@@ -144,8 +144,8 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     const where = {
       isActive: true,
       OR: [
-        { categoryId: category.id },
-        { category: { parentId: category.id } },
+        { categories: { some: { id: category.id } } },
+        { categories: { some: { parentId: category.id } } },
       ]
     }
     const [productsResult] = await Promise.all([
