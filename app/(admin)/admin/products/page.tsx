@@ -38,8 +38,7 @@ interface Product {
   shortDesc: string | null
   images: string
   modelImage: string | null
-  categoryId: string | null
-  category: { id: string; name: string } | null
+  categoryIds: string[]
   isActive: boolean
   isFeatured: boolean
   isTrending: boolean
@@ -51,6 +50,8 @@ interface Category {
   id: string
   name: string
   slug: string
+  parentId: string | null
+  children?: Category[]
 }
 
 export default function AdminProductsPage() {
@@ -72,7 +73,7 @@ export default function AdminProductsPage() {
   const [form, setForm] = useState({
     name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '',
     costPrice: '', minOrderQty: '1',
-    inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '',
+    inventory: '0', lowStockAlert: '10', weight: '', categoryIds: [], images: '',
     isActive: true, isFeatured: false, isTrending: false, tieredPricing: '',
   })
 
@@ -155,7 +156,7 @@ export default function AdminProductsPage() {
     setEditingProduct(null)
     setProductVariants([])
     setWarehouseInventory({})
-    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: '' })
+    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryIds: [], images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: '' })
     setShowProductModal(true)
   }
 
@@ -169,7 +170,7 @@ export default function AdminProductsPage() {
       price: String(product.price), comparePrice: product.comparePrice ? String(product.comparePrice) : '',
       costPrice: product.costPrice ? String(product.costPrice) : '', minOrderQty: String(product.minOrderQty),
       inventory: String(product.inventory), lowStockAlert: String(product.lowStockAlert), weight: product.weight ? String(product.weight) : '',
-      categoryId: product.categoryId || '', images: product.images,
+      categoryIds: product.categories ? product.categories.map((c: any) => c.id) : [], images: product.images,
       isActive: product.isActive, isFeatured: product.isFeatured, isTrending: product.isTrending,
       tieredPricing: product.tieredPricing || '',
     })
@@ -399,7 +400,38 @@ export default function AdminProductsPage() {
                 <Input label="Product Name *" placeholder="Enter product name" value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} />
                 <div className="grid grid-cols-2 gap-4">
                   <Input label="SKU *" placeholder="e.g., AC-001" value={form.sku} onChange={(e) => setForm({...form, sku: e.target.value})} />
-                  <div><label className="block text-sm font-medium text-joy-gray-700 mb-2">Category</label><select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none" value={form.categoryId} onChange={(e) => setForm({...form, categoryId: e.target.value})}><option value="">Select category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Categories</label>
+                    <div className="border-2 border-joy-gray-200 rounded-xl p-4 max-h-48 overflow-y-auto bg-white">
+                      {(() => {
+                        // Build tree from flat list
+                        const buildTree = (cats: Category[], parentId: string | null = null): Category[] =>
+                          cats.filter(c => c.parentId === parentId).map(c => ({ ...c, children: buildTree(cats, c.id) }))
+                        const tree = buildTree(categories)
+                        const toggleCategory = (id: string) => {
+                          const newIds = form.categoryIds.includes(id)
+                            ? form.categoryIds.filter(cid => cid !== id)
+                            : [...form.categoryIds, id]
+                          setForm({ ...form, categoryIds: newIds })
+                        }
+                        const renderTree = (nodes: Category[], depth = 0) => nodes.map(cat => (
+                          <div key={cat.id}>
+                            <label className="flex items-center gap-2 py-1 cursor-pointer hover:bg-joy-gray-50 rounded px-2">
+                              <input
+                                type="checkbox"
+                                checked={form.categoryIds.includes(cat.id)}
+                                onChange={() => toggleCategory(cat.id)}
+                                className="w-4 h-4 rounded border-joy-gray-300 text-joy-orange focus:ring-joy-orange"
+                              />
+                              <span style={{ paddingLeft: depth * 16 }}>{cat.name}</span>
+                            </label>
+                            {cat.children && cat.children.length > 0 && renderTree(cat.children, depth + 1)}
+                          </div>
+                        ))
+                        return tree.length > 0 ? renderTree(tree) : <p className="text-sm text-joy-gray-400">No categories available</p>
+                      })()}
+                    </div>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <Input label="Price (USD) *" type="number" placeholder="0.00" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} />
