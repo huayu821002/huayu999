@@ -52,7 +52,7 @@ export async function POST(request: Request) {
       name, slug, description, shortDesc, price, comparePrice, costPrice,
       wholesalePrice, vipPrice, minOrderQty, weight, dimensions, images,
       modelImage, sizeChart, sku, barcode, inventory, lowStockAlert,
-      categoryId, tags, isActive, isFeatured, isTrending, compliance
+      tags, isActive, isFeatured, isTrending, compliance
     } = body
 
     const product = await prisma.product.create({
@@ -76,7 +76,6 @@ export async function POST(request: Request) {
         barcode,
         inventory: parseInt(inventory) || 0,
         lowStockAlert: parseInt(lowStockAlert) || 10,
-        categoryId,
         tags,
         isActive: isActive !== false,
         isFeatured: isFeatured === true,
