@@ -164,7 +164,7 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
         <div className="p-4">
           {/* Category + SKU */}
           <p className="text-xs text-joy-gray-400 mb-1 uppercase">
-            {product.category?.name || 'General'} · {product.sku}
+            {product.categories?.length ? product.categories[0].name : 'General'} · {product.sku}
           </p>
           
           {/* Product Name */}
