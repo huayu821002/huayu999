@@ -9,11 +9,8 @@ export async function GET(request: Request) {
     const trending = searchParams.get('trending')
     const featured = searchParams.get('featured')
 
-    const where: Record<string, unknown> = {}
-
-    if (category) {
-      where.category = { slug: category }
-    }
+    // Base query - only filter by active status at DB level
+    const where: Record<string, unknown> = { isActive: true }
 
     if (search) {
       where.OR = [
@@ -31,17 +28,30 @@ export async function GET(request: Request) {
       where.isFeatured = true
     }
 
-    // Fetch products without include to avoid serialization issues
-    const products = await prisma.product.findMany({
+    // Fetch products without include
+    let products = await prisma.product.findMany({
       where,
       orderBy: { createdAt: 'desc' },
     })
 
-    // Fetch categories separately
+    // Fetch all categories for mapping
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
     const categoryMap = new Map(categories.map((c: any) => [c.id, c]))
 
-    // Merge categories data manually (categoryIds stored as JSON array)
+    // If category filter is set, filter products by categoryIds
+    if (category) {
+      const targetCat = categories.find(c => c.slug === category)
+      if (targetCat) {
+        const catIds = [targetCat.id, ...categories.filter(c => c.parentId === targetCat.id).map(c => c.id)]
+        products = products.filter(p => {
+          if (!p.categoryIds) return false
+          const productCatIds = JSON.parse(p.categoryIds)
+          return catIds.some(id => productCatIds.includes(id))
+        })
+      }
+    }
+
+    // Merge categories data
     const productsWithCategory = products.map((p: any) => {
       const catIds = p.categoryIds ? JSON.parse(p.categoryIds) : []
       const cats = catIds.map((id: string) => categoryMap.get(id)).filter(Boolean)
@@ -62,7 +72,7 @@ export async function POST(request: Request) {
       name, slug, description, shortDesc, price, comparePrice, costPrice,
       wholesalePrice, vipPrice, minOrderQty, weight, dimensions, images,
       modelImage, sizeChart, sku, barcode, inventory, lowStockAlert,
-      categoryId, tags, isActive, isFeatured, isTrending, compliance
+      categoryIds, tags, isActive, isFeatured, isTrending, compliance
     } = body
 
     const product = await prisma.product.create({
@@ -86,7 +96,7 @@ export async function POST(request: Request) {
         barcode,
         inventory: parseInt(inventory) || 0,
         lowStockAlert: parseInt(lowStockAlert) || 10,
-        categoryId,
+        categoryIds: categoryIds ? JSON.stringify(categoryIds) : null,
         tags,
         isActive: isActive !== false,
         isFeatured: isFeatured === true,
