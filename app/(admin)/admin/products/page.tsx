@@ -437,7 +437,7 @@ export default function AdminProductsPage() {
                             onChange={e => {
                               const newInv = { ...warehouseInventory, [w.id]: e.target.value }
                               setWarehouseInventory(newInv)
-                              const total = Object.values(newInv).reduce((sum, qty) => sum + (parseInt(qty as string) || 0), 0)
+                              const total = Object.values(newInv).reduce((sum: number, qty) => sum + (parseInt(qty as string) || 0), 0)
                               setForm({...form, inventory: String(total)})
                             }}
                             className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none"
