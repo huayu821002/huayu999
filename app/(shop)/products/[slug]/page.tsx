@@ -504,7 +504,7 @@ export default function ProductDetailPage() {
                         "font-semibold mb-1",
                         idx === 1 ? "text-joy-orange" : idx === 2 ? "text-joy-green" : "text-joy-gray-500"
                       )}>
-                        {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
+                        {idx === 0 ? "Retail" : idx === 1 ? "Wholesale" : "VIP"}
                       </div>
                       <div className={cn(
                         "font-semibold",
