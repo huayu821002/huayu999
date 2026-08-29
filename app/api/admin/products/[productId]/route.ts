@@ -21,7 +21,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
       name, slug, description, shortDesc,
       price, comparePrice, costPrice, wholesalePrice, vipPrice,
       weight, images, sku, barcode, inventory,
-      categoryId, isActive, isFeatured, isTrending,
+      categoryIds, isActive, isFeatured, isTrending,
       minOrderQty, lowStockAlert
     } = body
 
@@ -39,7 +39,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
         images: Array.isArray(images) ? JSON.stringify(images) : images,
         sku, barcode,
         inventory: parseInt(inventory) || 0,
-        categoryId: categoryId || null,
+        categoryIds: categoryIds ? JSON.stringify(categoryIds) : null,
         isActive,
         isFeatured,
         isTrending,

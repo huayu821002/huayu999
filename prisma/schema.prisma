@@ -64,6 +64,7 @@ model Product {
   wholesalePrice Float?
   vipPrice    Float?
   tieredPricing String? // JSON: { tiers: [{ minQty, maxQty, price }, ...] }
+  categoryIds String? // JSON: ["catId1", "catId2", ...]
   sku         String      @unique
   barcode     String?
   weight      Float?

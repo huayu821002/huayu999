@@ -38,8 +38,8 @@ interface Product {
   shortDesc: string | null
   images: string
   modelImage: string | null
-  categoryId: string | null
-  category: { id: string; name: string } | null
+  categoryIds?: string | null
+  categories?: { id: string; name: string }[]
   isActive: boolean
   isFeatured: boolean
   isTrending: boolean
@@ -51,6 +51,56 @@ interface Category {
   id: string
   name: string
   slug: string
+  parentId?: string | null
+}
+
+// Build tree structure from flat category list
+function buildCategoryTree(categories: Category[]) {
+  const map = new Map<string, Category & { children: Category[] }>()
+  const roots: (Category & { children: Category[] })[] = []
+  categories.forEach(c => map.set(c.id, { ...c, children: [] }))
+  map.forEach(cat => {
+    if (cat.parentId && map.has(cat.parentId)) {
+      map.get(cat.parentId)!.children.push(cat)
+    } else {
+      roots.push(cat)
+    }
+  })
+  return roots
+}
+
+// Helper to parse categoryIds from Product (which stores as JSON string)
+function parseCategoryIds(categoryIds: string | string[] | null | undefined): string[] {
+  if (!categoryIds) return []
+  if (Array.isArray(categoryIds)) return categoryIds
+  try { return JSON.parse(categoryIds) } catch { return [] }
+}
+
+// Render checkbox tree
+function renderCategoryCheckbox(
+  cat: Category & { children: Category[] },
+  selectedIds: string[],
+  onChange: (ids: string[]) => void,
+  depth = 0
+) {
+  const isSelected = selectedIds.includes(cat.id)
+  const toggle = () => {
+    if (isSelected) {
+      onChange(selectedIds.filter(id => id !== cat.id))
+    } else {
+      onChange([...selectedIds, cat.id])
+    }
+  }
+  const children = cat.children || []
+  return (
+    <div key={cat.id} style={{ marginLeft: depth * 16 }}>
+      <label className="flex items-center gap-2 py-1 cursor-pointer hover:bg-joy-gray-50 rounded px-2">
+        <input type="checkbox" checked={isSelected} onChange={toggle} className="w-4 h-4" />
+        <span className="text-sm">{cat.name}</span>
+      </label>
+      {(children as (Category & { children: Category[] })[]).map(child => renderCategoryCheckbox(child, selectedIds, onChange, depth + 1))}
+    </div>
+  )
 }
 
 export default function AdminProductsPage() {
@@ -69,10 +119,15 @@ export default function AdminProductsPage() {
   const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '0' })
   const [isSaving, setIsSaving] = useState(false)
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string; sku: string; description: string; shortDesc: string; price: string; comparePrice: string;
+    costPrice: string; minOrderQty: string;
+    inventory: string; lowStockAlert: string; weight: string; categoryIds: string[]; images: string;
+    isActive: boolean; isFeatured: boolean; isTrending: boolean; tieredPricing: string;
+  }>({
     name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '',
     costPrice: '', minOrderQty: '1',
-    inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '',
+    inventory: '0', lowStockAlert: '10', weight: '', categoryIds: [], images: '',
     isActive: true, isFeatured: false, isTrending: false, tieredPricing: '',
   })
 
@@ -155,7 +210,7 @@ export default function AdminProductsPage() {
     setEditingProduct(null)
     setProductVariants([])
     setWarehouseInventory({})
-    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: '' })
+    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryIds: [], images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: '' })
     setShowProductModal(true)
   }
 
@@ -169,7 +224,7 @@ export default function AdminProductsPage() {
       price: String(product.price), comparePrice: product.comparePrice ? String(product.comparePrice) : '',
       costPrice: product.costPrice ? String(product.costPrice) : '', minOrderQty: String(product.minOrderQty),
       inventory: String(product.inventory), lowStockAlert: String(product.lowStockAlert), weight: product.weight ? String(product.weight) : '',
-      categoryId: product.categoryId || '', images: product.images,
+      categoryIds: product.categoryIds ? JSON.parse(product.categoryIds) : [], images: product.images,
       isActive: product.isActive, isFeatured: product.isFeatured, isTrending: product.isTrending,
       tieredPricing: product.tieredPricing || '',
     })
@@ -355,7 +410,7 @@ export default function AdminProductsPage() {
                           </div>
                           <div>
                             <p className="font-medium text-joy-gray-900">{product.name}</p>
-                            <p className="text-xs text-joy-gray-500">{product.category?.name || 'Uncategorized'}</p>
+                            <p className="text-xs text-joy-gray-500">{product.categories?.map((c: any) => c.name).join(', ') || 'Uncategorized'}</p>
                           </div>
                         </div>
                       </td>
@@ -399,7 +454,7 @@ export default function AdminProductsPage() {
                 <Input label="Product Name *" placeholder="Enter product name" value={form.name} onChange={(e) => setForm({...form, name: e.target.value})} />
                 <div className="grid grid-cols-2 gap-4">
                   <Input label="SKU *" placeholder="e.g., AC-001" value={form.sku} onChange={(e) => setForm({...form, sku: e.target.value})} />
-                  <div><label className="block text-sm font-medium text-joy-gray-700 mb-2">Category</label><select className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none" value={form.categoryId} onChange={(e) => setForm({...form, categoryId: e.target.value})}><option value="">Select category</option>{categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}</select></div>
+                  <div><label className="block text-sm font-medium text-joy-gray-700 mb-2">Categories</label><div className="space-y-1 max-h-48 overflow-y-auto border-2 border-joy-gray-200 rounded-xl p-3">{buildCategoryTree(categories).map(cat => renderCategoryCheckbox(cat, form.categoryIds, (ids) => setForm({...form, categoryIds: ids})))}</div></div>
                 </div>
                 <div className="grid grid-cols-3 gap-4">
                   <Input label="Price (USD) *" type="number" placeholder="0.00" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} />

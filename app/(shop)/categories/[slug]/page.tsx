@@ -139,16 +139,17 @@ export default async function CategoryPage({ params, searchParams }: Props) {
   }
   const orderBy = sortOptions[sort] || {}
 
-  // Fetch products for this category
+  // Fetch products for this category (including child categories)
   try {
-    const where = {
-      isActive: true,
-      OR: [
-        { categoryId: category.id },
-        { category: { parentId: category.id } },
-      ]
-    }
-    const [productsResult] = await Promise.all([
+    // Get all category IDs including children
+    const childCategories = await prisma.category.findMany({
+      where: { parentId: category.id },
+      select: { id: true }
+    })
+    const allCategoryIds = [category.id, ...childCategories.map(c => c.id)]
+
+    const where = { isActive: true }
+    const [productsResult, total] = await Promise.all([
       prisma.product.findMany({
         where,
         orderBy,
@@ -157,7 +158,13 @@ export default async function CategoryPage({ params, searchParams }: Props) {
       }),
       prisma.product.count({ where }),
     ])
-    products = productsResult
+    // Filter products that have any of these categoryIds in their JSON array
+    products = productsResult.filter(p => {
+      if (!p.categoryIds) return false
+      const catIds = JSON.parse(p.categoryIds)
+      return allCategoryIds.some(id => catIds.includes(id))
+    })
+    totalCount = total
   } catch (error) {
     console.error('Products fetch error:', error)
   }

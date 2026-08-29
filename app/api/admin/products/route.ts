@@ -34,12 +34,13 @@ export async function GET(request: Request) {
       console.error('Category query failed:', innerError)
     }
 
-    // Merge category data manually
+    // Merge categories data manually (categoryIds stored as JSON array)
     const categoryMap = new Map(categories.map((c: any) => [c.id, c]))
-    const productsWithCategory = products.map((p: any) => ({
-      ...p,
-      category: p.categoryId ? categoryMap.get(p.categoryId) || null : null
-    }))
+    const productsWithCategory = products.map((p: any) => {
+      const catIds = p.categoryIds ? JSON.parse(p.categoryIds) : []
+      const cats = catIds.map((id: string) => categoryMap.get(id)).filter(Boolean)
+      return { ...p, categories: cats }
+    })
 
     return NextResponse.json({ success: true, data: productsWithCategory, count: products.length })
   } catch (error: any) {
@@ -55,7 +56,7 @@ export async function POST(request: Request) {
       name, slug, description, shortDesc,
       price, comparePrice, costPrice, wholesalePrice, vipPrice,
       weight, images, sku, barcode, inventory,
-      categoryId, isActive, isFeatured, isTrending,
+      categoryIds, isActive, isFeatured, isTrending,
       minOrderQty, lowStockAlert
     } = body
 
@@ -78,7 +79,7 @@ export async function POST(request: Request) {
         sku,
         barcode,
         inventory: parseInt(inventory) || 0,
-        categoryId: categoryId || null,
+        categoryIds: categoryIds ? JSON.stringify(categoryIds) : null,
         isActive: isActive !== undefined ? isActive : true,
         isFeatured: isFeatured || false,
         isTrending: isTrending || false,
