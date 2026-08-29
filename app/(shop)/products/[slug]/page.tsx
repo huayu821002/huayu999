@@ -10,7 +10,7 @@ import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { ProductCard } from '@/components/shop/ProductCard'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { cn, formatCurrency, getPriceByTier, convertPrice } from '@/lib/utils'
+import { cn, formatCurrency, getPriceByTier, convertPrice, getTieredPricing, getPriceFromTieredPricing } from '@/lib/utils'
 import { useCartStore, useWishlistStore } from '@/lib/store'
 import { parseProductImages, parseImageUrl } from '@/lib/imageUtils'
 import { useLocale, useTranslation } from '@/lib/translation/client'
@@ -38,6 +38,7 @@ interface Product {
   costPrice?: number | null
   wholesalePrice?: number | null
   vipPrice?: number | null
+  tieredPricing?: string | null
   minOrderQty: number
   inventory: number
   lowStockAlert?: number
@@ -332,7 +333,8 @@ export default function ProductDetailPage() {
   const images = parseProductImages(product.images)
   const currentVariant = product.variants?.find(v => v.id === selectedVariant)
   const displayPrice = currentVariant?.price || product.price
-  const priceByQty = getPriceByTier(displayPrice, quantity, currency)
+  const tiers = getTieredPricing(product.tieredPricing, displayPrice)
+  const priceByQty = getPriceFromTieredPricing(tiers, quantity)
 
   const tags = product.tags ? JSON.parse(product.tags) : []
 
@@ -493,18 +495,23 @@ export default function ProductDetailPage() {
 
                 {/* Tier Prices */}
                 <div className="grid grid-cols-3 gap-2 text-sm">
-                  <div className="text-center p-3 bg-white rounded-xl">
-                    <div className="text-joy-gray-500 mb-1">1-10 pcs</div>
-                    <div className="font-semibold">{formatCurrency(convertPrice(getPriceByTier(displayPrice, 1, currency).price, currency), currency)}</div>
-                  </div>
-                  <div className="text-center p-3 bg-joy-orange/10 rounded-xl border-2 border-joy-orange">
-                    <div className="text-joy-orange font-semibold mb-1">11-100 pcs</div>
-                    <div className="font-bold text-joy-orange">{formatCurrency(convertPrice(getPriceByTier(displayPrice, 50, currency).price, currency), currency)}</div>
-                  </div>
-                  <div className="text-center p-3 bg-joy-green/10 rounded-xl">
-                    <div className="text-joy-green mb-1">100+ pcs</div>
-                    <div className="font-semibold text-joy-green">{formatCurrency(convertPrice(getPriceByTier(displayPrice, 200, currency).price, currency), currency)}</div>
-                  </div>
+                  {tiers.map((tier, idx) => (
+                    <div key={idx} className={cn(
+                      "text-center p-3 rounded-xl",
+                      idx === 1 ? "bg-joy-orange/10 rounded-xl border-2 border-joy-orange" : "bg-white"
+                    )}>
+                      <div className={cn(
+                        "font-semibold mb-1",
+                        idx === 1 ? "text-joy-orange" : idx === 2 ? "text-joy-green" : "text-joy-gray-500"
+                      )}>
+                        {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
+                      </div>
+                      <div className={cn(
+                        "font-semibold",
+                        idx === 1 ? "text-joy-orange" : idx === 2 ? "text-joy-green" : ""
+                      )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
+                    </div>
+                  ))}
                 </div>
               </div>
 

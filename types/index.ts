@@ -46,6 +46,7 @@ export interface Product {
   costPrice?: number | null
   wholesalePrice?: number | null
   vipPrice?: number | null
+  tieredPricing?: string | null
   minOrderQty: number
   weight?: number | null
   dimensions?: string | null

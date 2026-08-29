@@ -31,6 +31,7 @@ interface Product {
   costPrice: number | null
   wholesalePrice: number | null
   vipPrice: number | null
+  tieredPricing: string | null
   minOrderQty: number
   inventory: number
   lowStockAlert: number
@@ -74,7 +75,7 @@ export default function AdminProductsPage() {
     name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '',
     costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1',
     inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '',
-    isActive: true, isFeatured: false, isTrending: false,
+    isActive: true, isFeatured: false, isTrending: false, tieredPricing: '',
   })
 
   useEffect(() => {
@@ -156,7 +157,7 @@ export default function AdminProductsPage() {
     setEditingProduct(null)
     setProductVariants([])
     setWarehouseInventory({})
-    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false })
+    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: JSON.stringify({ tiers: [{ minQty: 1, maxQty: 10, price: 0 }, { minQty: 11, maxQty: 100, price: 0 }, { minQty: 101, maxQty: null, price: 0 }] }) })
     setShowProductModal(true)
   }
 
@@ -173,6 +174,7 @@ export default function AdminProductsPage() {
       inventory: String(product.inventory), lowStockAlert: String(product.lowStockAlert), weight: product.weight ? String(product.weight) : '',
       categoryId: product.categoryId || '', images: product.images,
       isActive: product.isActive, isFeatured: product.isFeatured, isTrending: product.isTrending,
+      tieredPricing: product.tieredPricing || '',
     })
     setShowProductModal(true)
     fetchVariants(product.id)
@@ -416,6 +418,55 @@ export default function AdminProductsPage() {
                   <Input label="Inventory *" type="number" placeholder="0" value={form.inventory} readOnly className="bg-joy-gray-50" />
                   <Input label="Low Stock Alert" type="number" placeholder="10" value={form.lowStockAlert} onChange={(e) => setForm({...form, lowStockAlert: e.target.value})} />
                   <Input label="Weight (kg)" type="number" step="0.01" placeholder="0.5" value={form.weight || ''} onChange={(e) => setForm({...form, weight: e.target.value})} />
+                </div>
+                {/* Tiered Pricing */}
+                <div className="bg-joy-gray-50 rounded-xl p-4">
+                  <h4 className="font-medium text-joy-gray-900 mb-3">Tiered Pricing</h4>
+                  <p className="text-xs text-joy-gray-500 mb-3">Set different prices for different quantity ranges. Leave prices at 0 to use default calculation.</p>
+                  {(() => {
+                    let tiers = [{ minQty: 1, maxQty: 10, price: '' }, { minQty: 11, maxQty: 100, price: '' }, { minQty: 101, maxQty: null, price: '' }]
+                    try {
+                      if (form.tieredPricing) {
+                        const parsed = JSON.parse(form.tieredPricing)
+                        if (parsed && parsed.tiers) {
+                          tiers = parsed.tiers.map((t: any) => ({ minQty: t.minQty, maxQty: t.maxQty, price: String(t.price || '') }))
+                        }
+                      }
+                    } catch {}
+                    const basePrice = parseFloat(form.price) || 0
+                    if (!form.tieredPricing) {
+                      tiers = [
+                        { minQty: 1, maxQty: 10, price: String(basePrice) },
+                        { minQty: 11, maxQty: 100, price: String(basePrice * 0.7) },
+                        { minQty: 101, maxQty: null, price: String(basePrice * 0.5) },
+                      ]
+                    }
+                    return (
+                      <div className="grid grid-cols-3 gap-3">
+                        {tiers.map((tier, idx) => (
+                          <div key={idx} className="bg-white rounded-lg p-3 border border-joy-gray-200">
+                            <div className="text-sm font-medium text-joy-gray-900 mb-2">
+                              {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
+                            </div>
+                            <input
+                              type="number"
+                              step="0.01"
+                              min="0"
+                              placeholder="Price"
+                              value={tier.price}
+                              onChange={e => {
+                                const newTiers = [...tiers]
+                                newTiers[idx] = { ...newTiers[idx], price: e.target.value }
+                                setForm({ ...form, tieredPricing: JSON.stringify({ tiers: newTiers }) })
+                              }}
+                              className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none mb-1"
+                            />
+                            <p className="text-xs text-joy-gray-400">per unit</p>
+                          </div>
+                        ))}
+                      </div>
+                    )
+                  })()}
                 </div>
                 {/* Warehouse Inventory */}
                 {warehouses.length > 0 && (
