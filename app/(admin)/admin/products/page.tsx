@@ -362,7 +362,7 @@ export default function AdminProductsPage() {
                           </div>
                           <div>
                             <p className="font-medium text-joy-gray-900">{product.name}</p>
-                            <p className="text-xs text-joy-gray-500">{product.category?.name || 'Uncategorized'}</p>
+                            <p className="text-xs text-joy-gray-500">{product.categories?.length ? product.categories.map((c: any) => c.name).join(', ') : 'Uncategorized'}</p>
                           </div>
                         </div>
                       </td>
