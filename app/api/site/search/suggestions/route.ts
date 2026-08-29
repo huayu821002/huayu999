@@ -19,9 +19,9 @@ export async function GET(request: NextRequest) {
       where: {
         isActive: true,
         OR: [
-          { name: { contains: q } },
-          { description: { contains: q } },
-          { sku: { contains: q } },
+          { name: { contains: q, mode: 'insensitive' } },
+          { description: { contains: q, mode: 'insensitive' } },
+          { sku: { contains: q, mode: 'insensitive' } },
         ],
       },
       take: 6,
@@ -40,8 +40,8 @@ export async function GET(request: NextRequest) {
     const categories = await prisma.category.findMany({
       where: {
         OR: [
-          { name: { contains: q } },
-          { slug: { contains: q } },
+          { name: { contains: q, mode: 'insensitive' } },
+          { slug: { contains: q, mode: 'insensitive' } },
         ],
       },
       take: 4,
