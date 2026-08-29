@@ -31,10 +31,10 @@ export function getPriceByTier(
     multiplier = 1
   } else if (quantity <= 100) {
     tier = 'WHOLESALE'
-    multiplier = 0.7 // 30% off
+    multiplier = 0.9 // 10% off
   } else {
     tier = 'VIP'
-    multiplier = 0.5 // 50% off
+    multiplier = 0.85 // 15% off
   }
 
   const unitPrice = price * multiplier
@@ -55,8 +55,8 @@ export function getTieredPricing(tieredPricingStr: string | null | undefined, ba
   // Default tiers if no tiered pricing is set
   const defaultTiers: TierPrice[] = [
     { minQty: 1, maxQty: 10, price: basePrice },
-    { minQty: 11, maxQty: 100, price: basePrice * 0.7 },
-    { minQty: 101, maxQty: null, price: basePrice * 0.5 },
+    { minQty: 11, maxQty: 100, price: basePrice * 0.9 },
+    { minQty: 101, maxQty: null, price: basePrice * 0.85 },
   ]
 
   if (!tieredPricingStr) {
