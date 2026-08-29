@@ -234,12 +234,12 @@ export default function ProductDetailPage() {
         if (allData.success && allData.data) {
           const others = allData.data
             .filter((p: any) => p.id !== currentProductId && !related.find((r: any) => r.id === p.id))
-            .slice(0, 8 - related.length)
+            .slice(0, 4 - related.length)
           related = [...related, ...others]
         }
       }
 
-      setRelatedProducts(related.slice(0, 8))
+      setRelatedProducts(related.slice(0, 4))
     } catch (err) {
       console.error('Failed to fetch related products:', err)
     }
