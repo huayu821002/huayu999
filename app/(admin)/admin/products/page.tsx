@@ -29,8 +29,6 @@ interface Product {
   price: number
   comparePrice: number | null
   costPrice: number | null
-  wholesalePrice: number | null
-  vipPrice: number | null
   tieredPricing: string | null
   minOrderQty: number
   inventory: number
@@ -73,7 +71,7 @@ export default function AdminProductsPage() {
 
   const [form, setForm] = useState({
     name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '',
-    costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1',
+    costPrice: '', minOrderQty: '1',
     inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '',
     isActive: true, isFeatured: false, isTrending: false, tieredPricing: '',
   })
@@ -157,7 +155,7 @@ export default function AdminProductsPage() {
     setEditingProduct(null)
     setProductVariants([])
     setWarehouseInventory({})
-    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', wholesalePrice: '', vipPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: JSON.stringify({ tiers: [{ minQty: 1, maxQty: 10, price: 0 }, { minQty: 11, maxQty: 100, price: 0 }, { minQty: 101, maxQty: null, price: 0 }] }) })
+    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: JSON.stringify({ tiers: [{ minQty: 1, maxQty: 10, price: 0 }, { minQty: 11, maxQty: 100, price: 0 }, { minQty: 101, maxQty: null, price: 0 }] }) })
     setShowProductModal(true)
   }
 
@@ -169,8 +167,7 @@ export default function AdminProductsPage() {
     setForm({
       name: product.name, sku: product.sku, description: product.description, shortDesc: product.shortDesc || '',
       price: String(product.price), comparePrice: product.comparePrice ? String(product.comparePrice) : '',
-      costPrice: product.costPrice ? String(product.costPrice) : '', wholesalePrice: product.wholesalePrice ? String(product.wholesalePrice) : '',
-      vipPrice: product.vipPrice ? String(product.vipPrice) : '', minOrderQty: String(product.minOrderQty),
+      costPrice: product.costPrice ? String(product.costPrice) : '', minOrderQty: String(product.minOrderQty),
       inventory: String(product.inventory), lowStockAlert: String(product.lowStockAlert), weight: product.weight ? String(product.weight) : '',
       categoryId: product.categoryId || '', images: product.images,
       isActive: product.isActive, isFeatured: product.isFeatured, isTrending: product.isTrending,
@@ -407,11 +404,9 @@ export default function AdminProductsPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <Input label="Price (USD) *" type="number" placeholder="0.00" value={form.price} onChange={(e) => setForm({...form, price: e.target.value})} />
                   <Input label="Compare At Price" type="number" placeholder="0.00" value={form.comparePrice} onChange={(e) => setForm({...form, comparePrice: e.target.value})} />
-                  <Input label="Wholesale Price" type="number" placeholder="0.00" value={form.wholesalePrice} onChange={(e) => setForm({...form, wholesalePrice: e.target.value})} />
+                  <Input label="Cost Price" type="number" placeholder="0.00" value={form.costPrice} onChange={(e) => setForm({...form, costPrice: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
-                  <Input label="VIP Price" type="number" placeholder="0.00" value={form.vipPrice} onChange={(e) => setForm({...form, vipPrice: e.target.value})} />
-                  <Input label="Cost Price" type="number" placeholder="0.00" value={form.costPrice} onChange={(e) => setForm({...form, costPrice: e.target.value})} />
                   <Input label="Min Order Qty" type="number" placeholder="1" value={form.minOrderQty} onChange={(e) => setForm({...form, minOrderQty: e.target.value})} />
                 </div>
                 <div className="grid grid-cols-3 gap-4">
