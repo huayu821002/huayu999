@@ -48,7 +48,7 @@ interface Product {
   modelImage?: string | null
   sku?: string
   barcode?: string | null
-  categories?: { id: string; name: string; slug: string }[]
+  category?: { id: string; name: string; slug: string } | null
   tags?: string | null
   variants: ProductVariant[]
   compliance?: string | null
@@ -149,8 +149,8 @@ export default function ProductDetailPage() {
           setSelectedVariant(data.data.variants[0].id)
         }
         // Fetch related products (same category)
-        if (data.data.categories?.length > 0) {
-          fetchRelatedProducts(data.data.categories[0].slug, data.data.id)
+        if (data.data.category?.slug) {
+          fetchRelatedProducts(data.data.category.slug, data.data.id)
         }
         // Fetch reviews
         if (data.data.id) {
@@ -356,11 +356,11 @@ export default function ProductDetailPage() {
             <Link href="/" className="hover:text-joy-orange">Home</Link>
             <Icons.ChevronRight size={14} />
             <Link href="/products" className="hover:text-joy-orange">Products</Link>
-            {product.categories && product.categories.length > 0 && (
+            {product.category && (
               <>
                 <Icons.ChevronRight size={14} />
-                <Link href={`/products?category=${product.categories[0].slug}`} className="hover:text-joy-orange">
-                  {product.categories[0].name}
+                <Link href={`/products?category=${product.category.slug}`} className="hover:text-joy-orange">
+                  {product.category.name}
                 </Link>
               </>
             )}
@@ -446,9 +446,9 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-4 mb-2">
                 {product.sku && <span className="text-sm text-joy-gray-500">SKU: {product.sku}</span>}
                 {product.sku && <span className="text-sm text-joy-gray-400">|</span>}
-                {product.categories?.[0] && (
-                  <Link href={`/products?category=${product.categories[0].slug}`} className="text-sm text-joy-orange hover:underline">
-                    {product.categories[0].name}
+                {product.category && (
+                  <Link href={`/products?category=${product.category.slug}`} className="text-sm text-joy-orange hover:underline">
+                    {product.category.name}
                   </Link>
                 )}
               </div>
@@ -504,7 +504,7 @@ export default function ProductDetailPage() {
                         "font-semibold mb-1",
                         idx === 1 ? "text-joy-orange" : idx === 2 ? "text-joy-green" : "text-joy-gray-500"
                       )}>
-                        {idx === 0 ? "Retail" : idx === 1 ? "Wholesale" : "VIP"} ({tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`})
+                        {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
                       </div>
                       <div className={cn(
                         "font-semibold",
@@ -701,10 +701,10 @@ export default function ProductDetailPage() {
                         <span className="font-medium">{product.barcode}</span>
                       </div>
                     )}
-                    {product.categories?.[0] && (
+                    {product.category && (
                       <div className="flex justify-between py-3 border-b border-joy-gray-100">
                         <span className="text-joy-gray-500">Category</span>
-                        <span className="font-medium">{product.categories[0].name}</span>
+                        <span className="font-medium">{product.category.name}</span>
                       </div>
                     )}
                     <div className="flex justify-between py-3 border-b border-joy-gray-100">
@@ -864,8 +864,8 @@ export default function ProductDetailPage() {
             '@type': 'BreadcrumbList',
             itemListElement: [
               { '@type': 'ListItem', position: 1, name: 'Home', item: process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com' },
-              ...(product.categories?.[0]?.slug ? [{ '@type': 'ListItem', position: 2, name: product.categories[0].name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/categories/${product.categories[0].slug}` }] : []),
-              { '@type': 'ListItem', position: product.categories?.[0]?.slug ? 3 : 2, name: product.name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products/${product.slug}` },
+              ...(product.category?.slug ? [{ '@type': 'ListItem', position: 2, name: product.category.name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/categories/${product.category.slug}` }] : []),
+              { '@type': 'ListItem', position: product.category?.slug ? 3 : 2, name: product.name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products/${product.slug}` },
             ]
           })
         }} />
@@ -889,7 +889,7 @@ export default function ProductDetailPage() {
                 : 'https://schema.org/OutOfStock',
               seller: { '@type': 'Organization', name: 'Huayu Wholesale' }
             },
-            ...(product.categories?.[0] ? { category: product.categories[0].name } : {}),
+            ...(product.category ? { category: product.category.name } : {}),
           })
         }} />
 

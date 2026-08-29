@@ -56,7 +56,7 @@ export interface Product {
   sku?: string
   inventory: number
   lowStockAlert?: number
-  categories?: { id: string; name: string; slug: string }[]
+  category?: Category | null
   tags?: string | null
   variants?: ProductVariant[]
   isFeatured?: boolean

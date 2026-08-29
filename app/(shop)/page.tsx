@@ -85,7 +85,7 @@ async function getHomePageData() {
       where: { isFeatured: true, isActive: true },
       take: 8,
       orderBy: { createdAt: 'desc' },
-      include: { categories: { select: { id: true, name: true, slug: true } } },
+      include: { category: true },
     }),
     // 新到货产品（数据库层面过滤，只取最近30天的）
     prisma.product.findMany({
@@ -95,14 +95,14 @@ async function getHomePageData() {
       },
       take: 8,
       orderBy: { createdAt: 'desc' },
-      include: { categories: { select: { id: true, name: true, slug: true } } },
+      include: { category: true },
     }),
     // 备用产品（如果没有精选，取前8个最新的）
     prisma.product.findMany({
       where: { isActive: true },
       take: 8,
       orderBy: { createdAt: 'desc' },
-      include: { categories: { select: { id: true, name: true, slug: true } } },
+      include: { category: true },
     }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_trust_badges' } }),
     prisma.siteSetting.findUnique({ where: { key: 'homepage_banners' } }),

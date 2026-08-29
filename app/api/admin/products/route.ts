@@ -20,14 +20,28 @@ export async function GET(request: Request) {
       products = await prisma.product.findMany({
         where,
         orderBy: { createdAt: 'desc' },
-        include: { categories: { select: { id: true, name: true, slug: true } } },
       })
     } catch (innerError: any) {
       console.error('Query without include failed:', innerError)
       return NextResponse.json({ success: false, error: 'Query failed', details: innerError?.message }, { status: 500 })
     }
 
-    return NextResponse.json({ success: true, data: products, count: products.length })
+    // Try to fetch categories separately
+    let categories: any[] = []
+    try {
+      categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
+    } catch (innerError: any) {
+      console.error('Category query failed:', innerError)
+    }
+
+    // Merge category data manually
+    const categoryMap = new Map(categories.map((c: any) => [c.id, c]))
+    const productsWithCategory = products.map((p: any) => ({
+      ...p,
+      category: p.categoryId ? categoryMap.get(p.categoryId) || null : null
+    }))
+
+    return NextResponse.json({ success: true, data: productsWithCategory, count: products.length })
   } catch (error: any) {
     console.error('Admin products GET error:', error)
     return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message }, { status: 500 })
@@ -39,10 +53,10 @@ export async function POST(request: Request) {
     const body = await request.json()
     const {
       name, slug, description, shortDesc,
-      price, comparePrice, costPrice,
+      price, comparePrice, costPrice, wholesalePrice, vipPrice,
       weight, images, sku, barcode, inventory,
-      categoryIds, isActive, isFeatured, isTrending,
-      minOrderQty, lowStockAlert, tieredPricing
+      categoryId, isActive, isFeatured, isTrending,
+      minOrderQty, lowStockAlert
     } = body
 
     // Auto-generate slug if not provided
@@ -57,18 +71,19 @@ export async function POST(request: Request) {
         price: parseFloat(price) || 0,
         comparePrice: comparePrice ? parseFloat(comparePrice) : null,
         costPrice: costPrice ? parseFloat(costPrice) : null,
+        wholesalePrice: wholesalePrice ? parseFloat(wholesalePrice) : null,
+        vipPrice: vipPrice ? parseFloat(vipPrice) : null,
         weight: weight ? parseFloat(weight) : null,
         images: Array.isArray(images) ? JSON.stringify(images) : images,
         sku,
         barcode,
         inventory: parseInt(inventory) || 0,
-        categories: categoryIds && categoryIds.length > 0 ? { connect: categoryIds.map((id: string) => ({ id })) } : undefined,
+        categoryId: categoryId || null,
         isActive: isActive !== undefined ? isActive : true,
         isFeatured: isFeatured || false,
         isTrending: isTrending || false,
         minOrderQty: parseInt(minOrderQty) || 1,
         lowStockAlert: parseInt(lowStockAlert) || 10,
-        tieredPricing: tieredPricing || null,
       },
     })
 

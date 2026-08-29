@@ -325,7 +325,7 @@ function ProductsContent() {
   const activeCategorySlugs = getCategorySlugs(activeCategory)
 
   const filteredProducts = products.filter(p => {
-    if (activeCategory && p.categories?.[0]?.slug && !activeCategorySlugs.includes(p.categories[0].slug)) {
+    if (activeCategory && p.category?.slug && !activeCategorySlugs.includes(p.category.slug)) {
       return false
     }
     if (searchQuery && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) {

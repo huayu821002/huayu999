@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {}
 
     if (category) {
-      where.categories = { some: { slug: category } }
+      where.category = { slug: category }
     }
 
     if (search) {
@@ -35,10 +35,21 @@ export async function GET(request: Request) {
     const products = await prisma.product.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: { categories: { select: { id: true, name: true, slug: true } } },
     })
 
-    return NextResponse.json({ success: true, data: products })
+    // Fetch categories separately
+    const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
+    const categoryMap = new Map(categories.map((c: any) => [c.id, c]))
+
+    // Merge category data manually
+    const productsWithCategory = products.map((p: any) => ({
+      ...p,
+      category: p.categoryId ? categoryMap.get(p.categoryId) || null : null,
+      averageRating: p.averageRating,
+      reviewCount: p.reviewCount,
+    }))
+
+    return NextResponse.json({ success: true, data: productsWithCategory })
   } catch (error: any) {
     console.error('Products API error:', error)
     return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code }, { status: 500 })
@@ -52,7 +63,7 @@ export async function POST(request: Request) {
       name, slug, description, shortDesc, price, comparePrice, costPrice,
       wholesalePrice, vipPrice, minOrderQty, weight, dimensions, images,
       modelImage, sizeChart, sku, barcode, inventory, lowStockAlert,
-      tags, isActive, isFeatured, isTrending, compliance
+      categoryId, tags, isActive, isFeatured, isTrending, compliance
     } = body
 
     const product = await prisma.product.create({
@@ -76,6 +87,7 @@ export async function POST(request: Request) {
         barcode,
         inventory: parseInt(inventory) || 0,
         lowStockAlert: parseInt(lowStockAlert) || 10,
+        categoryId,
         tags,
         isActive: isActive !== false,
         isFeatured: isFeatured === true,

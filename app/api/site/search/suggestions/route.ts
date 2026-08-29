@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
         comparePrice: true,
         images: true,
         slug: true,
-        categories: { select: { name: true, slug: true } },
+        category: { select: { name: true, slug: true } },
       },
     })
 
