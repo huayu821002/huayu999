@@ -12,7 +12,7 @@ export async function GET(request: Request) {
     const where: Record<string, unknown> = {}
 
     if (category) {
-      where.category = { slug: category }
+      where.categories = { some: { slug: category } }
     }
 
     if (search) {
@@ -35,21 +35,10 @@ export async function GET(request: Request) {
     const products = await prisma.product.findMany({
       where,
       orderBy: { createdAt: 'desc' },
+      include: { categories: { select: { id: true, name: true, slug: true } } },
     })
 
-    // Fetch categories separately
-    const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
-    const categoryMap = new Map(categories.map((c: any) => [c.id, c]))
-
-    // Merge category data manually
-    const productsWithCategory = products.map((p: any) => ({
-      ...p,
-      category: p.categoryId ? categoryMap.get(p.categoryId) || null : null,
-      averageRating: p.averageRating,
-      reviewCount: p.reviewCount,
-    }))
-
-    return NextResponse.json({ success: true, data: productsWithCategory })
+    return NextResponse.json({ success: true, data: products })
   } catch (error: any) {
     console.error('Products API error:', error)
     return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code }, { status: 500 })

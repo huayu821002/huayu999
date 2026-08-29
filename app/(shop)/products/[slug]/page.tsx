@@ -48,7 +48,7 @@ interface Product {
   modelImage?: string | null
   sku?: string
   barcode?: string | null
-  category?: { id: string; name: string; slug: string } | null
+  categories?: { id: string; name: string; slug: string }[]
   tags?: string | null
   variants: ProductVariant[]
   compliance?: string | null
@@ -149,8 +149,8 @@ export default function ProductDetailPage() {
           setSelectedVariant(data.data.variants[0].id)
         }
         // Fetch related products (same category)
-        if (data.data.category?.slug) {
-          fetchRelatedProducts(data.data.category.slug, data.data.id)
+        if (data.data.categories?.length > 0) {
+          fetchRelatedProducts(data.data.categories[0].slug, data.data.id)
         }
         // Fetch reviews
         if (data.data.id) {
@@ -356,11 +356,11 @@ export default function ProductDetailPage() {
             <Link href="/" className="hover:text-joy-orange">Home</Link>
             <Icons.ChevronRight size={14} />
             <Link href="/products" className="hover:text-joy-orange">Products</Link>
-            {product.category && (
+            {product.categories && product.categories.length > 0 && (
               <>
                 <Icons.ChevronRight size={14} />
-                <Link href={`/products?category=${product.category.slug}`} className="hover:text-joy-orange">
-                  {product.category.name}
+                <Link href={`/products?category=${product.categories[0].slug}`} className="hover:text-joy-orange">
+                  {product.categories[0].name}
                 </Link>
               </>
             )}
@@ -864,8 +864,8 @@ export default function ProductDetailPage() {
             '@type': 'BreadcrumbList',
             itemListElement: [
               { '@type': 'ListItem', position: 1, name: 'Home', item: process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com' },
-              ...(product.category?.slug ? [{ '@type': 'ListItem', position: 2, name: product.category.name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/categories/${product.category.slug}` }] : []),
-              { '@type': 'ListItem', position: product.category?.slug ? 3 : 2, name: product.name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products/${product.slug}` },
+              ...(product.categories?.[0]?.slug ? [{ '@type': 'ListItem', position: 2, name: product.categories[0].name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/categories/${product.categories[0].slug}` }] : []),
+              { '@type': 'ListItem', position: product.categories?.[0]?.slug ? 3 : 2, name: product.name, item: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products/${product.slug}` },
             ]
           })
         }} />
@@ -889,7 +889,7 @@ export default function ProductDetailPage() {
                 : 'https://schema.org/OutOfStock',
               seller: { '@type': 'Organization', name: 'Huayu Wholesale' }
             },
-            ...(product.category ? { category: product.category.name } : {}),
+            ...(product.categories?.[0] ? { category: product.categories[0].name } : {}),
           })
         }} />
 
