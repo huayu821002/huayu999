@@ -35,7 +35,6 @@ export async function GET() {
         where: { isActive: true },
         take: 8,
         orderBy: { createdAt: 'desc' },
-        include: { category: true },
       })
       return NextResponse.json({ success: true, data: fallbackProducts, source: 'fallback' })
     }
@@ -46,12 +45,20 @@ export async function GET() {
         id: { in: topProductIds },
         isActive: true,
       },
-      include: { category: true },
     })
+
+    // Fetch categories and merge
+    const allCategoryIds = trendingProducts.flatMap(p => p.categoryIds ? JSON.parse(p.categoryIds) : [])
+    const categories = await prisma.category.findMany({ where: { id: { in: allCategoryIds } } })
+    const categoryMap = new Map(categories.map(c => [c.id, c]))
+    const productsWithCategories = trendingProducts.map(p => ({
+      ...p,
+      categories: (p.categoryIds ? JSON.parse(p.categoryIds) : []).map((id: string) => categoryMap.get(id)).filter(Boolean)
+    }))
 
     // Maintain order by sales rank
     const orderedProducts = topProductIds
-      .map(id => trendingProducts.find(p => p.id === id))
+      .map(id => productsWithCategories.find(p => p.id === id))
       .filter(Boolean)
 
     return NextResponse.json({ success: true, data: orderedProducts, source: 'sales' })

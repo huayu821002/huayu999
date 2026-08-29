@@ -8,11 +8,12 @@ export async function GET() {
   try {
     const products = await prisma.product.findMany({
       where: { isActive: true },
-      include: {
-        category: true,
-      },
       take: 10000, // GMC limit
     })
+
+    // Fetch all categories for mapping
+    const categories = await prisma.category.findMany()
+    const categoryMap = new Map(categories.map(c => [c.id, c]))
 
     const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'
 
@@ -29,7 +30,10 @@ export async function GET() {
       const link = `${siteUrl}/products/${p.slug}`
       const price = `${p.price.toFixed(2)} USD`
       const availability = p.inventory > 0 ? 'in stock' : 'out of stock'
-      const category = p.category?.name || ''
+      // Get first category from categoryIds JSON array
+      const catIds = p.categoryIds ? JSON.parse(p.categoryIds) : []
+      const firstCatId = catIds[0]
+      const category = firstCatId ? categoryMap.get(firstCatId)?.name || '' : ''
 
       return {
         id: p.id,

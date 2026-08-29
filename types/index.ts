@@ -47,6 +47,8 @@ export interface Product {
   wholesalePrice?: number | null
   vipPrice?: number | null
   tieredPricing?: string | null
+  categoryIds?: string | null // JSON array string
+  categories?: Category[] // resolved from categoryIds at API level
   minOrderQty: number
   weight?: number | null
   dimensions?: string | null
@@ -56,7 +58,6 @@ export interface Product {
   sku?: string
   inventory: number
   lowStockAlert?: number
-  category?: Category | null
   tags?: string | null
   variants?: ProductVariant[]
   isFeatured?: boolean

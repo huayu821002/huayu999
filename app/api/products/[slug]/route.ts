@@ -8,17 +8,24 @@ export async function GET(
   try {
     const product = await prisma.product.findUnique({
       where: { slug: params.slug },
-      include: { category: true },
     })
 
     // Calculate total sold count from order items (completed orders only)
-    const soldCount = await prisma.orderItem.aggregate({
+    const soldCount = product ? await prisma.orderItem.aggregate({
       where: {
-        productId: product?.id,
+        productId: product.id,
         order: { status: { in: ['PROCESSING', 'SHIPPED', 'DELIVERED'] } },
       },
       _sum: { quantity: true },
-    })
+    }) : { _sum: { quantity: 0 } }
+
+    // Fetch categories
+    let categories: any[] = []
+    if (product?.categoryIds) {
+      const catIds = JSON.parse(product.categoryIds)
+      const cats = await prisma.category.findMany({ where: { id: { in: catIds } } })
+      categories = cats
+    }
 
     if (!product) {
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
@@ -26,7 +33,7 @@ export async function GET(
 
     return NextResponse.json({ 
       success: true, 
-      data: { ...product, soldCount: soldCount._sum.quantity || 0 }
+      data: { ...product, categories, soldCount: soldCount._sum.quantity || 0 }
     })
   } catch (error) {
     console.error('Product API error:', error)

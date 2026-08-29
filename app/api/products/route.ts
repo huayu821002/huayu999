@@ -41,13 +41,12 @@ export async function GET(request: Request) {
     const categories = await prisma.category.findMany({ orderBy: { name: 'asc' } })
     const categoryMap = new Map(categories.map((c: any) => [c.id, c]))
 
-    // Merge category data manually
-    const productsWithCategory = products.map((p: any) => ({
-      ...p,
-      category: p.categoryId ? categoryMap.get(p.categoryId) || null : null,
-      averageRating: p.averageRating,
-      reviewCount: p.reviewCount,
-    }))
+    // Merge categories data manually (categoryIds stored as JSON array)
+    const productsWithCategory = products.map((p: any) => {
+      const catIds = p.categoryIds ? JSON.parse(p.categoryIds) : []
+      const cats = catIds.map((id: string) => categoryMap.get(id)).filter(Boolean)
+      return { ...p, categories: cats }
+    })
 
     return NextResponse.json({ success: true, data: productsWithCategory })
   } catch (error: any) {
