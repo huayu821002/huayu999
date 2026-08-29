@@ -5,7 +5,7 @@ export async function GET() {
   try {
     // Get all products for export
     const products = await prisma.product.findMany({
-      include: { category: true },
+      include: { categories: { select: { id: true, name: true, slug: true } } },
       orderBy: { createdAt: 'desc' },
     })
 

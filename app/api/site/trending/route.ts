@@ -35,7 +35,7 @@ export async function GET() {
         where: { isActive: true },
         take: 8,
         orderBy: { createdAt: 'desc' },
-        include: { category: true },
+        include: { categories: { select: { id: true, name: true, slug: true } } },
       })
       return NextResponse.json({ success: true, data: fallbackProducts, source: 'fallback' })
     }
@@ -46,7 +46,7 @@ export async function GET() {
         id: { in: topProductIds },
         isActive: true,
       },
-      include: { category: true },
+      include: { categories: { select: { id: true, name: true, slug: true } } },
     })
 
     // Maintain order by sales rank
