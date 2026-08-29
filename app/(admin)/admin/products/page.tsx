@@ -437,8 +437,8 @@ export default function AdminProductsPage() {
                     if (!form.tieredPricing) {
                       tiers = [
                         { minQty: 1, maxQty: 10, price: String(basePrice) },
-                        { minQty: 11, maxQty: 100, price: String(basePrice * 0.7) },
-                        { minQty: 101, maxQty: null, price: String(basePrice * 0.5) },
+                        { minQty: 11, maxQty: 100, price: String(basePrice * 0.9) },
+                        { minQty: 101, maxQty: null, price: String(basePrice * 0.85) },
                       ]
                     }
                     return (
