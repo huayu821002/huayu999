@@ -8,7 +8,7 @@ export async function GET(
   try {
     const product = await prisma.product.findUnique({
       where: { slug: params.slug },
-      include: { categories: { select: { id: true, name: true, slug: true } } },
+      include: { category: true },
     })
 
     // Calculate total sold count from order items (completed orders only)
