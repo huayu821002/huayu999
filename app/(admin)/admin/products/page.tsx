@@ -71,7 +71,12 @@ export default function AdminProductsPage() {
   const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '0' })
   const [isSaving, setIsSaving] = useState(false)
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<{
+    name: string; sku: string; description: string; shortDesc: string; price: string; comparePrice: string;
+    costPrice: string; minOrderQty: string;
+    inventory: string; lowStockAlert: string; weight: string; categoryIds: string[]; images: string;
+    isActive: boolean; isFeatured: boolean; isTrending: boolean; tieredPricing: string;
+  }>({
     name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '',
     costPrice: '', minOrderQty: '1',
     inventory: '0', lowStockAlert: '10', weight: '', categoryIds: [], images: '',
@@ -171,7 +176,7 @@ export default function AdminProductsPage() {
       price: String(product.price), comparePrice: product.comparePrice ? String(product.comparePrice) : '',
       costPrice: product.costPrice ? String(product.costPrice) : '', minOrderQty: String(product.minOrderQty),
       inventory: String(product.inventory), lowStockAlert: String(product.lowStockAlert), weight: product.weight ? String(product.weight) : '',
-      categoryIds: product.categories ? product.categories.map((c: any) => c.id) : [], images: product.images,
+      categoryIds: product.categories ? product.categories.map((c: any) => c.id as string) : [], images: product.images,
       isActive: product.isActive, isFeatured: product.isFeatured, isTrending: product.isTrending,
       tieredPricing: product.tieredPricing || '',
     })
