@@ -155,7 +155,7 @@ export default function AdminProductsPage() {
     setEditingProduct(null)
     setProductVariants([])
     setWarehouseInventory({})
-    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: JSON.stringify({ tiers: [{ minQty: 1, maxQty: 10, price: 0 }, { minQty: 11, maxQty: 100, price: 0 }, { minQty: 101, maxQty: null, price: 0 }] }) })
+    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryId: '', images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: '' })
     setShowProductModal(true)
   }
 
@@ -417,25 +417,29 @@ export default function AdminProductsPage() {
                 {/* Tiered Pricing */}
                 <div className="bg-joy-gray-50 rounded-xl p-4">
                   <h4 className="font-medium text-joy-gray-900 mb-3">Tiered Pricing</h4>
-                  <p className="text-xs text-joy-gray-500 mb-3">Set different prices for different quantity ranges. Leave prices at 0 to use default calculation.</p>
+                  <p className="text-xs text-joy-gray-500 mb-3">Enter base price above, then adjust tier prices as needed.</p>
                   {(() => {
-                    let tiers = [{ minQty: 1, maxQty: 10, price: '' }, { minQty: 11, maxQty: 100, price: '' }, { minQty: 101, maxQty: null, price: '' }]
+                    const basePrice = parseFloat(form.price) || 0
+                    // Default tiers from base price
+                    const defaultTiers = [
+                      { minQty: 1, maxQty: 10, price: basePrice },
+                      { minQty: 11, maxQty: 100, price: basePrice * 0.9 },
+                      { minQty: 101, maxQty: null, price: basePrice * 0.85 },
+                    ]
+                    // Merge with saved tieredPricing (user edits override defaults)
+                    let tiers = defaultTiers
                     try {
                       if (form.tieredPricing) {
                         const parsed = JSON.parse(form.tieredPricing)
-                        if (parsed && parsed.tiers) {
-                          tiers = parsed.tiers.map((t: any) => ({ minQty: t.minQty, maxQty: t.maxQty, price: String(t.price || '') }))
+                        if (parsed && parsed.tiers && parsed.tiers.length > 0) {
+                          tiers = parsed.tiers.map((t: any, idx: number) => ({
+                            minQty: t.minQty ?? defaultTiers[idx].minQty,
+                            maxQty: t.maxQty ?? defaultTiers[idx].maxQty,
+                            price: t.price !== undefined && t.price !== null && t.price !== '' ? Number(t.price) : defaultTiers[idx].price,
+                          }))
                         }
                       }
                     } catch {}
-                    const basePrice = parseFloat(form.price) || 0
-                    if (!form.tieredPricing) {
-                      tiers = [
-                        { minQty: 1, maxQty: 10, price: String(basePrice) },
-                        { minQty: 11, maxQty: 100, price: String(basePrice * 0.9) },
-                        { minQty: 101, maxQty: null, price: String(basePrice * 0.85) },
-                      ]
-                    }
                     return (
                       <div className="grid grid-cols-3 gap-3">
                         {tiers.map((tier, idx) => (
@@ -448,15 +452,14 @@ export default function AdminProductsPage() {
                               step="0.01"
                               min="0"
                               placeholder="Price"
-                              value={tier.price}
+                              value={tier.price || ''}
                               onChange={e => {
-                                const newTiers = [...tiers]
-                                newTiers[idx] = { ...newTiers[idx], price: e.target.value }
+                                const newTiers = tiers.map((t, i) => i === idx ? { ...t, price: e.target.value } : t)
                                 setForm({ ...form, tieredPricing: JSON.stringify({ tiers: newTiers }) })
                               }}
                               className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none mb-1"
                             />
-                            <p className="text-xs text-joy-gray-400">per unit</p>
+                            <p className="text-xs text-joy-gray-400">per unit ({idx === 0 ? '100%' : idx === 1 ? '90%' : '85%'})</p>
                           </div>
                         ))}
                       </div>
