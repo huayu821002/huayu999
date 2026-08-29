@@ -45,6 +45,67 @@ export function getPriceByTier(
   }
 }
 
+export interface TierPrice {
+  minQty: number
+  maxQty: number | null // null means unlimited
+  price: number
+}
+
+export function getTieredPricing(tieredPricingStr: string | null | undefined, basePrice: number): TierPrice[] {
+  // Default tiers if no tiered pricing is set
+  const defaultTiers: TierPrice[] = [
+    { minQty: 1, maxQty: 10, price: basePrice },
+    { minQty: 11, maxQty: 100, price: basePrice * 0.7 },
+    { minQty: 101, maxQty: null, price: basePrice * 0.5 },
+  ]
+
+  if (!tieredPricingStr) {
+    return defaultTiers
+  }
+
+  try {
+    const parsed = JSON.parse(tieredPricingStr)
+    if (parsed && Array.isArray(parsed.tiers) && parsed.tiers.length > 0) {
+      return parsed.tiers.map((t: any) => ({
+        minQty: t.minQty ?? 1,
+        maxQty: t.maxQty ?? null,
+        price: t.price ?? basePrice,
+      }))
+    }
+  } catch {
+    // Invalid JSON, return defaults
+  }
+
+  return defaultTiers
+}
+
+export function getPriceFromTieredPricing(
+  tieredPricing: TierPrice[],
+  quantity: number
+): { tier: string; price: number; total: number } {
+  const tier = tieredPricing.find(t => {
+    if (t.maxQty === null) {
+      return quantity >= t.minQty
+    }
+    return quantity >= t.minQty && quantity <= t.maxQty
+  })
+
+  if (!tier) {
+    // Fallback to first tier
+    return {
+      tier: 'RETAIL',
+      price: tieredPricing[0]?.price ?? 0,
+      total: (tieredPricing[0]?.price ?? 0) * quantity,
+    }
+  }
+
+  return {
+    tier: tier.minQty >= 101 ? 'VIP' : tier.minQty >= 11 ? 'WHOLESALE' : 'RETAIL',
+    price: tier.price,
+    total: tier.price * quantity,
+  }
+}
+
 export function getCurrencyFromTimezone(timezone: string): Currency {
   const currencyMap: Record<string, Currency> = {
     'America/New_York': 'USD',
