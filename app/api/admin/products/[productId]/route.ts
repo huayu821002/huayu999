@@ -5,7 +5,7 @@ export async function GET(request: Request, { params }: { params: { productId: s
   try {
     const product = await prisma.product.findUnique({
       where: { id: params.productId },
-      include: { category: true },
+      include: { categories: { select: { id: true, name: true, slug: true } } },
     })
     if (!product) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
     return NextResponse.json({ success: true, data: product })
@@ -19,10 +19,10 @@ export async function PUT(request: Request, { params }: { params: { productId: s
     const body = await request.json()
     const {
       name, slug, description, shortDesc,
-      price, comparePrice, costPrice, wholesalePrice, vipPrice,
+      price, comparePrice, costPrice,
       weight, images, sku, barcode, inventory,
-      categoryId, isActive, isFeatured, isTrending,
-      minOrderQty, lowStockAlert
+      categoryIds, isActive, isFeatured, isTrending,
+      minOrderQty, lowStockAlert, tieredPricing
     } = body
 
     const product = await prisma.product.update({
@@ -33,18 +33,17 @@ export async function PUT(request: Request, { params }: { params: { productId: s
         price: parseFloat(price) || 0,
         comparePrice: comparePrice ? parseFloat(comparePrice) : null,
         costPrice: costPrice ? parseFloat(costPrice) : null,
-        wholesalePrice: wholesalePrice ? parseFloat(wholesalePrice) : null,
-        vipPrice: vipPrice ? parseFloat(vipPrice) : null,
         weight: weight ? parseFloat(weight) : null,
         images: Array.isArray(images) ? JSON.stringify(images) : images,
         sku, barcode,
         inventory: parseInt(inventory) || 0,
-        categoryId: categoryId || null,
+        categories: categoryIds ? { set: categoryIds.map((id: string) => ({ id })) } : { set: [] },
         isActive,
         isFeatured,
         isTrending,
         minOrderQty: parseInt(minOrderQty) || 1,
         lowStockAlert: parseInt(lowStockAlert) || 10,
+        tieredPricing: tieredPricing || null,
       },
     })
     return NextResponse.json({ success: true, data: product })

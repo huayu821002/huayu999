@@ -47,7 +47,7 @@ model Category {
   parentId    String?
   parent      Category? @relation("CategoryToCategory", fields: [parentId], references: [id])
   children    Category[] @relation("CategoryToCategory")
-  products    Product[] @relation("ProductToCategory")
+  products    Product[] @relation("ProductCategories")
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 }
@@ -70,8 +70,7 @@ model Product {
   dimensions  String?
   images      String?
   modelImage  String?
-  categoryId  String?
-  category    Category?   @relation("ProductToCategory", fields: [categoryId], references: [id])
+  categories  Category[] @relation("ProductCategories")
   inventory   Int         @default(0)
   lowStockAlert Int      @default(10)
   minOrderQty  Int        @default(1)
@@ -94,7 +93,7 @@ model Product {
 
   @@index([isActive, isFeatured, createdAt])
   @@index([isActive, createdAt])
-  @@index([categoryId])
+
 }
 
 model Order {
