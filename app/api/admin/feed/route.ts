@@ -9,7 +9,7 @@ export async function GET() {
     const products = await prisma.product.findMany({
       where: { isActive: true },
       include: {
-        category: true,
+        categories: { select: { id: true, name: true, slug: true } },
       },
       take: 10000, // GMC limit
     })
@@ -29,7 +29,7 @@ export async function GET() {
       const link = `${siteUrl}/products/${p.slug}`
       const price = `${p.price.toFixed(2)} USD`
       const availability = p.inventory > 0 ? 'in stock' : 'out of stock'
-      const category = p.category?.name || ''
+      const category = p.categories?.[0]?.name || ''
 
       return {
         id: p.id,
