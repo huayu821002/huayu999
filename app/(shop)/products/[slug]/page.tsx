@@ -446,9 +446,9 @@ export default function ProductDetailPage() {
               <div className="flex items-center gap-4 mb-2">
                 {product.sku && <span className="text-sm text-joy-gray-500">SKU: {product.sku}</span>}
                 {product.sku && <span className="text-sm text-joy-gray-400">|</span>}
-                {product.category && (
-                  <Link href={`/products?category=${product.category.slug}`} className="text-sm text-joy-orange hover:underline">
-                    {product.category.name}
+                {product.categories?.[0] && (
+                  <Link href={`/products?category=${product.categories[0].slug}`} className="text-sm text-joy-orange hover:underline">
+                    {product.categories[0].name}
                   </Link>
                 )}
               </div>
@@ -701,10 +701,10 @@ export default function ProductDetailPage() {
                         <span className="font-medium">{product.barcode}</span>
                       </div>
                     )}
-                    {product.category && (
+                    {product.categories?.[0] && (
                       <div className="flex justify-between py-3 border-b border-joy-gray-100">
                         <span className="text-joy-gray-500">Category</span>
-                        <span className="font-medium">{product.category.name}</span>
+                        <span className="font-medium">{product.categories[0].name}</span>
                       </div>
                     )}
                     <div className="flex justify-between py-3 border-b border-joy-gray-100">
