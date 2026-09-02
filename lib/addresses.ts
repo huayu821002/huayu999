@@ -32,13 +32,27 @@ export function saveAddresses(addresses: SavedAddress[]): void {
 }
 
 export function getStoredAuth(): { isAuthenticated: boolean; user: { name: string; email: string } | null } {
-  if (typeof window === 'undefined') return { isAuthenticated: false, user: null }
+  if (typeof window === 'undefined') {
+    console.warn('[addresses] getStoredAuth: window undefined, returning false')
+    return { isAuthenticated: false, user: null }
+  }
   try {
     const raw = localStorage.getItem('user')
     const token = localStorage.getItem('token')
+    const joyhubUser = localStorage.getItem('joyhub-user')
+    console.log('[addresses] getStoredAuth:', { rawUser: !!raw, hasToken: !!token, joyhubUser: !!joyhubUser })
     if (raw && token) {
       return { isAuthenticated: true, user: JSON.parse(raw) }
     }
-  } catch {}
+  } catch (e) { console.error('[addresses] getStoredAuth error:', e) }
   return { isAuthenticated: false, user: null }
+}
+
+export function getSavedAddresses(): SavedAddress[] {
+  if (typeof window === 'undefined') return []
+  try {
+    const raw = localStorage.getItem(ADDRESSES_KEY)
+    console.log('[addresses] getSavedAddresses:', ADDRESSES_KEY, '=', raw ? JSON.parse(raw) : 'EMPTY')
+    return raw ? JSON.parse(raw) : []
+  } catch (e) { console.error('[addresses] getSavedAddresses error:', e); return [] }
 }
