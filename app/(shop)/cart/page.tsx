@@ -49,7 +49,7 @@ export default function CartPage() {
               <p className="text-joy-gray-500 mt-1">{items.length} {items.length === 1 ? 'item' : 'items'}</p>
             </div>
             <Button variant="secondary" size="sm" onClick={clearCart}>
-              <Icons.Trash size={16} className="mr-1" />
+              <Icons.Trash2 size={16} className="mr-1" />
               Clear Cart
             </Button>
           </div>
@@ -93,7 +93,7 @@ export default function CartPage() {
                             onClick={() => removeItem(item.id)}
                             className="p-1.5 text-joy-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors flex-shrink-0"
                           >
-                            <Icons.Trash size={18} />
+                            <Icons.Trash2 size={18} />
                           </button>
                         </div>
 
