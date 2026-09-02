@@ -136,7 +136,7 @@ interface UserState {
   setDefaultAddress: (id: string) => void
 }
 
-export const useUserStore = create<UserState>(
+export const useUserStore = create<UserState>()(
   persist(
     (set) => ({
       user: null,
