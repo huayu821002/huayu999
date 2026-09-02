@@ -83,4 +83,5 @@ export const Icons = {
   Factory: FactoryIcon,
   Headphones: HeadphonesIcon,
   Download: LucideIcons.Download,
+  LogOut: LucideIcons.LogOut,
 }

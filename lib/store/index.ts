@@ -109,21 +109,70 @@ export const useCartStore = create<CartState>()(
 )
 
 // User Store
+export interface SavedAddress {
+  id: string
+  label: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  address: string
+  city: string
+  state: string
+  zip: string
+  country: string
+  isDefault?: boolean
+}
+
 interface UserState {
   user: { id: string; email: string; name: string; role: string } | null
+  addresses: SavedAddress[]
   isAuthenticated: boolean
   login: (user: { id: string; email: string; name: string; role: string }) => void
   logout: () => void
+  addAddress: (address: Omit<SavedAddress, 'id'>) => void
+  updateAddress: (id: string, address: Partial<SavedAddress>) => void
+  removeAddress: (id: string) => void
+  setDefaultAddress: (id: string) => void
 }
 
-export const useUserStore = create<UserState>()(
+export const useUserStore = create<UserState>(
   persist(
     (set) => ({
       user: null,
+      addresses: [],
       isAuthenticated: false,
 
       login: (user) => set({ user, isAuthenticated: true }),
-      logout: () => set({ user: null, isAuthenticated: false }),
+      logout: () => set({ user: null, isAuthenticated: false, addresses: [] }),
+
+      addAddress: (address) =>
+        set((state) => ({
+          addresses: [
+            ...state.addresses,
+            { ...address, id: Date.now().toString() },
+          ],
+        })),
+
+      updateAddress: (id, address) =>
+        set((state) => ({
+          addresses: state.addresses.map((a) =>
+            a.id === id ? { ...a, ...address } : a
+          ),
+        })),
+
+      removeAddress: (id) =>
+        set((state) => ({
+          addresses: state.addresses.filter((a) => a.id !== id),
+        })),
+
+      setDefaultAddress: (id) =>
+        set((state) => ({
+          addresses: state.addresses.map((a) => ({
+            ...a,
+            isDefault: a.id === id,
+          })),
+        })),
     }),
     {
       name: 'joyhub-user',

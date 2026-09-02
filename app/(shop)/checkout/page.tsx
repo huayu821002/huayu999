@@ -10,7 +10,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, convertPrice } from '@/lib/utils'
-import { useCartStore } from '@/lib/store'
+import { useCartStore, useUserStore } from '@/lib/store'
 import { parseProductImages } from '@/lib/imageUtils'
 import { countries } from '@/lib/countries'
 import type { Currency } from '@/types'
@@ -30,6 +30,7 @@ interface ShippingOption {
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, currency, getSubtotal, getTotalWeight, clearCart } = useCartStore()
+  const { addresses, isAuthenticated } = useUserStore()
   const [currentStep, setCurrentStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
@@ -412,6 +413,44 @@ export default function CheckoutPage() {
               {currentStep === 2 && (
                 <div className="bg-white rounded-2xl shadow-sm p-6 space-y-6">
                   <h2 className="font-semibold text-xl text-joy-gray-900">Shipping Information</h2>
+
+                  {/* Saved Addresses Import */}
+                  {isAuthenticated && addresses.length > 0 && (
+                    <div className="bg-joy-orange/5 border border-joy-orange/20 rounded-xl p-4">
+                      <div className="flex items-center justify-between gap-3 flex-wrap">
+                        <div className="flex items-center gap-2">
+                          <Icons.MapPin size={18} className="text-joy-orange" />
+                          <span className="text-sm font-medium text-joy-gray-700">Import from saved address:</span>
+                        </div>
+                        <select
+                          onChange={(e) => {
+                            const addr = addresses.find(a => a.id === e.target.value)
+                            if (addr) {
+                              updateShipping('firstName', addr.firstName)
+                              updateShipping('lastName', addr.lastName)
+                              updateShipping('email', addr.email)
+                              updateShipping('phone', addr.phone)
+                              updateShipping('address', addr.address)
+                              updateShipping('city', addr.city)
+                              updateShipping('state', addr.state)
+                              updateShipping('zip', addr.zip)
+                              updateShipping('country', addr.country)
+                            }
+                            e.target.value = ''
+                          }}
+                          className="flex-1 min-w-[200px] px-3 py-2 border border-joy-gray-200 rounded-lg text-sm focus:outline-none focus:border-joy-orange"
+                          defaultValue=""
+                        >
+                          <option value="">Select an address...</option>
+                          {addresses.map(addr => (
+                            <option key={addr.id} value={addr.id}>
+                              {addr.label}{addr.isDefault ? ' (Default)' : ''} — {addr.city}, {addr.state}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                  )
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Input label="First Name *" placeholder="John" value={shippingForm.firstName} onChange={e => updateShipping('firstName', e.target.value)} className={shippingErrors.firstName ? 'border-red-500' : ''} />
