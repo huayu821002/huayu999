@@ -47,7 +47,7 @@ export function Header({ initialSettings }: HeaderProps) {
   const [activeDropdown, setActiveDropdown] = useState<string | null>(null)
   const [categoriesOpen, setCategoriesOpen] = useState(false)
   const { items, setCurrency, currency } = useCartStore()
-  const { isAuthenticated } = useUserStore()
+  const { isAuthenticated, user, logout } = useUserStore()
   const { mobileMenuOpen, isMobileMenuOpen, mobileMenuClose } = useUIStore()
   const [headerSettings, setHeaderSettings] = useState(initialSettings || defaultHeaderSettings)
   const [isSettingsLoaded, setIsSettingsLoaded] = useState(!!initialSettings)
@@ -451,9 +451,47 @@ export function Header({ initialSettings }: HeaderProps) {
 
             {/* User */}
             {isAuthenticated ? (
-              <Link href="/account" className="p-2 hover:bg-joy-gray-100 rounded-xl transition-colors">
-                <Icons.User size={20} className="text-joy-gray-600" />
-              </Link>
+              <div className="relative">
+                <button
+                  onClick={() => setShowDropdown(!showDropdown)}
+                  className="hidden sm:flex items-center gap-2 px-3 py-1.5 hover:bg-joy-gray-100 rounded-xl transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-joy-orange text-white text-xs font-bold flex items-center justify-center">
+                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                  <span className="text-sm font-medium text-joy-gray-700 max-w-[100px] truncate">
+                    {user?.name?.split(' ')[0] || 'Account'}
+                  </span>
+                  <Icons.ChevronDown size={14} className={cn('text-joy-gray-400 transition-transform', showDropdown && 'rotate-180')} />
+                </button>
+
+                {showDropdown && (
+                  <>
+                    <div className="fixed inset-0 z-40" onClick={() => setShowDropdown(false)} />
+                    <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-joy-gray-100 py-2 z-50">
+                      <div className="px-4 py-2 border-b border-joy-gray-100">
+                        <p className="text-sm font-medium text-joy-gray-900 truncate">{user?.name}</p>
+                        <p className="text-xs text-joy-gray-500 truncate">{user?.email}</p>
+                      </div>
+                      <Link href="/account" onClick={() => setShowDropdown(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-joy-gray-700 hover:bg-joy-gray-50 transition-colors">
+                        <Icons.User size={16} className="text-joy-gray-400" />
+                        My Account
+                      </Link>
+                      <Link href="/account/orders" onClick={() => setShowDropdown(false)} className="flex items-center gap-2 px-4 py-2.5 text-sm text-joy-gray-700 hover:bg-joy-gray-50 transition-colors">
+                        <Icons.Package size={16} className="text-joy-gray-400" />
+                        My Orders
+                      </Link>
+                      <button
+                        onClick={() => { logout(); setShowDropdown(false); router.push('/') }}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm text-red-500 hover:bg-red-50 transition-colors"
+                      >
+                        <Icons.LogOut size={16} />
+                        Sign Out
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
             ) : (
               <Link href="/login" className="hidden sm:flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-joy-gray-700 hover:text-joy-orange">
                 <Icons.User size={18} />
