@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
+import { useUserStore } from '@/lib/store'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -43,6 +44,9 @@ export default function LoginPage() {
       // Store token and user
       localStorage.setItem('token', data.data.token)
       localStorage.setItem('user', JSON.stringify(data.data.user))
+
+      // Update Zustand store so Header reflects login immediately
+      useUserStore.getState().login(data.data.user)
 
       // Redirect based on role
       if (data.data.user.role === 'ADMIN') {
