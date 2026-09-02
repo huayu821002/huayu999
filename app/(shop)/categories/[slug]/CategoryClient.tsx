@@ -6,10 +6,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { ProductCard } from '@/components/shop/ProductCard'
+import { BatchProductCard } from '@/components/shop/BatchProductCard'
+import { BatchOrderBar } from '@/components/shop/BatchOrderBar'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
+import { cn } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
-import { BatchOrderModal } from '@/components/shop/BatchOrderModal'
 import type { Product } from '@/types'
 
 interface Category {
@@ -40,9 +42,60 @@ export function CategoryClient({ category, initialProducts, currentSort, current
   const router = useRouter()
   const [products] = useState(initialProducts)
   const [sort, setSort] = useState(currentSort)
-  const [showBatchOrder, setShowBatchOrder] = useState(false)
-  const { items } = useCartStore()
+  const { items, currency } = useCartStore()
   const itemCount = items.reduce((acc, item) => acc + item.quantity, 0)
+
+  // Batch mode state
+  const [batchMode, setBatchMode] = useState(false)
+  const [selectedProducts, setSelectedProducts] = useState<Map<string, number>>(new Map())
+
+  // Batch selection handlers
+  const toggleProductSelect = (productId: string) => {
+    setSelectedProducts(prev => {
+      const next = new Map(prev)
+      if (next.has(productId)) {
+        next.delete(productId)
+      } else {
+        const product = products.find(p => p.id === productId)
+        next.set(productId, product?.minOrderQty || 1)
+      }
+      return next
+    })
+  }
+
+  const updateProductQuantity = (productId: string, qty: number) => {
+    setSelectedProducts(prev => {
+      const next = new Map(prev)
+      if (next.has(productId)) {
+        next.set(productId, qty)
+      }
+      return next
+    })
+  }
+
+  const clearBatchSelection = () => {
+    setSelectedProducts(new Map())
+  }
+
+  // Convert selected products to array for batch order bar
+  const batchOrderItems = Array.from(selectedProducts.entries()).map(([productId, qty]) => {
+    const product = products.find(p => p.id === productId)
+    if (!product) return null
+    const images: string[] = (() => {
+      if (!product.images) return []
+      if (Array.isArray(product.images)) return product.images
+      try { return JSON.parse(product.images as string) } catch { return [product.images] }
+    })()
+    return {
+      productId,
+      name: product.name,
+      sku: product.sku || '',
+      price: product.price,
+      quantity: qty,
+      weight: product.weight || 0.5,
+      image: images[0],
+    }
+  }).filter(Boolean) as any[]
 
   const handleSortChange = (newSort: string) => {
     setSort(newSort)
@@ -132,12 +185,21 @@ export function CategoryClient({ category, initialProducts, currentSort, current
               )}
             </p>
             <div className="flex items-center gap-3">
+              {/* Batch Mode Toggle */}
               {products.length > 0 && (
                 <button
-                  onClick={() => setShowBatchOrder(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-joy-orange text-white rounded-xl text-sm font-medium hover:bg-joy-orange/90 transition-colors"
+                  onClick={() => {
+                    setBatchMode(!batchMode)
+                    if (batchMode) clearBatchSelection()
+                  }}
+                  className={cn(
+                    'px-4 py-2 rounded-xl border-2 text-sm font-medium transition-all flex items-center gap-2',
+                    batchMode 
+                      ? 'bg-joy-orange border-joy-orange text-white' 
+                      : 'border-joy-gray-200 text-joy-gray-600 hover:border-joy-orange'
+                  )}
                 >
-                  <Icons.ShoppingCart size={16} />
+                  <Icons.Check size={16} />
                   Batch Order
                 </button>
               )}
@@ -156,11 +218,29 @@ export function CategoryClient({ category, initialProducts, currentSort, current
 
           {/* Products Grid */}
           {products.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-              {products.map(product => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
+            batchMode ? (
+              // Batch Mode Grid
+              <div className="grid gap-3 lg:gap-4 grid-cols-1 md:grid-cols-2 xl:grid-cols-3">
+                {products.map((product) => (
+                  <BatchProductCard
+                    key={product.id}
+                    product={product}
+                    currency={currency}
+                    selected={selectedProducts.has(product.id)}
+                    quantity={selectedProducts.get(product.id) || product.minOrderQty || 1}
+                    onToggleSelect={toggleProductSelect}
+                    onQuantityChange={updateProductQuantity}
+                  />
+                ))}
+              </div>
+            ) : (
+              // Normal Mode Grid
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {products.map(product => (
+                  <ProductCard key={product.id} product={product} currency={currency} />
+                ))}
+              </div>
+            )
           ) : (
             <div className="text-center py-16 bg-white rounded-2xl">
               <div className="w-16 h-16 mx-auto rounded-full bg-joy-gray-100 flex items-center justify-center mb-4">
@@ -175,12 +255,15 @@ export function CategoryClient({ category, initialProducts, currentSort, current
       </div>
       <Footer />
 
-      {/* Batch Order Modal */}
-      <BatchOrderModal
-        isOpen={showBatchOrder}
-        onClose={() => setShowBatchOrder(false)}
-        products={products}
-      />
+      {/* Batch Order Bar */}
+      {batchMode && (
+        <BatchOrderBar
+          items={batchOrderItems}
+          currency={currency}
+          onClear={clearBatchSelection}
+          onContinueShopping={() => setBatchMode(false)}
+        />
+      )}
     </div>
   )
 }
