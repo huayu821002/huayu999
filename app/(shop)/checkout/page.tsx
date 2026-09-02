@@ -450,7 +450,7 @@ export default function CheckoutPage() {
                         </select>
                       </div>
                     </div>
-                  )
+                  )}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <Input label="First Name *" placeholder="John" value={shippingForm.firstName} onChange={e => updateShipping('firstName', e.target.value)} className={shippingErrors.firstName ? 'border-red-500' : ''} />
