@@ -10,8 +10,8 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, convertPrice } from '@/lib/utils'
-import { useCartStore, useUserStore } from '@/lib/store'
-import type { SavedAddress } from '@/lib/store'
+import { useCartStore } from '@/lib/store'
+import { getSavedAddresses, getStoredAuth, type SavedAddress } from '@/lib/addresses'
 import { parseProductImages } from '@/lib/imageUtils'
 import { countries } from '@/lib/countries'
 import type { Currency } from '@/types'
@@ -35,20 +35,13 @@ export default function CheckoutPage() {
   const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
   const [hasSavedAuth, setHasSavedAuth] = useState(false)
   useEffect(() => {
-    const readAddresses = () => {
-      const raw = localStorage.getItem('joyhub-user')
-      if (raw) {
-        try {
-          const parsed = JSON.parse(raw)
-          // Zustand persist may wrap in { state: {...}, version: ... } or store flat
-          const state = parsed.state ?? parsed
-          setSavedAddresses(state.addresses || [])
-          setHasSavedAuth(!!state.isAuthenticated)
-        } catch { setSavedAddresses([]); setHasSavedAuth(false) }
-      } else { setSavedAddresses([]) }
+    const read = () => {
+      const auth = getStoredAuth()
+      setHasSavedAuth(auth.isAuthenticated)
+      setSavedAddresses(auth.isAuthenticated ? getSavedAddresses() : [])
     }
-    readAddresses()
-    const interval = setInterval(readAddresses, 500)
+    read()
+    const interval = setInterval(read, 500)
     return () => clearInterval(interval)
   }, [])
   const [currentStep, setCurrentStep] = useState(1)
