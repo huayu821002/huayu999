@@ -79,7 +79,7 @@ export default function AccountSettingsPage() {
   }
 
   const handleEdit = (addr: SavedAddress) => {
-    setForm({ ...addr })
+    setForm({ ...addr, isDefault: addr.isDefault ?? false })
     setEditingId(addr.id)
     setShowAddForm(true)
   }
