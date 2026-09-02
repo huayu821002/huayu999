@@ -11,6 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, convertPrice } from '@/lib/utils'
 import { useCartStore, useUserStore } from '@/lib/store'
+import type { SavedAddress } from '@/lib/store'
 import { parseProductImages } from '@/lib/imageUtils'
 import { countries } from '@/lib/countries'
 import type { Currency } from '@/types'
@@ -30,7 +31,26 @@ interface ShippingOption {
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, currency, getSubtotal, getTotalWeight, clearCart } = useCartStore()
-  const { addresses, isAuthenticated } = useUserStore()
+  // Read saved addresses from localStorage directly for reliability
+  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
+  const [hasSavedAuth, setHasSavedAuth] = useState(false)
+  useEffect(() => {
+    const readAddresses = () => {
+      const raw = localStorage.getItem('joyhub-user')
+      if (raw) {
+        try {
+          const parsed = JSON.parse(raw)
+          // Zustand persist may wrap in { state: {...}, version: ... } or store flat
+          const state = parsed.state ?? parsed
+          setSavedAddresses(state.addresses || [])
+          setHasSavedAuth(!!state.isAuthenticated)
+        } catch { setSavedAddresses([]); setHasSavedAuth(false) }
+      } else { setSavedAddresses([]) }
+    }
+    readAddresses()
+    const interval = setInterval(readAddresses, 500)
+    return () => clearInterval(interval)
+  }, [])
   const [currentStep, setCurrentStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
@@ -415,7 +435,7 @@ export default function CheckoutPage() {
                   <h2 className="font-semibold text-xl text-joy-gray-900">Shipping Information</h2>
 
                   {/* Saved Addresses Import */}
-                  {isAuthenticated && addresses.length > 0 && (
+                  {hasSavedAuth && savedAddresses.length > 0 && (
                     <div className="bg-joy-orange/5 border border-joy-orange/20 rounded-xl p-4">
                       <div className="flex items-center justify-between gap-3 flex-wrap">
                         <div className="flex items-center gap-2">
@@ -424,7 +444,7 @@ export default function CheckoutPage() {
                         </div>
                         <select
                           onChange={(e) => {
-                            const addr = addresses.find(a => a.id === e.target.value)
+                            const addr = savedAddresses.find(a => a.id === e.target.value)
                             if (addr) {
                               updateShipping('firstName', addr.firstName)
                               updateShipping('lastName', addr.lastName)
@@ -442,7 +462,7 @@ export default function CheckoutPage() {
                           defaultValue=""
                         >
                           <option value="">Select an address...</option>
-                          {addresses.map(addr => (
+                          {savedAddresses.map(addr => (
                             <option key={addr.id} value={addr.id}>
                               {addr.label}{addr.isDefault ? ' (Default)' : ''} — {addr.city}, {addr.state}
                             </option>
