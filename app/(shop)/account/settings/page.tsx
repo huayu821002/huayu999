@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
@@ -10,11 +10,11 @@ import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
-import { useUserStore, type SavedAddress } from '@/lib/store'
 import { countries } from '@/lib/countries'
 import { cn } from '@/lib/utils'
+import { getSavedAddresses, saveAddresses, getStoredAuth, type SavedAddress } from '@/lib/addresses'
 
-const EMPTY_ADDRESS = {
+const EMPTY_FORM = {
   label: '',
   firstName: '',
   lastName: '',
@@ -31,19 +31,31 @@ const EMPTY_ADDRESS = {
 export default function AccountSettingsPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const { user, addresses, addAddress, updateAddress, removeAddress, setDefaultAddress, logout } = useUserStore()
+  const [user, setUser] = useState<{ name: string; email: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
-  const [form, setForm] = useState(EMPTY_ADDRESS)
+  const [form, setForm] = useState({ ...EMPTY_FORM })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
+  const [addresses, setAddresses] = useState<SavedAddress[]>([])
 
-  useEffect(() => {
-    const userStr = localStorage.getItem('user')
-    if (!userStr) { router.push('/login'); return }
-    try { JSON.parse(userStr) } catch { router.push('/login'); return }
+  // Poll localStorage for changes (handles both same-tab and cross-tab updates)
+  const readFromStorage = useCallback(() => {
+    const auth = getStoredAuth()
+    if (!auth.isAuthenticated) {
+      router.push('/login')
+      return
+    }
+    setUser(auth.user)
+    setAddresses(getSavedAddresses())
     setIsLoading(false)
   }, [router])
+
+  useEffect(() => {
+    readFromStorage()
+    const interval = setInterval(readFromStorage, 500)
+    return () => clearInterval(interval)
+  }, [readFromStorage])
 
   const validateForm = () => {
     const errors: Record<string, string> = {}
@@ -65,14 +77,21 @@ export default function AccountSettingsPage() {
     if (!validateForm()) return
     setIsSaving(true)
     setTimeout(() => {
+      let updated: SavedAddress[]
       if (editingId) {
-        updateAddress(editingId, form)
+        updated = addresses.map(a => a.id === editingId ? { ...form, id: editingId } : a)
         setEditingId(null)
       } else {
-        addAddress(form)
+        updated = [...addresses, { ...form, id: Date.now().toString() }]
         setShowAddForm(false)
       }
-      setForm(EMPTY_ADDRESS)
+      // If setting as default, clear other defaults
+      if (form.isDefault) {
+        updated = updated.map(a => ({ ...a, isDefault: a.id === (editingId ?? updated[updated.length - 1].id) }))
+      }
+      setAddresses(updated)
+      saveAddresses(updated)
+      setForm({ ...EMPTY_FORM })
       setFormErrors({})
       setIsSaving(false)
     }, 500)
@@ -84,15 +103,24 @@ export default function AccountSettingsPage() {
     setShowAddForm(true)
   }
 
+  const handleDelete = (id: string) => {
+    if (!confirm('Delete this address?')) return
+    const updated = addresses.filter(a => a.id !== id)
+    setAddresses(updated)
+    saveAddresses(updated)
+  }
+
+  const handleSetDefault = (id: string) => {
+    const updated = addresses.map(a => ({ ...a, isDefault: a.id === id }))
+    setAddresses(updated)
+    saveAddresses(updated)
+  }
+
   const handleCancel = () => {
-    setForm(EMPTY_ADDRESS)
+    setForm({ ...EMPTY_FORM })
     setEditingId(null)
     setShowAddForm(false)
     setFormErrors({})
-  }
-
-  const handleDelete = (id: string) => {
-    if (confirm('Delete this address?')) removeAddress(id)
   }
 
   if (isLoading) return <div className="min-h-screen flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" /></div>
@@ -161,23 +189,17 @@ export default function AccountSettingsPage() {
                       <div className="flex items-center gap-1">
                         {!addr.isDefault && (
                           <button
-                            onClick={() => setDefaultAddress(addr.id)}
+                            onClick={() => handleSetDefault(addr.id)}
                             className="p-1.5 text-joy-gray-400 hover:text-joy-orange rounded-lg hover:bg-joy-orange/10 transition-colors"
                             title="Set as default"
                           >
                             <Icons.MapPin size={16} />
                           </button>
                         )}
-                        <button
-                          onClick={() => handleEdit(addr)}
-                          className="p-1.5 text-joy-gray-400 hover:text-joy-orange rounded-lg hover:bg-joy-orange/10 transition-colors"
-                        >
+                        <button onClick={() => handleEdit(addr)} className="p-1.5 text-joy-gray-400 hover:text-joy-orange rounded-lg hover:bg-joy-orange/10 transition-colors">
                           <Icons.Edit3 size={16} />
                         </button>
-                        <button
-                          onClick={() => handleDelete(addr.id)}
-                          className="p-1.5 text-joy-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
-                        >
+                        <button onClick={() => handleDelete(addr.id)} className="p-1.5 text-joy-gray-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors">
                           <Icons.Trash2 size={16} />
                         </button>
                       </div>
@@ -203,105 +225,34 @@ export default function AccountSettingsPage() {
                 </h3>
                 <div className="space-y-4">
                   <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Address Label *"
-                      placeholder="e.g. Home, Office"
-                      value={form.label}
-                      onChange={e => setForm({ ...form, label: e.target.value })}
-                      error={formErrors.label}
-                    />
+                    <Input label="Address Label *" placeholder="e.g. Home, Office" value={form.label} onChange={e => setForm({ ...form, label: e.target.value })} error={formErrors.label} />
                     <div className="flex items-end">
                       <label className="flex items-center gap-2 text-sm cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={form.isDefault}
-                          onChange={e => setForm({ ...form, isDefault: e.target.checked })}
-                          className="accent-joy-orange w-4 h-4"
-                        />
+                        <input type="checkbox" checked={form.isDefault} onChange={e => setForm({ ...form, isDefault: e.target.checked })} className="accent-joy-orange w-4 h-4" />
                         <span className="text-joy-gray-600">Set as default</span>
                       </label>
                     </div>
                   </div>
-
                   <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="First Name *"
-                      placeholder="John"
-                      value={form.firstName}
-                      onChange={e => setForm({ ...form, firstName: e.target.value })}
-                      error={formErrors.firstName}
-                    />
-                    <Input
-                      label="Last Name *"
-                      placeholder="Smith"
-                      value={form.lastName}
-                      onChange={e => setForm({ ...form, lastName: e.target.value })}
-                      error={formErrors.lastName}
-                    />
+                    <Input label="First Name *" placeholder="John" value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} error={formErrors.firstName} />
+                    <Input label="Last Name *" placeholder="Smith" value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} error={formErrors.lastName} />
                   </div>
-
                   <div className="grid grid-cols-2 gap-4">
-                    <Input
-                      label="Email *"
-                      type="email"
-                      placeholder="john@example.com"
-                      value={form.email}
-                      onChange={e => setForm({ ...form, email: e.target.value })}
-                      error={formErrors.email}
-                    />
-                    <Input
-                      label="Phone *"
-                      type="tel"
-                      placeholder="+1 234 567 8900"
-                      value={form.phone}
-                      onChange={e => setForm({ ...form, phone: e.target.value })}
-                      error={formErrors.phone}
-                    />
+                    <Input label="Email *" type="email" placeholder="john@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} error={formErrors.email} />
+                    <Input label="Phone *" type="tel" placeholder="+1 234 567 8900" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} error={formErrors.phone} />
                   </div>
-
-                  <Input
-                    label="Address *"
-                    placeholder="123 Main St"
-                    value={form.address}
-                    onChange={e => setForm({ ...form, address: e.target.value })}
-                    error={formErrors.address}
-                  />
-
+                  <Input label="Address *" placeholder="123 Main St" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} error={formErrors.address} />
                   <div className="grid grid-cols-3 gap-4">
-                    <Input
-                      label="City *"
-                      placeholder="New York"
-                      value={form.city}
-                      onChange={e => setForm({ ...form, city: e.target.value })}
-                      error={formErrors.city}
-                    />
-                    <Input
-                      label="State *"
-                      placeholder="NY"
-                      value={form.state}
-                      onChange={e => setForm({ ...form, state: e.target.value })}
-                      error={formErrors.state}
-                    />
-                    <Input
-                      label="ZIP *"
-                      placeholder="10001"
-                      value={form.zip}
-                      onChange={e => setForm({ ...form, zip: e.target.value })}
-                      error={formErrors.zip}
-                    />
+                    <Input label="City *" placeholder="New York" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} error={formErrors.city} />
+                    <Input label="State *" placeholder="NY" value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} error={formErrors.state} />
+                    <Input label="ZIP *" placeholder="10001" value={form.zip} onChange={e => setForm({ ...form, zip: e.target.value })} error={formErrors.zip} />
                   </div>
-
                   <div>
                     <label className="block text-sm font-medium text-joy-gray-700 mb-1.5">Country / Region *</label>
-                    <select
-                      value={form.country}
-                      onChange={e => setForm({ ...form, country: e.target.value })}
-                      className="w-full px-4 py-2.5 rounded-xl border-2 border-joy-gray-200 text-sm focus:border-joy-orange focus:outline-none"
-                    >
+                    <select value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} className="w-full px-4 py-2.5 rounded-xl border-2 border-joy-gray-200 text-sm focus:border-joy-orange focus:outline-none">
                       {countries.map(c => <option key={c.code} value={c.code}>{c.name}</option>)}
                     </select>
                   </div>
-
                   <div className="flex justify-end gap-3 pt-2">
                     <Button variant="secondary" onClick={handleCancel}>Cancel</Button>
                     <Button onClick={handleSaveAddress} isLoading={isSaving}>
