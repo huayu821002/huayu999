@@ -10,8 +10,7 @@
     "db:push": "prisma db push",
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
-    "postinstall": "prisma generate",
-    "@supabase/supabase-js": "^2.0.0"
+    "postinstall": "prisma generate"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",
@@ -37,7 +36,8 @@
     "sonner": "^1.7.0",
     "stripe": "^16.10.0",
     "tailwind-merge": "^2.5.2",
-    "zustand": "^4.5.5"
+    "zustand": "^4.5.5",
+    "@supabase/supabase-js": "^2.0.0"
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
