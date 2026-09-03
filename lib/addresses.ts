@@ -18,14 +18,6 @@ export interface SavedAddress {
 const ADDRESSES_KEY = 'fiestaflare-addresses'
 const AUTH_KEY = 'fiestaflare-auth' // separate from Zustand's joyhub-user
 
-export function getSavedAddresses(): SavedAddress[] {
-  if (typeof window === 'undefined') return []
-  try {
-    const raw = localStorage.getItem(ADDRESSES_KEY)
-    return raw ? JSON.parse(raw) : []
-  } catch { return [] }
-}
-
 export function saveAddresses(addresses: SavedAddress[]): void {
   if (typeof window === 'undefined') return
   localStorage.setItem(ADDRESSES_KEY, JSON.stringify(addresses))
