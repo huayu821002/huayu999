@@ -53,22 +53,14 @@ export default function EmailTemplatesPage() {
   const [editForm, setEditForm] = useState<EmailTemplate>({ key: 'welcome', subject: '', body: '', enabled: true })
   const [testEmail, setTestEmail] = useState('')
   const [showTestModal, setShowTestModal] = useState(false)
+  const [fetched, setFetched] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) { router.push('/login'); return }
-
-    fetch('/api/admin/me', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error('Not admin')
-        return res.json()
-      })
-      .then((data) => {
-        if (data.data?.role !== 'ADMIN') throw new Error('Not admin')
-        setIsAdmin(true)
-      })
+    fetch('/api/admin/me', { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => { if (!res.ok) throw new Error('Not admin'); return res.json() })
+      .then((data) => { if (data.data?.role !== 'ADMIN') throw new Error('Not admin'); setIsAdmin(true) })
       .catch(() => router.push('/login'))
       .finally(() => setIsLoading(false))
   }, [router])
@@ -79,10 +71,10 @@ export default function EmailTemplatesPage() {
   }, [isAdmin])
 
   useEffect(() => {
-    if (templates[activeTemplate]) {
-      setEditForm(templates[activeTemplate])
-    }
-  }, [activeTemplate, templates])
+    if (!fetched) return
+    const t = templates[activeTemplate]
+    if (t) setEditForm(t)
+  }, [activeTemplate, fetched])
 
   const fetchTemplates = async () => {
     try {
@@ -90,13 +82,9 @@ export default function EmailTemplatesPage() {
       const data = await res.json()
       if (data.success) {
         setTemplates(data.data)
-        // Set first template as active
-        const firstKey = Object.keys(data.data)[0]
-        if (firstKey) setActiveTemplate(firstKey)
+        setFetched(true)
       }
-    } catch (err) {
-      console.error(err)
-    }
+    } catch (err) { console.error(err) }
   }
 
   const saveTemplate = async () => {
@@ -105,33 +93,17 @@ export default function EmailTemplatesPage() {
       const res = await adminFetch('/api/admin/email-templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          key: activeTemplate,
-          subject: editForm.subject,
-          body: editForm.body,
-          enabled: editForm.enabled,
-        }),
+        body: JSON.stringify({ key: activeTemplate, subject: editForm.subject, body: editForm.body, enabled: editForm.enabled }),
       })
       const data = await res.json()
-      if (data.success) {
-        alert('Template saved successfully!')
-        fetchTemplates()
-      } else {
-        alert('Failed to save: ' + data.error)
-      }
-    } catch (err) {
-      console.error(err)
-      alert('Failed to save template')
-    }
+      if (data.success) { alert('Template saved!'); fetchTemplates() }
+      else alert('Failed: ' + data.error)
+    } catch { alert('Failed to save') }
     setIsSaving(false)
   }
 
   const sendTestEmail = async () => {
-    if (!testEmail) {
-      alert('Please enter a test email address')
-      return
-    }
-
+    if (!testEmail) { alert('Enter a test email'); return }
     setIsSaving(true)
     try {
       const res = await fetch('/api/email/send', {
@@ -141,8 +113,8 @@ export default function EmailTemplatesPage() {
           templateKey: activeTemplate,
           to: { email: testEmail },
           variables: {
-            customer_name: 'Test Customer',
-            order_number: 'TEST-001',
+            customer_name: 'John Doe',
+            order_number: 'JH-TEST-001',
             order_date: new Date().toLocaleDateString(),
             order_total: '$99.99',
             tracking_number: '1Z999AA10123456784',
@@ -153,25 +125,17 @@ export default function EmailTemplatesPage() {
         }),
       })
       const data = await res.json()
-      if (data.success) {
-        alert('Test email sent successfully!')
-        setShowTestModal(false)
-        setTestEmail('')
-      } else {
-        alert('Failed to send test email: ' + data.error)
-      }
-    } catch (err) {
-      console.error(err)
-      alert('Failed to send test email')
-    }
+      if (data.success) { alert('Test email sent!'); setShowTestModal(false); setTestEmail('') }
+      else alert('Failed: ' + data.error)
+    } catch { alert('Failed to send test email') }
     setIsSaving(false)
   }
 
-  if (isLoading) {
-    return <div className="min-h-screen bg-joy-gray-50 flex items-center justify-center">
+  if (isLoading) return (
+    <div className="min-h-screen bg-joy-gray-50 flex items-center justify-center">
       <div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" />
     </div>
-  }
+  )
 
   if (!isAdmin) return null
 
@@ -182,6 +146,8 @@ export default function EmailTemplatesPage() {
       <Header />
       <main className="pt-[calc(4rem+36px)]">
         <div className="max-w-7xl mx-auto px-4 py-8">
+
+          {/* Title */}
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1 className="font-display text-3xl font-bold text-joy-gray-900">Email Templates</h1>
@@ -192,7 +158,7 @@ export default function EmailTemplatesPage() {
             </Link>
           </div>
 
-          {/* Email Provider Setup Info */}
+          {/* Setup Info Banner */}
           <div className="bg-joy-orange/10 border border-joy-orange/30 rounded-2xl p-5 mb-8">
             <div className="flex items-start gap-3">
               <Icons.Mail size={20} className="text-joy-orange mt-0.5" />
@@ -200,18 +166,22 @@ export default function EmailTemplatesPage() {
                 <h3 className="font-semibold text-joy-gray-900">Email Provider Setup</h3>
                 <p className="text-sm text-joy-gray-600 mt-1">
                   Add one API key to your environment variables:<br />
-                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">RESEND_API_KEY</code> — <a href="https://resend.com" target="_blank" className="text-joy-orange underline font-medium">Resend</a> ⭐ Easiest (recommended)<br />
-                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">SENDGRID_API_KEY</code> — <a href="https://app.sendgrid.com" target="_blank" className="text-joy-orange underline">SendGrid</a><br />
-                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">BREVO_API_KEY</code> — <a href="https://app.brevo.com" target="_blank" className="text-joy-orange underline">Brevo</a>
-                  <br />
-                  <span className="text-xs">Without an API key, emails are logged to console only (dev mode). All providers support custom HTML templates.</span>
+                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">RESEND_API_KEY</code>
+                  {' — '}<a href="https://resend.com" target="_blank" className="text-joy-orange underline font-medium">Resend</a> ⭐ Easiest<br />
+                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">SENDGRID_API_KEY</code>
+                  {' — '}<a href="https://app.sendgrid.com" target="_blank" className="text-joy-orange underline">SendGrid</a><br />
+                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">BREVO_API_KEY</code>
+                  {' — '}<a href="https://app.brevo.com" target="_blank" className="text-joy-orange underline">Brevo</a>
+                  <br /><span className="text-xs text-joy-gray-500">Without an API key, emails are logged to console only. All support custom HTML.</span>
                 </p>
               </div>
             </div>
           </div>
 
+          {/* Main Content: sidebar + editor */}
           <div className="flex gap-6 min-h-[600px]">
-            {/* Left: Template List */}
+
+            {/* Template List Sidebar */}
             <div className="w-72 flex-shrink-0">
               <div className="bg-white rounded-2xl shadow-sm p-4">
                 <h2 className="font-semibold text-joy-gray-900 px-2 mb-3">Templates</h2>
@@ -232,7 +202,7 @@ export default function EmailTemplatesPage() {
                       <div className={`text-xs mt-0.5 ${activeTemplate === key ? 'text-white/80' : 'text-joy-gray-400'}`}>
                         {m.description}
                       </div>
-                      {!templates[key]?.enabled && activeTemplate !== key && (
+                      {templates[key] && !templates[key].enabled && activeTemplate !== key && (
                         <span className="inline-block mt-1 text-xs px-1.5 py-0.5 bg-joy-gray-200 text-joy-gray-500 rounded">Disabled</span>
                       )}
                     </button>
@@ -241,10 +211,11 @@ export default function EmailTemplatesPage() {
               </div>
             </div>
 
-            {/* Right: Editor */}
+            {/* Editor Panel */}
             <div className="flex-1 bg-white rounded-2xl shadow-sm p-6">
               {editForm.key && (
                 <>
+                  {/* Editor Header */}
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <h2 className="font-semibold text-lg text-joy-gray-900">{meta.label}</h2>
@@ -254,16 +225,10 @@ export default function EmailTemplatesPage() {
                       <label className="flex items-center gap-2 cursor-pointer">
                         <span className="text-sm text-joy-gray-600">Enabled</span>
                         <button
-                          onClick={() => setEditForm({ ...editForm, enabled: !editForm.enabled })}
-                          className={`w-12 h-6 rounded-full transition-colors ${
-                            editForm.enabled ? 'bg-joy-orange' : 'bg-joy-gray-300'
-                          }`}
+                          onClick={() => setEditForm(f => ({ ...f, enabled: !f.enabled }))}
+                          className={`w-12 h-6 rounded-full transition-colors ${editForm.enabled ? 'bg-joy-orange' : 'bg-joy-gray-300'}`}
                         >
-                          <div
-                            className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                              editForm.enabled ? 'translate-x-6' : 'translate-x-0.5'
-                            }`}
-                          />
+                          <div className={`w-5 h-5 rounded-full bg-white shadow transition-transform ${editForm.enabled ? 'translate-x-6' : 'translate-x-0.5'}`} />
                         </button>
                       </label>
                       <Button variant="secondary" onClick={() => setShowTestModal(true)}>
@@ -273,7 +238,7 @@ export default function EmailTemplatesPage() {
                     </div>
                   </div>
 
-                  {/* Subject */}
+                  {/* Subject Line */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-joy-gray-700 mb-2">Subject Line</label>
                     <input
@@ -281,19 +246,19 @@ export default function EmailTemplatesPage() {
                       className="w-full px-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange text-sm"
                       placeholder="Email subject"
                       value={editForm.subject}
-                      onChange={(e) => setEditForm({ ...editForm, subject: e.target.value })}
+                      onChange={(e) => setEditForm(f => ({ ...f, subject: e.target.value }))}
                     />
                   </div>
 
                   {/* Available Variables */}
                   <div className="mb-4">
-                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Available Variables</label>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">Available Variables (click to insert)</label>
                     <div className="flex flex-wrap gap-2">
                       {meta.variables.map((v) => (
                         <code
                           key={v}
                           className="px-2 py-1 bg-joy-gray-100 text-joy-orange font-mono text-xs rounded cursor-pointer hover:bg-joy-orange/10"
-                          onClick={() => setEditForm({ ...editForm, body: editForm.body + `{{${v}}}` })}
+                          onClick={() => setEditForm(f => ({ ...f, body: f.body + `{{${v}}}` }))}
                           title="Click to insert"
                         >
                           {`{{${v}}}`}
@@ -302,7 +267,7 @@ export default function EmailTemplatesPage() {
                     </div>
                   </div>
 
-                  {/* Body */}
+                  {/* HTML Body */}
                   <div className="mb-6">
                     <label className="block text-sm font-medium text-joy-gray-700 mb-2">Email Body (HTML)</label>
                     <textarea
@@ -310,7 +275,7 @@ export default function EmailTemplatesPage() {
                       rows={18}
                       placeholder="<h1>Hello {{customer_name}}</h1>..."
                       value={editForm.body}
-                      onChange={(e) => setEditForm({ ...editForm, body: e.target.value })}
+                      onChange={(e) => setEditForm(f => ({ ...f, body: e.target.value }))}
                     />
                   </div>
 
@@ -327,7 +292,7 @@ export default function EmailTemplatesPage() {
                             .replace(/\{\{order_number\}\}/g, 'JH-TEST-001')
                             .replace(/\{\{order_date\}\}/g, new Date().toLocaleDateString())
                             .replace(/\{\{order_total\}\}/g, '$99.99')
-                            .replace(/\{\{login_url\}\}/g, '#')
+                            .replace(/\{\{login_url\}\}/g, '#'),
                         }}
                       />
                     </div>
@@ -336,6 +301,7 @@ export default function EmailTemplatesPage() {
               )}
             </div>
           </div>
+
         </div>
       </main>
 
@@ -353,7 +319,6 @@ export default function EmailTemplatesPage() {
             <div className="p-6">
               <p className="text-sm text-joy-gray-600 mb-4">
                 Send a test email to verify your <strong>{meta.label}</strong> template.
-                The email will use test values for all variables.
               </p>
               <Input
                 label="Recipient Email"
