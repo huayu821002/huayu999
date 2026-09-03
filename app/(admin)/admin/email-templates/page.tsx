@@ -47,6 +47,7 @@ export default function EmailTemplatesPage() {
   const router = useRouter()
   const [isAdmin, setIsAdmin] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [templates, setTemplates] = useState<Record<string, EmailTemplate>>({})
   const [activeTemplate, setActiveTemplate] = useState<string>('welcome')
@@ -57,19 +58,31 @@ export default function EmailTemplatesPage() {
   useEffect(() => {
     const token = localStorage.getItem('token')
     if (!token) { router.push('/login'); return }
+    setIsLoading(true)
+    setLoadError(null)
     fetch('/api/admin/me', { headers: { Authorization: `Bearer ${token}` } })
-      .then((res) => { if (!res.ok) throw new Error('Not admin'); return res.json() })
+      .then((res) => {
+        if (!res.ok) throw new Error('Auth failed: ' + res.status)
+        return res.json()
+      })
       .then((data) => {
         if (data.data?.role !== 'ADMIN') throw new Error('Not admin')
         setIsAdmin(true)
         return fetchTemplates()
       })
       .then(() => setIsLoading(false))
-      .catch(() => router.push('/login'))
-  }, [router])
+      .catch((err) => {
+        console.error('[EmailTemplates] Load error:', err)
+        setLoadError(err.message)
+        setIsLoading(false)
+        setTimeout(() => router.push('/login'), 2000)
+      })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Sync editForm when active template changes
   useEffect(() => {
+    if (Object.keys(templates).length === 0) return
     const t = templates[activeTemplate]
     if (t) setEditForm(t)
   }, [activeTemplate, templates])
@@ -132,12 +145,24 @@ export default function EmailTemplatesPage() {
   }
 
   if (isLoading) return (
-    <div className="min-h-screen bg-joy-gray-50 flex items-center justify-center">
+    <div className="min-h-screen bg-joy-gray-50 flex flex-col items-center justify-center gap-4">
       <div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" />
+      <p className="text-joy-gray-500 text-sm">Loading templates...</p>
     </div>
   )
 
-  if (!isAdmin) return null
+  if (!isAdmin) return (
+    <div className="min-h-screen bg-joy-gray-50 flex flex-col items-center justify-center gap-4">
+      <p className="text-joy-gray-500">Redirecting to login...</p>
+    </div>
+  )
+
+  if (loadError) return (
+    <div className="min-h-screen bg-joy-gray-50 flex flex-col items-center justify-center gap-4">
+      <p className="text-red-500">Error: {loadError}</p>
+      <p className="text-joy-gray-500 text-sm">Redirecting to login...</p>
+    </div>
+  )
 
   const meta = TEMPLATE_META[activeTemplate] || { label: activeTemplate, description: '', variables: [] }
 
