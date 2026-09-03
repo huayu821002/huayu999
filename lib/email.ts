@@ -23,13 +23,14 @@ export async function sendEmail({
   sender,
   replyTo,
 }: EmailPayload): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const sendgridKey = process.env.SENDGRID_API_KEY
   const brevoKey = process.env.BREVO_API_KEY
+  const sendgridKey = process.env.SENDGRID_API_KEY
   const resendKey = process.env.RESEND_API_KEY
 
+  // Priority: Brevo > SendGrid > Resend
+  if (brevoKey) return sendViaBrevo({ to, subject, htmlContent, sender, replyTo }, brevoKey)
   if (sendgridKey) return sendViaSendGrid({ to, subject, htmlContent, sender, replyTo }, sendgridKey)
   if (resendKey) return sendViaResend({ to, subject, htmlContent, sender, replyTo }, resendKey)
-  if (brevoKey) return sendViaBrevo({ to, subject, htmlContent, sender, replyTo }, brevoKey)
 
   // Dev mode
   console.log('[Email] No API key configured. Email would be sent:')
