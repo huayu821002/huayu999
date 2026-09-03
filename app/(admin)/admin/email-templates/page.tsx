@@ -59,15 +59,14 @@ export default function EmailTemplatesPage() {
     if (!token) { router.push('/login'); return }
     fetch('/api/admin/me', { headers: { Authorization: `Bearer ${token}` } })
       .then((res) => { if (!res.ok) throw new Error('Not admin'); return res.json() })
-      .then((data) => { if (data.data?.role !== 'ADMIN') throw new Error('Not admin'); setIsAdmin(true) })
+      .then((data) => {
+        if (data.data?.role !== 'ADMIN') throw new Error('Not admin')
+        setIsAdmin(true)
+        return fetchTemplates()
+      })
+      .then(() => setIsLoading(false))
       .catch(() => router.push('/login'))
-      .finally(() => setIsLoading(false))
   }, [router])
-
-  useEffect(() => {
-    if (!isAdmin) return
-    fetchTemplates()
-  }, [isAdmin])
 
   // Sync editForm when active template changes
   useEffect(() => {
