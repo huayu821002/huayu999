@@ -53,7 +53,6 @@ export default function EmailTemplatesPage() {
   const [editForm, setEditForm] = useState<EmailTemplate>({ key: 'welcome', subject: '', body: '', enabled: true })
   const [testEmail, setTestEmail] = useState('')
   const [showTestModal, setShowTestModal] = useState(false)
-  const [fetched, setFetched] = useState(false)
 
   useEffect(() => {
     const token = localStorage.getItem('token')
@@ -70,11 +69,11 @@ export default function EmailTemplatesPage() {
     fetchTemplates()
   }, [isAdmin])
 
+  // Sync editForm when active template changes
   useEffect(() => {
-    if (!fetched) return
     const t = templates[activeTemplate]
     if (t) setEditForm(t)
-  }, [activeTemplate, fetched])
+  }, [activeTemplate, templates])
 
   const fetchTemplates = async () => {
     try {
@@ -82,7 +81,9 @@ export default function EmailTemplatesPage() {
       const data = await res.json()
       if (data.success) {
         setTemplates(data.data)
-        setFetched(true)
+        // Initialize editForm with first template
+        const firstKey = Object.keys(data.data)[0]
+        if (firstKey) setEditForm(data.data[firstKey])
       }
     } catch (err) { console.error(err) }
   }
