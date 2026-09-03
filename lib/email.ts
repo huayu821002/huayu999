@@ -1,10 +1,12 @@
 /**
- * Email Service — SendGrid / Brevo compatible
- * Uses SENDGRID_API_KEY or BREVO_API_KEY env var
+ * Email Service — SendGrid / Brevo / Resend
+ * Set one of: SENDGRID_API_KEY | BREVO_API_KEY | RESEND_API_KEY
+ * All support custom HTML content.
  */
 
 const SENDGRID_API_URL = 'https://api.sendgrid.com/v3/mail/send'
 const BREVO_API_URL = 'https://api.brevo.com/v3'
+const RESEND_API_URL = 'https://api.resend.com/emails'
 
 interface EmailPayload {
   to: Array<{ email: string; name?: string }>
@@ -21,23 +23,19 @@ export async function sendEmail({
   sender,
   replyTo,
 }: EmailPayload): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  // Try SendGrid first
   const sendgridKey = process.env.SENDGRID_API_KEY
   const brevoKey = process.env.BREVO_API_KEY
+  const resendKey = process.env.RESEND_API_KEY
 
-  if (sendgridKey) {
-    return sendViaSendGrid({ to, subject, htmlContent, sender, replyTo }, sendgridKey)
-  }
+  if (sendgridKey) return sendViaSendGrid({ to, subject, htmlContent, sender, replyTo }, sendgridKey)
+  if (resendKey) return sendViaResend({ to, subject, htmlContent, sender, replyTo }, resendKey)
+  if (brevoKey) return sendViaBrevo({ to, subject, htmlContent, sender, replyTo }, brevoKey)
 
-  if (brevoKey) {
-    return sendViaBrevo({ to, subject, htmlContent, sender, replyTo }, brevoKey)
-  }
-
-  // Dev mode — log and return success
+  // Dev mode
   console.log('[Email] No API key configured. Email would be sent:')
   console.log('[Email] To:', to.map(t => t.email).join(', '))
   console.log('[Email] Subject:', subject)
-  console.log('[Email] Content:', htmlContent.substring(0, 200) + '...')
+  console.log('[Email] HTML preview:', htmlContent.substring(0, 300) + '...')
   return { success: true, messageId: 'dev-mode-' + Date.now() }
 }
 
@@ -47,36 +45,64 @@ async function sendViaSendGrid(
   apiKey: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    const payload = {
-      personalizations: to.map(t => ({
-        to: [{ email: t.email, name: t.name || undefined }],
-        subject,
-      })),
-      from: { email: sender.email, name: sender.name },
-      content: [{ type: 'text/html', value: htmlContent }],
-      ...(replyTo ? { reply_to: { email: replyTo.email, name: replyTo.name } } : {}),
-    }
-
     const response = await fetch(SENDGRID_API_URL, {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify({
+        personalizations: to.map(t => ({ to: [{ email: t.email, name: t.name || undefined }], subject })),
+        from: { email: sender.email, name: sender.name },
+        content: [{ type: 'text/html', value: htmlContent }],
+        ...(replyTo ? { reply_to: { email: replyTo.email, name: replyTo.name } } : {}),
+      }),
     })
 
-    // SendGrid returns 202 on success, no JSON body
     if (response.status === 202) {
-      const messageId = response.headers.get('X-Message-Id') || undefined
-      return { success: true, messageId }
+      return { success: true, messageId: response.headers.get('X-Message-Id') || undefined }
     }
 
     const text = await response.text()
-    console.error('[SendGrid] Send error:', response.status, text)
+    console.error('[SendGrid] Error:', response.status, text)
     return { success: false, error: `SendGrid error: ${response.status}` }
   } catch (error) {
     console.error('[SendGrid] Network error:', error)
+    return { success: false, error: 'Network error while sending email' }
+  }
+}
+
+// ---------- Resend ----------
+async function sendViaResend(
+  { to, subject, htmlContent, sender, replyTo }: EmailPayload,
+  apiKey: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const response = await fetch(RESEND_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: `${sender.name} <${sender.email}>`,
+        to: to.map(t => ({ email: t.email, name: t.name })),
+        subject,
+        html: htmlContent,
+        ...(replyTo ? { reply_to: `${replyTo.name} <${replyTo.email}>` } : {}),
+      }),
+    })
+
+    const data = await response.json()
+
+    if (!response.ok) {
+      console.error('[Resend] Error:', data)
+      return { success: false, error: data.message || 'Resend error' }
+    }
+
+    return { success: true, messageId: data.id }
+  } catch (error) {
+    console.error('[Resend] Network error:', error)
     return { success: false, error: 'Network error while sending email' }
   }
 }
@@ -105,8 +131,8 @@ async function sendViaBrevo(
     const data = await response.json()
 
     if (!response.ok) {
-      console.error('[Brevo] Send error:', data)
-      return { success: false, error: data.message || 'Failed to send email' }
+      console.error('[Brevo] Error:', data)
+      return { success: false, error: data.message || 'Brevo error' }
     }
 
     return { success: true, messageId: data.messageId }

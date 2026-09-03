@@ -197,13 +197,14 @@ export default function EmailTemplatesPage() {
             <div className="flex items-start gap-3">
               <Icons.Mail size={20} className="text-joy-orange mt-0.5" />
               <div>
-                <h3 className="font-semibold text-joy-gray-900">SendGrid / Brevo Setup Required</h3>
+                <h3 className="font-semibold text-joy-gray-900">Email Provider Setup</h3>
                 <p className="text-sm text-joy-gray-600 mt-1">
-                  To enable email sending, add one of these API keys to your environment variables:<br />
-                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">SENDGRID_API_KEY</code> — Get from <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" className="text-joy-orange underline">SendGrid</a><br />
-                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">BREVO_API_KEY</code> — Get from <a href="https://app.brevo.com/settings/keys" target="_blank" className="text-joy-orange underline">Brevo</a>
+                  Add one API key to your environment variables:<br />
+                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">RESEND_API_KEY</code> — <a href="https://resend.com" target="_blank" className="text-joy-orange underline font-medium">Resend</a> ⭐ Easiest (recommended)<br />
+                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">SENDGRID_API_KEY</code> — <a href="https://app.sendgrid.com" target="_blank" className="text-joy-orange underline">SendGrid</a><br />
+                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">BREVO_API_KEY</code> — <a href="https://app.brevo.com" target="_blank" className="text-joy-orange underline">Brevo</a>
                   <br />
-                  <span className="text-xs">Without an API key, emails will only be logged to console (dev mode).</span>
+                  <span className="text-xs">Without an API key, emails are logged to console only (dev mode). All providers support custom HTML templates.</span>
                 </p>
               </div>
             </div>
