@@ -1,18 +1,17 @@
 /**
- * Brevo (Sendinblue) Email Service
- * Docs: https://developers.brevo.com/
+ * Email Service — SendGrid / Brevo compatible
+ * Uses SENDGRID_API_KEY or BREVO_API_KEY env var
  */
 
+const SENDGRID_API_URL = 'https://api.sendgrid.com/v3/mail/send'
 const BREVO_API_URL = 'https://api.brevo.com/v3'
 
-interface BrevoSmtpEmail {
+interface EmailPayload {
   to: Array<{ email: string; name?: string }>
   subject: string
   htmlContent: string
   sender: { name: string; email: string }
   replyTo?: { name: string; email: string }
-  templateId?: number
-  params?: Record<string, any>
 }
 
 export async function sendEmail({
@@ -21,18 +20,72 @@ export async function sendEmail({
   htmlContent,
   sender,
   replyTo,
-}: BrevoSmtpEmail): Promise<{ success: boolean; messageId?: string; error?: string }> {
-  const apiKey = process.env.BREVO_API_KEY
+}: EmailPayload): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  // Try SendGrid first
+  const sendgridKey = process.env.SENDGRID_API_KEY
+  const brevoKey = process.env.BREVO_API_KEY
 
-  // If no API key configured, log and return success for dev/testing
-  if (!apiKey) {
-    console.log('[Brevo] No API key configured. Email would be sent:')
-    console.log('[Brevo] To:', to.map(t => t.email).join(', '))
-    console.log('[Brevo] Subject:', subject)
-    console.log('[Brevo] Content:', htmlContent.substring(0, 200) + '...')
-    return { success: true, messageId: 'dev-mode-' + Date.now() }
+  if (sendgridKey) {
+    return sendViaSendGrid({ to, subject, htmlContent, sender, replyTo }, sendgridKey)
   }
 
+  if (brevoKey) {
+    return sendViaBrevo({ to, subject, htmlContent, sender, replyTo }, brevoKey)
+  }
+
+  // Dev mode — log and return success
+  console.log('[Email] No API key configured. Email would be sent:')
+  console.log('[Email] To:', to.map(t => t.email).join(', '))
+  console.log('[Email] Subject:', subject)
+  console.log('[Email] Content:', htmlContent.substring(0, 200) + '...')
+  return { success: true, messageId: 'dev-mode-' + Date.now() }
+}
+
+// ---------- SendGrid ----------
+async function sendViaSendGrid(
+  { to, subject, htmlContent, sender, replyTo }: EmailPayload,
+  apiKey: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const payload = {
+      personalizations: to.map(t => ({
+        to: [{ email: t.email, name: t.name || undefined }],
+        subject,
+      })),
+      from: { email: sender.email, name: sender.name },
+      content: [{ type: 'text/html', value: htmlContent }],
+      ...(replyTo ? { reply_to: { email: replyTo.email, name: replyTo.name } } : {}),
+    }
+
+    const response = await fetch(SENDGRID_API_URL, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+
+    // SendGrid returns 202 on success, no JSON body
+    if (response.status === 202) {
+      const messageId = response.headers.get('X-Message-Id') || undefined
+      return { success: true, messageId }
+    }
+
+    const text = await response.text()
+    console.error('[SendGrid] Send error:', response.status, text)
+    return { success: false, error: `SendGrid error: ${response.status}` }
+  } catch (error) {
+    console.error('[SendGrid] Network error:', error)
+    return { success: false, error: 'Network error while sending email' }
+  }
+}
+
+// ---------- Brevo ----------
+async function sendViaBrevo(
+  { to, subject, htmlContent, sender, replyTo }: EmailPayload,
+  apiKey: string
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const response = await fetch(`${BREVO_API_URL}/smtp/email`, {
       method: 'POST',
@@ -45,7 +98,7 @@ export async function sendEmail({
         subject,
         htmlContent,
         sender: { name: sender.name, email: sender.email },
-        replyTo: replyTo ? { name: replyTo.name, email: replyTo.email } : undefined,
+        ...(replyTo ? { reply_to: { name: replyTo.name, email: replyTo.email } } : {}),
       }),
     })
 

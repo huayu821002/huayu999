@@ -192,17 +192,18 @@ export default function EmailTemplatesPage() {
             </Link>
           </div>
 
-          {/* Brevo Setup Info */}
+          {/* Email Provider Setup Info */}
           <div className="bg-joy-orange/10 border border-joy-orange/30 rounded-2xl p-5 mb-8">
             <div className="flex items-start gap-3">
               <Icons.Mail size={20} className="text-joy-orange mt-0.5" />
               <div>
-                <h3 className="font-semibold text-joy-gray-900">Brevo (Sendinblue) Setup Required</h3>
+                <h3 className="font-semibold text-joy-gray-900">SendGrid / Brevo Setup Required</h3>
                 <p className="text-sm text-joy-gray-600 mt-1">
-                  To enable email sending, add <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">BREVO_API_KEY</code> to your environment variables.
-                  Get your API key from <a href="https://app.brevo.com/settings/keys" target="_blank" className="text-joy-orange underline">app.brevo.com</a>.
+                  To enable email sending, add one of these API keys to your environment variables:<br />
+                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">SENDGRID_API_KEY</code> — Get from <a href="https://app.sendgrid.com/settings/api_keys" target="_blank" className="text-joy-orange underline">SendGrid</a><br />
+                  <code className="bg-joy-orange/20 px-1.5 py-0.5 rounded text-joy-orange font-mono text-xs">BREVO_API_KEY</code> — Get from <a href="https://app.brevo.com/settings/keys" target="_blank" className="text-joy-orange underline">Brevo</a>
                   <br />
-                  <span className="text-xs">Without the API key, emails will only be logged to console (dev mode).</span>
+                  <span className="text-xs">Without an API key, emails will only be logged to console (dev mode).</span>
                 </p>
               </div>
             </div>
