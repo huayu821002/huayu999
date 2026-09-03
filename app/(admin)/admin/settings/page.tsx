@@ -570,6 +570,10 @@ export default function AdminSettingsPage() {
                 {tab.label}
               </button>
             ))}
+            <a href="/admin/email-templates"
+              className="px-6 py-4 font-medium text-sm border-b-2 -mb-px transition-colors whitespace-nowrap text-joy-gray-500 border-transparent hover:text-joy-gray-700">
+              Email Templates
+            </a>
           </div>
 
           {/* General Tab */}

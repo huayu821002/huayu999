@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { sendEmail, getEmailTemplate, interpolateTemplate } from '@/lib/email'
 
 // GET /api/orders — 需要登录，用户只能查看自己的订单，admin 可以查看所有
 export async function GET(request: Request) {
@@ -90,6 +91,11 @@ export async function POST(request: Request) {
       },
     })
 
+    // Send order confirmation email asynchronously (non-blocking)
+    sendOrderConfirmationEmail(order, items, shippingAddress).catch(err => {
+      console.error('[Orders] Failed to send confirmation email:', err)
+    })
+
     return NextResponse.json({ success: true, data: order })
   } catch (error: any) {
     console.error('Create order error:', error)
@@ -98,5 +104,127 @@ export async function POST(request: Request) {
       { success: false, error: 'Failed to create order: ' + (error?.message || 'Unknown error'), details: error?.message, code: error?.code },
       { status: 500 }
     )
+  }
+}
+
+// Send order confirmation email
+async function sendOrderConfirmationEmail(
+  order: any,
+  items: any[],
+  shippingAddress: any
+) {
+  try {
+    // Get customer email from userId if available
+    let customerEmail = ''
+    let customerName = ''
+
+    if (order.userId) {
+      const customer = await prisma.user.findUnique({
+        where: { id: order.userId },
+        select: { email: true, name: true },
+      })
+      if (customer) {
+        customerEmail = customer.email
+        customerName = customer.name || customer.email.split('@')[0]
+      }
+    }
+
+    // Fallback: try to get email from shipping address
+    if (!customerEmail && shippingAddress) {
+      if (typeof shippingAddress === 'string') {
+        try {
+          const parsed = JSON.parse(shippingAddress)
+          customerEmail = parsed.email || parsed.emailAddress || ''
+          customerName = parsed.firstName ? `${parsed.firstName} ${parsed.lastName || ''}`.trim() : ''
+        } catch {}
+      } else {
+        customerEmail = shippingAddress.email || shippingAddress.emailAddress || ''
+        customerName = shippingAddress.firstName ? `${shippingAddress.firstName} ${shippingAddress.lastName || ''}`.trim() : ''
+      }
+    }
+
+    if (!customerEmail) {
+      console.log('[Orders] No customer email found, skipping confirmation email')
+      return
+    }
+
+    const template = await getEmailTemplate(prisma, 'order_confirm')
+    if (!template || !template.enabled) return
+
+    const storeName = process.env.NEXT_PUBLIC_APP_NAME || 'Fiestaflare'
+
+    // Build order items HTML
+    const orderItemsHtml = Array.isArray(items) && items.length > 0
+      ? items.map((item: any) => `
+        <tr>
+          <td style="padding:8px;border:1px solid #ddd;">${item.name || 'Product'}</td>
+          <td style="padding:8px;border:1px solid #ddd;text-align:center;">${item.quantity || 1}</td>
+          <td style="padding:8px;border:1px solid #ddd;text-align:right;">$${(item.price || 0).toFixed(2)}</td>
+        </tr>
+      `).join('')
+      : '<tr><td colspan="3">Order details unavailable</td></tr>'
+
+    const orderItemsTable = `
+      <table style="width:100%;border-collapse:collapse;">
+        <thead>
+          <tr style="background:#f5f5f5;">
+            <th style="padding:8px;border:1px solid #ddd;text-align:left;">Product</th>
+            <th style="padding:8px;border:1px solid #ddd;text-align:center;">Qty</th>
+            <th style="padding:8px;border:1px solid #ddd;text-align:right;">Price</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${orderItemsHtml}
+        </tbody>
+        <tfoot>
+          <tr>
+            <td colspan="2" style="padding:8px;border:1px solid #ddd;text-align:right;"><strong>Subtotal:</strong></td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;">$${order.subtotal?.toFixed(2) || '0.00'}</td>
+          </tr>
+          ${order.shippingCost > 0 ? `
+          <tr>
+            <td colspan="2" style="padding:8px;border:1px solid #ddd;text-align:right;">Shipping:</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;">$${order.shippingCost?.toFixed(2) || '0.00'}</td>
+          </tr>
+          ` : ''}
+          ${order.tax > 0 ? `
+          <tr>
+            <td colspan="2" style="padding:8px;border:1px solid #ddd;text-align:right;">Tax:</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;">$${order.tax?.toFixed(2) || '0.00'}</td>
+          </tr>
+          ` : ''}
+          <tr>
+            <td colspan="2" style="padding:8px;border:1px solid #ddd;text-align:right;"><strong>Total:</strong></td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;"><strong>$${order.total?.toFixed(2) || '0.00'} ${order.currency || 'USD'}</strong></td>
+          </tr>
+        </tfoot>
+      </table>
+    `
+
+    const subject = interpolateTemplate(template.subject, {
+      store_name: storeName,
+      order_number: order.orderNumber,
+      customer_name: customerName,
+    })
+
+    const htmlContent = interpolateTemplate(template.body, {
+      store_name: storeName,
+      customer_name: customerName,
+      order_number: order.orderNumber,
+      order_date: new Date(order.createdAt).toLocaleDateString(),
+      order_total: `$${order.total?.toFixed(2) || '0.00'} ${order.currency || 'USD'}`,
+      order_items: orderItemsTable,
+    })
+
+    await sendEmail({
+      to: [{ email: customerEmail, name: customerName }],
+      subject,
+      htmlContent,
+      sender: { name: storeName, email: 'noreply@fiestaflare.com' },
+    })
+
+    console.log(`[Orders] Confirmation email sent for order ${order.orderNumber} to ${customerEmail}`)
+  } catch (error) {
+    console.error('[Orders] Failed to send order confirmation email:', error)
   }
 }

@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import bcrypt from 'bcryptjs'
 import { SignJWT } from 'jose'
 import { checkRateLimit, getClientKey } from '@/lib/rateLimit'
+import { sendEmail, getEmailTemplate, interpolateTemplate } from '@/lib/email'
 
 if (!process.env.JWT_SECRET) {
   throw new Error('JWT_SECRET environment variable is not set')
@@ -58,6 +59,11 @@ export async function POST(request: Request) {
       // Create cart for user
       await prisma.cart.create({
         data: { userId: user.id },
+      })
+
+      // Send welcome email asynchronously (non-blocking)
+      sendWelcomeEmail(user.email, user.name || user.email.split('@')[0]).catch(err => {
+        console.error('[Auth] Failed to send welcome email:', err)
       })
 
       // Generate JWT
@@ -139,5 +145,39 @@ export async function POST(request: Request) {
       { success: false, error: 'Authentication failed' },
       { status: 500 }
     )
+  }
+}
+
+// Send welcome email to newly registered user
+async function sendWelcomeEmail(email: string, name: string) {
+  try {
+    const template = await getEmailTemplate(prisma, 'welcome')
+    if (!template || !template.enabled) return
+
+    const storeName = process.env.NEXT_PUBLIC_APP_NAME || 'Fiestaflare'
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://fiestaflare.com'
+
+    const subject = interpolateTemplate(template.subject, {
+      store_name: storeName,
+      customer_name: name,
+      login_url: `${appUrl}/login`,
+    })
+
+    const htmlContent = interpolateTemplate(template.body, {
+      store_name: storeName,
+      customer_name: name,
+      login_url: `${appUrl}/login`,
+    })
+
+    await sendEmail({
+      to: [{ email, name }],
+      subject,
+      htmlContent,
+      sender: { name: storeName, email: 'noreply@fiestaflare.com' },
+    })
+
+    console.log(`[Auth] Welcome email sent to ${email}`)
+  } catch (error) {
+    console.error('[Auth] Failed to send welcome email:', error)
   }
 }
