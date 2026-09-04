@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { useRouter } from 'next/navigation'
@@ -14,7 +14,7 @@ import { useCartStore } from '@/lib/store'
 import { getSavedAddresses, getStoredAuth, type SavedAddress } from '@/lib/addresses'
 import { parseProductImages } from '@/lib/imageUtils'
 import { countries } from '@/lib/countries'
-import type { Currency } from '@/types'
+import type { Currency, CartItem } from '@/types'
 
 const STEPS = ['Cart', 'Shipping', 'Payment', 'Confirm']
 
@@ -26,6 +26,17 @@ interface ShippingForm {
 interface ShippingOption {
   id: string; name: string; code: string; description: string | null
   estimatedDays: string | null; cost: number; freeShipping: boolean; available: boolean
+}
+
+// Group items by warehouse for multi-warehouse checkout
+interface WarehouseGroup {
+  warehouseId: string | null
+  warehouseName: string
+  items: CartItem[]
+  subtotal: number
+  totalWeight: number
+  shippingOptions: ShippingOption[]
+  selectedShipping: string
 }
 
 export default function CheckoutPage() {
@@ -48,6 +59,11 @@ export default function CheckoutPage() {
   const [isProcessing, setIsProcessing] = useState(false)
   const [orderNumber, setOrderNumber] = useState('')
   const [error, setError] = useState('')
+  
+  // Multi-warehouse state
+  const [warehouseGroups, setWarehouseGroups] = useState<WarehouseGroup[]>([])
+  const [hasMultipleWarehouses, setHasMultipleWarehouses] = useState(false)
+  const [showSplitModal, setShowSplitModal] = useState(false)
   const [shippingErrors, setShippingErrors] = useState<Record<string, string>>({})
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([])
   const [selectedShipping, setSelectedShipping] = useState<string>('')
@@ -60,6 +76,47 @@ export default function CheckoutPage() {
     address: '', city: '', state: '', zip: '', country: 'United States'
   })
 
+  // Group items by warehouse
+  const groupedByWarehouse = useMemo(() => {
+    const groups: Record<string, CartItem[]> = {}
+    items.forEach(item => {
+      const key = item.warehouseId || 'default'
+      if (!groups[key]) groups[key] = []
+      groups[key].push(item)
+    })
+    return groups
+  }, [items])
+
+  // Check if multiple warehouses on mount
+  useEffect(() => {
+    const warehouseKeys = Object.keys(groupedByWarehouse)
+    const hasMultiple = warehouseKeys.length > 1
+    setHasMultipleWarehouses(hasMultiple)
+    if (hasMultiple) {
+      setShowSplitModal(true)
+    }
+    // Initialize warehouse groups if we have items and don't have them yet
+    if (items.length > 0 && warehouseGroups.length === 0) {
+      initializeWarehouseGroups()
+    }
+  }, [groupedByWarehouse])
+
+  const initializeWarehouseGroups = () => {
+    const groups: WarehouseGroup[] = Object.entries(groupedByWarehouse).map(([warehouseId, whItems]) => {
+      const firstItem = whItems[0]
+      return {
+        warehouseId: warehouseId === 'default' ? null : warehouseId,
+        warehouseName: firstItem?.warehouseName || 'Standard Warehouse',
+        items: whItems,
+        subtotal: whItems.reduce((sum, item) => sum + convertPrice(item.product.price, currency) * item.quantity, 0),
+        totalWeight: whItems.reduce((sum, item) => sum + (item.product.weight || 0) * item.quantity, 0),
+        shippingOptions: [],
+        selectedShipping: '',
+      }
+    })
+    setWarehouseGroups(groups)
+  }
+
   const subtotal = getSubtotal()
   const totalWeight = getTotalWeight()
 
@@ -69,6 +126,40 @@ export default function CheckoutPage() {
     }
     fetchPaymentSettings()
   }, [subtotal, totalWeight, shippingForm.country])
+
+  // Fetch shipping rates for each warehouse group
+  const fetchShippingForWarehouse = async (groupIndex: number, warehouseId: string | null, subtotal: number, weight: number, country: string) => {
+    try {
+      const res = await fetch('/api/shipping/calculate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ subtotal, weight, country, warehouseId }),
+      })
+      const data = await res.json()
+      if (data.success && data.data && data.data.length > 0) {
+        setWarehouseGroups(prev => prev.map((g, i) => {
+          if (i !== groupIndex) return g
+          const first = data.data.find((o: ShippingOption) => o.available)
+          return {
+            ...g,
+            shippingOptions: data.data,
+            selectedShipping: first?.id || '',
+          }
+        }))
+      } else {
+        setWarehouseGroups(prev => prev.map((g, i) => {
+          if (i !== groupIndex) return g
+          return { ...g, shippingOptions: [], selectedShipping: '' }
+        }))
+      }
+    } catch (err) {
+      console.error('Failed to fetch shipping rates:', err)
+      setWarehouseGroups(prev => prev.map((g, i) => {
+        if (i !== groupIndex) return g
+        return { ...g, shippingOptions: [], selectedShipping: '' }
+      }))
+    }
+  }
 
   // Preload PayPal SDK in background when clientId is available
   useEffect(() => {
@@ -131,10 +222,36 @@ export default function CheckoutPage() {
     }
   }
 
+  // Fetch shipping for all warehouse groups when country changes
+  useEffect(() => {
+    if (currentStep === 2 && shippingForm.country && warehouseGroups.length > 0) {
+      warehouseGroups.forEach((group, index) => {
+        fetchShippingForWarehouse(index, group.warehouseId, group.subtotal, group.totalWeight, shippingForm.country)
+      })
+    }
+  }, [shippingForm.country, warehouseGroups, currentStep])
+
   const selectedOption = shippingOptions.find(o => o.id === selectedShipping)
   const shippingCost = selectedOption?.cost || 0
   const tax = subtotal * 0.08
   const total = subtotal + shippingCost + tax
+
+  // Calculate totals for multi-warehouse orders
+  const multiWarehouseTotals = useMemo(() => {
+    if (!hasMultipleWarehouses || warehouseGroups.length === 0) return []
+    return warehouseGroups.map(group => {
+      const selected = group.shippingOptions.find(o => o.id === group.selectedShipping)
+      const shipping = selected?.cost || 0
+      const groupTax = group.subtotal * 0.08
+      const groupTotal = group.subtotal + shipping + groupTax
+      return { shipping, tax: groupTax, total: groupTotal }
+    })
+  }, [warehouseGroups, hasMultipleWarehouses])
+
+  const grandTotal = useMemo(() => {
+    if (!hasMultipleWarehouses) return total
+    return multiWarehouseTotals.reduce((sum, t) => sum + t.total, 0)
+  }, [multiWarehouseTotals, hasMultipleWarehouses, total])
 
   // Load PayPal SDK and render buttons when PAYPAL is selected
   useEffect(() => {
@@ -151,7 +268,7 @@ export default function CheckoutPage() {
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
           return actions.order.create({
-            purchase_units: [{ amount: { value: total.toFixed(2) } }]
+            purchase_units: [{ amount: { value: (hasMultipleWarehouses ? grandTotal : total).toFixed(2) } }]
           })
         },
         onApprove: async (_data: any, actions: any) => {
@@ -184,7 +301,7 @@ export default function CheckoutPage() {
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
           return actions.order.create({
-            purchase_units: [{ amount: { value: total.toFixed(2) } }]
+            purchase_units: [{ amount: { value: (hasMultipleWarehouses ? grandTotal : total).toFixed(2) } }]
           })
         },
         onApprove: async (_data: any, actions: any) => {
@@ -204,7 +321,7 @@ export default function CheckoutPage() {
       }).render(containerEl)
     }
     document.body.appendChild(script)
-  }, [paymentMethod, paypalClientId, total, currency])
+  }, [paymentMethod, paypalClientId, total, grandTotal, hasMultipleWarehouses, currency])
 
   // Reset paypalLoaded when switching away from PayPal
   useEffect(() => {
@@ -243,9 +360,24 @@ export default function CheckoutPage() {
       errors.zip = 'Please enter a valid ZIP/Postal code'
     }
     if (!shippingForm.country) errors.country = 'Please select a country'
-    if (shippingOptions.length === 0) {
-      alert('Unable to deliver to this address. Please use a different address.')
-      return false
+    
+    if (hasMultipleWarehouses) {
+      // Check each warehouse has shipping selected
+      const missingShipping = warehouseGroups.some(g => !g.selectedShipping && g.shippingOptions.length > 0)
+      if (missingShipping) {
+        alert('Please select a shipping method for each warehouse')
+        return false
+      }
+      const noShippingAvailable = warehouseGroups.every(g => g.shippingOptions.length === 0)
+      if (noShippingAvailable) {
+        alert('No shipping available for one or more warehouses. Please use a different address.')
+        return false
+      }
+    } else {
+      if (shippingOptions.length === 0) {
+        alert('Unable to deliver to this address. Please use a different address.')
+        return false
+      }
     }
     
     setShippingErrors(errors)
@@ -262,39 +394,89 @@ export default function CheckoutPage() {
 
       const shippingAddress = `${shippingForm.firstName} ${shippingForm.lastName}, ${shippingForm.address}, ${shippingForm.city}, ${shippingForm.state} ${shippingForm.zip}, ${shippingForm.country}`
 
-      const orderItems = items.map(item => ({
-        productId: item.product.id,
-        name: item.product.name,
-        sku: item.product.sku,
-        price: item.product.price,
-        quantity: item.quantity,
-        variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
-      }))
+      if (hasMultipleWarehouses) {
+        // Place multiple orders (one per warehouse)
+        const orderNumbers: string[] = []
+        for (let i = 0; i < warehouseGroups.length; i++) {
+          const group = warehouseGroups[i]
+          const totals = multiWarehouseTotals[i]
+          const orderItems = group.items.map(item => ({
+            productId: item.product.id,
+            name: item.product.name,
+            sku: item.product.sku,
+            price: item.product.price,
+            quantity: item.quantity,
+            variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
+          }))
 
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          items: orderItems,
-          subtotal,
-          shippingCost,
-          tax,
-          discount: 0,
-          total,
-          currency,
-          shippingAddress,
-          paymentMethod: paymentMethod,
-        }),
-      })
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId,
+              items: orderItems,
+              subtotal: group.subtotal,
+              shippingCost: totals.shipping,
+              tax: totals.tax,
+              discount: 0,
+              total: totals.total,
+              currency,
+              shippingAddress,
+              paymentMethod: paymentMethod,
+              warehouseId: group.warehouseId,
+              warehouseName: group.warehouseName,
+            }),
+          })
 
-      const data = await res.json()
-      if (data.success) {
-        setOrderNumber(data.data.orderNumber)
+          const data = await res.json()
+          if (data.success) {
+            orderNumbers.push(data.data.orderNumber)
+          } else {
+            setError(data.error || `Failed to place order for ${group.warehouseName}`)
+            setIsProcessing(false)
+            return
+          }
+        }
+        // All orders placed successfully
+        setOrderNumber(orderNumbers.join(', '))
         clearCart()
         setCurrentStep(4)
       } else {
-        setError(data.error || 'Failed to place order')
+        // Single order (original logic)
+        const orderItems = items.map(item => ({
+          productId: item.product.id,
+          name: item.product.name,
+          sku: item.product.sku,
+          price: item.product.price,
+          quantity: item.quantity,
+          variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
+        }))
+
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            items: orderItems,
+            subtotal,
+            shippingCost,
+            tax,
+            discount: 0,
+            total,
+            currency,
+            shippingAddress,
+            paymentMethod: paymentMethod,
+          }),
+        })
+
+        const data = await res.json()
+        if (data.success) {
+          setOrderNumber(data.data.orderNumber)
+          clearCart()
+          setCurrentStep(4)
+        } else {
+          setError(data.error || 'Failed to place order')
+        }
       }
     } catch (err) {
       setError('Network error. Please try again.')
@@ -312,41 +494,92 @@ export default function CheckoutPage() {
 
       const shippingAddress = `${shippingForm.firstName} ${shippingForm.lastName}, ${shippingForm.address}, ${shippingForm.city}, ${shippingForm.state} ${shippingForm.zip}, ${shippingForm.country}`
 
-      const orderItems = items.map(item => ({
-        productId: item.product.id,
-        name: item.product.name,
-        sku: item.product.sku,
-        price: item.product.price,
-        quantity: item.quantity,
-        variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
-      }))
+      if (hasMultipleWarehouses) {
+        // Place multiple orders with PayPal
+        const orderNumbers: string[] = []
+        for (let i = 0; i < warehouseGroups.length; i++) {
+          const group = warehouseGroups[i]
+          const totals = multiWarehouseTotals[i]
+          const orderItems = group.items.map(item => ({
+            productId: item.product.id,
+            name: item.product.name,
+            sku: item.product.sku,
+            price: item.product.price,
+            quantity: item.quantity,
+            variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
+          }))
 
-      const res = await fetch('/api/orders', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          items: orderItems,
-          subtotal,
-          shippingCost,
-          tax,
-          discount: 0,
-          total,
-          currency,
-          shippingAddress,
-          paymentMethod: 'PAYPAL',
-          paypalOrderId: paypalDetails.id,
-          paypalStatus: paypalDetails.status,
-        }),
-      })
+          const res = await fetch('/api/orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId,
+              items: orderItems,
+              subtotal: group.subtotal,
+              shippingCost: totals.shipping,
+              tax: totals.tax,
+              discount: 0,
+              total: totals.total,
+              currency,
+              shippingAddress,
+              paymentMethod: 'PAYPAL',
+              paypalOrderId: paypalDetails.id,
+              paypalStatus: paypalDetails.status,
+              warehouseId: group.warehouseId,
+              warehouseName: group.warehouseName,
+            }),
+          })
 
-      const data = await res.json()
-      if (data.success) {
-        setOrderNumber(data.data.orderNumber)
+          const data = await res.json()
+          if (data.success) {
+            orderNumbers.push(data.data.orderNumber)
+          } else {
+            setError(data.error || `Failed to place order for ${group.warehouseName}`)
+            setIsProcessing(false)
+            return
+          }
+        }
+        setOrderNumber(orderNumbers.join(', '))
         clearCart()
         setCurrentStep(4)
       } else {
-        setError(data.error || 'Failed to place order')
+        // Single order
+        const orderItems = items.map(item => ({
+          productId: item.product.id,
+          name: item.product.name,
+          sku: item.product.sku,
+          price: item.product.price,
+          quantity: item.quantity,
+          variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
+        }))
+
+        const res = await fetch('/api/orders', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            userId,
+            items: orderItems,
+            subtotal,
+            shippingCost,
+            tax,
+            discount: 0,
+            total,
+            currency,
+            shippingAddress,
+            paymentMethod: 'PAYPAL',
+            paypalOrderId: paypalDetails.id,
+            paypalStatus: paypalDetails.status,
+          }),
+        })
+
+        const data = await res.json()
+        if (data.success) {
+          setOrderNumber(data.data.orderNumber)
+          clearCart()
+          setCurrentStep(4)
+        } else {
+          setError(data.error || 'Failed to place order')
+        }
       }
     } catch (err) {
       setError('Network error. Please try again.')
@@ -367,6 +600,86 @@ export default function CheckoutPage() {
             <h1 className="font-display text-2xl font-bold text-joy-gray-900 mb-2">Your cart is empty</h1>
             <p className="text-joy-gray-600 mb-6">Add some products to checkout</p>
             <Link href="/products"><Button>Browse Products</Button></Link>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  // Multi-warehouse split confirmation modal
+  if (showSplitModal && hasMultipleWarehouses) {
+    return (
+      <div className="min-h-screen bg-joy-gray-50">
+        <Header />
+        <main className="pt-[calc(4rem+36px)]">
+          <div className="max-w-2xl mx-auto px-4 py-16">
+            <div className="bg-white rounded-2xl shadow-sm p-6">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-12 h-12 rounded-full bg-joy-orange/10 flex items-center justify-center">
+                  <Icons.MapPin size={24} className="text-joy-orange" />
+                </div>
+                <div>
+                  <h1 className="font-display text-2xl font-bold text-joy-gray-900">Split Order by Warehouse</h1>
+                  <p className="text-joy-gray-500 text-sm">Your cart contains items from different warehouses</p>
+                </div>
+              </div>
+
+              <div className="bg-joy-orange/5 border border-joy-orange/20 rounded-xl p-4 mb-6">
+                <p className="text-sm text-joy-gray-700">
+                  Items from different warehouses will be <strong>split into separate orders</strong>. 
+                  Each order will be shipped from its respective warehouse with <strong>separate shipping fees</strong>.
+                  All orders will be sent to the <strong>same delivery address</strong>.
+                </p>
+              </div>
+
+              <div className="space-y-4 mb-6">
+                {warehouseGroups.map((group) => {
+                  if (group.items.length === 0) return null
+                  return (
+                    <div key={group.warehouseId || 'default'} className="border border-joy-gray-200 rounded-xl p-4">
+                      <div className="flex items-center gap-2 mb-3">
+                        <Icons.Package size={18} className="text-joy-orange" />
+                        <span className="font-semibold text-joy-gray-900">{group.warehouseName}</span>
+                        <span className="text-xs bg-joy-gray-100 text-joy-gray-600 px-2 py-0.5 rounded-full">
+                          {group.items.length} {group.items.length === 1 ? 'item' : 'items'}
+                        </span>
+                      </div>
+                      <div className="space-y-2">
+                        {group.items.slice(0, 2).map((item) => (
+                          <div key={item.id} className="flex items-center gap-2 text-sm">
+                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-joy-gray-100 flex-shrink-0">
+                              <img 
+                                src={parseProductImages(item.product.images)[0] || '/placeholder.png'} 
+                                alt={item.product.name} 
+                                className="w-full h-full object-cover" 
+                              />
+                            </div>
+                            <span className="text-joy-gray-700 truncate flex-1">{item.product.name}</span>
+                            <span className="text-joy-gray-500">×{item.quantity}</span>
+                          </div>
+                        ))}
+                        {group.items.length > 2 && (
+                          <p className="text-xs text-joy-gray-400 pl-12">+{group.items.length - 2} more items</p>
+                        )}
+                      </div>
+                      <div className="mt-3 pt-3 border-t border-joy-gray-100 flex justify-between text-sm">
+                        <span className="text-joy-gray-500">Subtotal:</span>
+                        <span className="font-medium text-joy-gray-900">{formatCurrency(group.subtotal, currency)}</span>
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="flex gap-4">
+                <Button variant="secondary" onClick={() => router.push('/cart')} className="flex-1">
+                  Back to Cart
+                </Button>
+                <Button onClick={() => { setShowSplitModal(false); setCurrentStep(2) }} className="flex-1">
+                  Continue to Checkout <Icons.ChevronRight size={18} className="ml-1" />
+                </Button>
+              </div>
+            </div>
           </div>
         </main>
       </div>
@@ -509,33 +822,74 @@ export default function CheckoutPage() {
                     {shippingErrors.country && <p className="text-red-500 text-xs mt-1">{shippingErrors.country}</p>}
                   </div>
 
-                  {/* Shipping Options */}
+                  {/* Shipping Options - Multi-warehouse or single */}
                   <div className="border-t border-joy-gray-100 pt-6">
-                    <h3 className="font-medium text-joy-gray-900 mb-4">Shipping Method ({totalWeight.toFixed(2)}kg total)</h3>
-                    {shippingOptions.length === 0 ? (
-                      <p className="text-red-500 text-sm">Unable to deliver to this address!</p>
-                    ) : (
-                      <div className="space-y-3">
-                        {shippingOptions.filter(o => o.available).map(option => (
-                          <label key={option.id} className={cn('flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-colors', selectedShipping === option.id ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange')}>
-                            <div className="flex items-center gap-3">
-                              <input type="radio" name="shipping" checked={selectedShipping === option.id} onChange={() => setSelectedShipping(option.id)} className="accent-joy-orange" />
-                              <div>
-                                <p className="font-medium text-joy-gray-900">{option.name}</p>
-                                <p className="text-sm text-joy-gray-500">{option.estimatedDays}</p>
-                              </div>
+                    {hasMultipleWarehouses ? (
+                      // Show per-warehouse shipping options
+                      <>
+                        <h3 className="font-medium text-joy-gray-900 mb-4">Shipping Methods by Warehouse</h3>
+                        {warehouseGroups.map((group, groupIndex) => (
+                          <div key={group.warehouseId || 'default'} className="mb-6 last:mb-0">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Icons.Package size={16} className="text-joy-orange" />
+                              <span className="font-medium text-joy-gray-800">{group.warehouseName}</span>
+                              <span className="text-xs text-joy-gray-400">({group.totalWeight.toFixed(2)}kg)</span>
                             </div>
-                            <span className="font-semibold text-joy-gray-900">
-                              {option.freeShipping ? <span className="text-joy-green">FREE</span> : formatCurrency(option.cost, currency)}
-                            </span>
-                          </label>
+                            {group.shippingOptions.length === 0 ? (
+                              <p className="text-red-500 text-sm">No shipping available for this warehouse</p>
+                            ) : (
+                              <div className="space-y-3">
+                                {group.shippingOptions.filter(o => o.available).map(option => (
+                                  <label key={option.id} className={cn('flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-colors', group.selectedShipping === option.id ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange')}>
+                                    <div className="flex items-center gap-3">
+                                      <input type="radio" name={`shipping-${groupIndex}`} checked={group.selectedShipping === option.id} onChange={() => {
+                                        setWarehouseGroups(prev => prev.map((g, i) => i === groupIndex ? { ...g, selectedShipping: option.id } : g))
+                                      }} className="accent-joy-orange" />
+                                      <div>
+                                        <p className="font-medium text-joy-gray-900">{option.name}</p>
+                                        <p className="text-sm text-joy-gray-500">{option.estimatedDays}</p>
+                                      </div>
+                                    </div>
+                                    <span className="font-semibold text-joy-gray-900">
+                                      {option.freeShipping ? <span className="text-joy-green">FREE</span> : formatCurrency(option.cost, currency)}
+                                    </span>
+                                  </label>
+                                ))}
+                              </div>
+                            )}
+                          </div>
                         ))}
-                      </div>
-                    )}
-                    {shippingOptions.length > 0 && !selectedOption?.freeShipping && (
-                      <p className="text-sm text-joy-gray-500 mt-3">
-                        Add {formatCurrency((selectedOption?.cost || 0) * 5, currency)} more for free express shipping
-                      </p>
+                      </>
+                    ) : (
+                      // Single warehouse - original shipping options
+                      <>
+                        <h3 className="font-medium text-joy-gray-900 mb-4">Shipping Method ({totalWeight.toFixed(2)}kg total)</h3>
+                        {shippingOptions.length === 0 ? (
+                          <p className="text-red-500 text-sm">Unable to deliver to this address!</p>
+                        ) : (
+                          <div className="space-y-3">
+                            {shippingOptions.filter(o => o.available).map(option => (
+                              <label key={option.id} className={cn('flex items-center justify-between p-4 border-2 rounded-xl cursor-pointer transition-colors', selectedShipping === option.id ? 'border-joy-orange bg-joy-orange/5' : 'border-joy-gray-200 hover:border-joy-orange')}>
+                                <div className="flex items-center gap-3">
+                                  <input type="radio" name="shipping" checked={selectedShipping === option.id} onChange={() => setSelectedShipping(option.id)} className="accent-joy-orange" />
+                                  <div>
+                                    <p className="font-medium text-joy-gray-900">{option.name}</p>
+                                    <p className="text-sm text-joy-gray-500">{option.estimatedDays}</p>
+                                  </div>
+                                </div>
+                                <span className="font-semibold text-joy-gray-900">
+                                  {option.freeShipping ? <span className="text-joy-green">FREE</span> : formatCurrency(option.cost, currency)}
+                                </span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                        {shippingOptions.length > 0 && !selectedOption?.freeShipping && (
+                          <p className="text-sm text-joy-gray-500 mt-3">
+                            Add {formatCurrency((selectedOption?.cost || 0) * 5, currency)} more for free express shipping
+                          </p>
+                        )}
+                      </>
                     )}
                   </div>
 
@@ -643,7 +997,7 @@ export default function CheckoutPage() {
                     <div className="flex gap-4 mt-6">
                       <Button variant="secondary" onClick={() => setCurrentStep(2)}>Back</Button>
                       <Button onClick={handlePlaceOrder} className="flex-1" size="lg" isLoading={isProcessing}>
-                        {isProcessing ? 'Processing...' : paymentMethod === 'BANK_TRANSFER' ? `Place Order (Bank Transfer)` : `Pay ${formatCurrency(total, currency)}`}
+                        {isProcessing ? 'Processing...' : paymentMethod === 'BANK_TRANSFER' ? `Place Order (Bank Transfer)` : `Pay ${formatCurrency(hasMultipleWarehouses ? grandTotal : total, currency)}`}
                       </Button>
                     </div>
                   )}
@@ -657,9 +1011,17 @@ export default function CheckoutPage() {
                   </div>
                   <h2 className="font-display text-2xl font-bold text-joy-gray-900 mb-2">Order Placed!</h2>
                   <p className="text-joy-gray-600 mb-6">Thank you for your order. We'll send you a confirmation email shortly.</p>
-                  {orderNumber && <p className="font-mono text-lg bg-joy-gray-50 rounded-lg py-3 px-4 inline-block mb-6">Order #{orderNumber}</p>}
+                  {orderNumber && (
+                    <div className="bg-joy-gray-50 rounded-lg py-3 px-4 inline-block mb-6">
+                      <p className="text-sm text-joy-gray-500 mb-1">Order Numbers:</p>
+                      <p className="font-mono text-lg font-bold text-joy-orange">{orderNumber}</p>
+                      {orderNumber.includes(',') && (
+                        <p className="text-xs text-joy-gray-400 mt-1">Split from {warehouseGroups.length} warehouses</p>
+                      )}
+                    </div>
+                  )}
                   <div className="flex flex-col sm:flex-row gap-4 justify-center">
-                    <Link href="/account/orders"><Button variant="secondary">View Order</Button></Link>
+                    <Link href="/account/orders"><Button variant="secondary">View Orders</Button></Link>
                     <Link href="/products"><Button>Continue Shopping</Button></Link>
                   </div>
                 </div>
@@ -687,9 +1049,35 @@ export default function CheckoutPage() {
                 </div>
                 <div className="border-t border-joy-gray-100 pt-3 sm:pt-4 space-y-2 sm:space-y-3">
                   <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Subtotal</span><span className="font-medium">{formatCurrency(subtotal, currency)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Shipping ({totalWeight.toFixed(2)}kg)</span><span className="font-medium">{shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost, currency)}</span></div>
+                  
+                  {hasMultipleWarehouses ? (
+                    // Multi-warehouse: show per-warehouse shipping
+                    warehouseGroups.map((group, index) => {
+                      const totals = multiWarehouseTotals[index]
+                      return (
+                        <div key={group.warehouseId || 'default'} className="flex justify-between text-sm">
+                          <span className="text-joy-gray-600 flex items-center gap-1">
+                            <Icons.Package size={12} className="text-joy-orange" />
+                            {group.warehouseName} Shipping
+                          </span>
+                          <span className="font-medium">
+                            {totals.shipping === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(totals.shipping, currency)}
+                          </span>
+                        </div>
+                      )
+                    })
+                  ) : (
+                    <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Shipping ({totalWeight.toFixed(2)}kg)</span><span className="font-medium">{shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost, currency)}</span></div>
+                  )}
+                  
                   <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Tax (8%)</span><span className="font-medium">{formatCurrency(tax, currency)}</span></div>
-                  <div className="flex justify-between text-base sm:text-lg font-bold pt-2 sm:pt-3 border-t border-joy-gray-100"><span>Total</span><span className="text-joy-orange">{formatCurrency(total, currency)}</span></div>
+                  <div className="flex justify-between text-base sm:text-lg font-bold pt-2 sm:pt-3 border-t border-joy-gray-100"><span>Total</span><span className="text-joy-orange">{formatCurrency(hasMultipleWarehouses ? grandTotal : total, currency)}</span></div>
+                  
+                  {hasMultipleWarehouses && (
+                    <p className="text-xs text-joy-gray-400 bg-joy-gray-50 rounded-lg p-2">
+                      Split into {warehouseGroups.length} orders by warehouse
+                    </p>
+                  )}
                 </div>
                 <div className="mt-4 sm:mt-6">
                   <label className="block text-sm font-medium text-joy-gray-700 mb-2">Display Currency</label>
