@@ -43,7 +43,12 @@ export default function AccountOrdersPage() {
       const user = userStr ? JSON.parse(userStr) : null
       if (!user) return
 
-      const res = await fetch(`/api/orders?userId=${user.id}`)
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/orders?userId=${user.id}`, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      })
       const data = await res.json()
       if (data.success) setOrders(data.data)
     } catch (err) {
