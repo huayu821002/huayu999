@@ -48,7 +48,10 @@ export default function OrderDetailPage() {
 
   const fetchOrder = async (orderId: string) => {
     try {
-      const res = await fetch(`/api/orders/${orderId}`)
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/orders/${orderId}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
       const data = await res.json()
       if (data.success) setOrder(data.data)
     } catch (err) { console.error(err) }
@@ -69,9 +72,13 @@ export default function OrderDetailPage() {
     if (!order) return
     setIsPaying(true)
     try {
+      const token = localStorage.getItem('token')
       const res = await fetch(`/api/orders/${order.orderNumber}`, {
         method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
         body: JSON.stringify({
           status: 'PAID',
           paymentId: paypalDetails.id,
