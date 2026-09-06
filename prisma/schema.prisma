@@ -29,6 +29,11 @@ model Address {
   id        String  @id @default(cuid())
   userId    String
   user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String  @default("")
+  firstName String  @default("")
+  lastName  String  @default("")
+  email     String  @default("")
+  phone     String  @default("")
   street    String
   city      String
   state     String
