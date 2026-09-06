@@ -59,6 +59,12 @@ export async function GET(request: NextRequest) {
           brevo: !!brevoKey,
           activeProvider: hostingerApiKey && hostingerMailboxId ? 'hostinger' : smtpHost && smtpUser ? 'smtp' : brevoKey ? 'brevo' : resendKey ? 'resend' : sendgridKey ? 'sendgrid' : 'none',
         },
+        debug: {
+          hasHostingerKey: !!hostingerApiKey,
+          hasHostingerMailbox: !!hostingerMailboxId,
+          hostingerKeyPrefix: hostingerApiKey ? hostingerApiKey.substring(0, 8) + '...' : null,
+          hostingerMailboxId: hostingerMailboxId || null,
+        },
         templates: templateStatus,
         sender: senderSetting?.value ? JSON.parse(senderSetting.value) : null,
       },
