@@ -237,7 +237,38 @@ export async function getEmailTemplate(prisma: any, templateKey: string): Promis
     where: { key: `email_template_${templateKey}` },
   })
 
-  if (!setting?.value) return null
+  // Default templates
+  const defaultTemplates: Record<string, { subject: string; body: string }> = {
+    welcome: {
+      subject: 'Welcome to {store_name}!',
+      body: '<h1>Welcome {customer_name}!</h1><p>Thank you for joining {store_name}.</p><p><a href="{login_url}">Login to your account</a></p>',
+    },
+    password_reset: {
+      subject: 'Reset Your {store_name} Password',
+      body: '<h1>Password Reset</h1><p>Hello {customer_name},</p><p>Click the button below to reset your password:</p><p><a href="{reset_url}" style="background:#007bff;color:white;padding:12px 30px;text-decoration:none;border-radius:5px;">Reset Password</a></p><p>This link expires in 1 hour.</p>',
+    },
+    order_confirm: {
+      subject: 'Order Confirmation - {order_number}',
+      body: '<h1>Order Confirmed!</h1><p>Thank you for your order {customer_name}!</p><p>Order Number: {order_number}</p><p>Total: {order_total}</p>',
+    },
+    order_shipped: {
+      subject: 'Your Order {order_number} Has Shipped!',
+      body: '<h1>Order Shipped!</h1><p>Your order {order_number} is on its way!</p><p>Tracking: {tracking_number}</p>',
+    },
+    order_delivered: {
+      subject: 'Your Order {order_number} Has Been Delivered',
+      body: '<h1>Order Delivered!</h1><p>Your order {order_number} has been delivered.</p>',
+    },
+  }
+
+  if (!setting?.value) {
+    // Return default template if available
+    const defaultTemplate = defaultTemplates[templateKey]
+    if (defaultTemplate) {
+      return { ...defaultTemplate, enabled: true }
+    }
+    return null
+  }
 
   try {
     const parsed = JSON.parse(setting.value)
