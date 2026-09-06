@@ -51,7 +51,7 @@ export async function GET(request: NextRequest) {
           resend: !!resendKey,
           sendgrid: !!sendgridKey,
           brevo: !!brevoKey,
-          activeProvider: resendKey ? 'resend' : sendgridKey ? 'sendgrid' : brevoKey ? 'brevo' : 'none',
+          activeProvider: brevoKey ? 'brevo' : resendKey ? 'resend' : sendgridKey ? 'sendgrid' : 'none',
         },
         templates: templateStatus,
         sender: senderSetting?.value ? JSON.parse(senderSetting.value) : null,
