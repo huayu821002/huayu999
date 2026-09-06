@@ -93,8 +93,19 @@ export default function OrderDetailPage() {
         try {
           const res = await fetch(`/api/products/id/${item.productId}`)
           const data = await res.json()
-          if (data.success && data.data?.images?.[0]) {
-            images[item.productId] = data.data.images[0]
+          if (data.success && data.data) {
+            // images may be a JSON string or an array
+            let imgUrl = ''
+            const imgField = data.data.images
+            if (typeof imgField === 'string') {
+              const parsed = JSON.parse(imgField)
+              imgUrl = parsed[0] || ''
+            } else if (Array.isArray(imgField) && imgField[0]) {
+              imgUrl = imgField[0]
+            }
+            if (imgUrl) {
+              images[item.productId] = imgUrl
+            }
           }
         } catch {}
       } else if (item.image) {
