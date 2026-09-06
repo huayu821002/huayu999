@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
     }
 
+    const smtpHost = process.env.SMTP_HOST
+    const smtpUser = process.env.SMTP_USER
     const resendKey = process.env.RESEND_API_KEY
     const sendgridKey = process.env.SENDGRID_API_KEY
     const brevoKey = process.env.BREVO_API_KEY
@@ -48,10 +50,11 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         apiKeysConfigured: {
+          smtp: !!(smtpHost && smtpUser),
           resend: !!resendKey,
           sendgrid: !!sendgridKey,
           brevo: !!brevoKey,
-          activeProvider: brevoKey ? 'brevo' : resendKey ? 'resend' : sendgridKey ? 'sendgrid' : 'none',
+          activeProvider: smtpHost && smtpUser ? 'smtp' : brevoKey ? 'brevo' : resendKey ? 'resend' : sendgridKey ? 'sendgrid' : 'none',
         },
         templates: templateStatus,
         sender: senderSetting?.value ? JSON.parse(senderSetting.value) : null,
