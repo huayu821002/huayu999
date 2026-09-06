@@ -21,6 +21,7 @@ interface Order {
   items: string
   shippingAddress: string
   paymentMethod: string
+  paymentId?: string
   trackingNumber: string | null
   createdAt: string
 }
