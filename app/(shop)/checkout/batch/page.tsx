@@ -98,15 +98,15 @@ export default function BatchCheckoutPage() {
     fetchPaymentSettings()
   }, [])
 
-  // Preload PayPal SDK
+  // Preload PayPal SDK - always use USD to avoid 403 errors
   useEffect(() => {
     if (!paypalClientId || (window as any).paypal) return
     const script = document.createElement('script')
-    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
+    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD`
     script.async = true
     script.onload = () => setPaypalLoaded(true)
     document.body.appendChild(script)
-  }, [paypalClientId, currency])
+  }, [paypalClientId])
 
   // Render PayPal buttons when selected
   useEffect(() => {
@@ -163,6 +163,21 @@ export default function BatchCheckoutPage() {
 
   const handlePlaceOrderWithPayPal = async (paypalDetails: any) => {
     try {
+      // Get userId from Zustand store or localStorage
+      let userId: string | null = null
+      try {
+        const joyhubUser = localStorage.getItem('joyhub-user')
+        if (joyhubUser) {
+          const parsed = JSON.parse(joyhubUser)
+          userId = parsed?.state?.user?.id || null
+        }
+      } catch {}
+      if (!userId) {
+        const userStr = localStorage.getItem('user')
+        const user = userStr ? JSON.parse(userStr) : null
+        userId = user?.id || null
+      }
+      
       const shippingAddress = JSON.stringify({
         name: customerInfo.name,
         email: customerInfo.email,
@@ -185,6 +200,7 @@ export default function BatchCheckoutPage() {
       }))
 
       const orderData = {
+        userId,
         items: orderItems,
         subtotal,
         shippingCost,
@@ -221,6 +237,21 @@ export default function BatchCheckoutPage() {
   }
 
   const handleSubmitOrder = async () => {
+    // Get userId from Zustand store or localStorage
+    let userId: string | null = null
+    try {
+      const joyhubUser = localStorage.getItem('joyhub-user')
+      if (joyhubUser) {
+        const parsed = JSON.parse(joyhubUser)
+        userId = parsed?.state?.user?.id || null
+      }
+    } catch {}
+    if (!userId) {
+      const userStr = localStorage.getItem('user')
+      const user = userStr ? JSON.parse(userStr) : null
+      userId = user?.id || null
+    }
+    
     // Validation
     if (!customerInfo.name || !customerInfo.email || !customerInfo.phone) {
       alert('Please fill in: Name, Email, Phone')
@@ -262,6 +293,7 @@ export default function BatchCheckoutPage() {
       }))
 
       const orderData = {
+        userId,
         items: orderItems,
         subtotal,
         shippingCost,

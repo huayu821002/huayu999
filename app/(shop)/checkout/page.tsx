@@ -169,9 +169,9 @@ export default function CheckoutPage() {
       setPaypalLoaded(true)
       return
     }
-    // Preload the SDK script
+    // Preload the SDK script - always use USD for PayPal to avoid 403 errors
     const script = document.createElement('script')
-    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
+    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD`
     script.async = true
     script.onload = () => setPaypalLoaded(true)
     document.body.appendChild(script)
@@ -289,9 +289,9 @@ export default function CheckoutPage() {
       return
     }
 
-    // Fallback: load SDK if not preloaded
+    // Fallback: load SDK if not preloaded - always use USD for PayPal
     const script = document.createElement('script')
-    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=${currency}`
+    script.src = `https://www.paypal.com/sdk/js?client-id=${paypalClientId}&currency=USD`
     script.async = true
     script.onload = () => {
       const paypalLoaded = (window as any).paypal
@@ -388,9 +388,28 @@ export default function CheckoutPage() {
     setIsProcessing(true)
     setError('')
     try {
-      const userStr = localStorage.getItem('user')
-      const user = userStr ? JSON.parse(userStr) : null
-      const userId = user?.id || null
+      // Get userId from both Zustand store (joyhub-user) and direct localStorage (user)
+      let userId: string | null = null
+      
+      // Try Zustand persist store first (joyhub-user)
+      try {
+        const joyhubUser = localStorage.getItem('joyhub-user')
+        if (joyhubUser) {
+          const parsed = JSON.parse(joyhubUser)
+          userId = parsed?.state?.user?.id || null
+        }
+      } catch {}
+      
+      // Fallback to direct localStorage (set by login page)
+      if (!userId) {
+        const userStr = localStorage.getItem('user')
+        const user = userStr ? JSON.parse(userStr) : null
+        userId = user?.id || null
+      }
+      
+      // Also check token existence to verify real login
+      const hasToken = !!localStorage.getItem('token')
+      console.log('[Checkout] Order placement:', { userId, hasToken, source: userId ? 'joyhub-user' : 'localStorage.user' })
 
       const shippingAddress = `${shippingForm.firstName} ${shippingForm.lastName}, ${shippingForm.address}, ${shippingForm.city}, ${shippingForm.state} ${shippingForm.zip}, ${shippingForm.country}`
 
@@ -488,9 +507,26 @@ export default function CheckoutPage() {
   const handlePlaceOrderWithPayPal = async (paypalDetails: any) => {
     setError('')
     try {
-      const userStr = localStorage.getItem('user')
-      const user = userStr ? JSON.parse(userStr) : null
-      const userId = user?.id || null
+      // Get userId from both Zustand store (joyhub-user) and direct localStorage (user)
+      let userId: string | null = null
+      
+      // Try Zustand persist store first (joyhub-user)
+      try {
+        const joyhubUser = localStorage.getItem('joyhub-user')
+        if (joyhubUser) {
+          const parsed = JSON.parse(joyhubUser)
+          userId = parsed?.state?.user?.id || null
+        }
+      } catch {}
+      
+      // Fallback to direct localStorage (set by login page)
+      if (!userId) {
+        const userStr = localStorage.getItem('user')
+        const user = userStr ? JSON.parse(userStr) : null
+        userId = user?.id || null
+      }
+      
+      console.log('[Checkout] PayPal order placement:', { userId, paypalOrderId: paypalDetails.id })
 
       const shippingAddress = `${shippingForm.firstName} ${shippingForm.lastName}, ${shippingForm.address}, ${shippingForm.city}, ${shippingForm.state} ${shippingForm.zip}, ${shippingForm.country}`
 
