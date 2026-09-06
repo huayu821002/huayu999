@@ -1,8 +1,10 @@
 /**
- * Email Service — SendGrid / Brevo / Resend
- * Set one of: SENDGRID_API_KEY | BREVO_API_KEY | RESEND_API_KEY
- * All support custom HTML content.
+ * Email Service — Direct SMTP / SendGrid / Brevo / Resend
+ * Set one of: SMTP_HOST (direct SMTP) | SENDGRID_API_KEY | BREVO_API_KEY | RESEND_API_KEY
+ * Direct SMTP uses nodemailer with Hostinger SMTP or any SMTP server.
  */
+
+import nodemailer from 'nodemailer'
 
 const SENDGRID_API_URL = 'https://api.sendgrid.com/v3/mail/send'
 const BREVO_API_URL = 'https://api.brevo.com/v3'
@@ -23,21 +25,57 @@ export async function sendEmail({
   sender,
   replyTo,
 }: EmailPayload): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const smtpHost = process.env.SMTP_HOST
+  const smtpPort = process.env.SMTP_PORT
+  const smtpUser = process.env.SMTP_USER
+  const smtpPass = process.env.SMTP_PASS
   const brevoKey = process.env.BREVO_API_KEY
   const sendgridKey = process.env.SENDGRID_API_KEY
   const resendKey = process.env.RESEND_API_KEY
 
-  // Priority: Brevo > Resend > SendGrid
+  // Priority: Direct SMTP > Brevo > Resend > SendGrid
+  if (smtpHost && smtpUser && smtpPass) {
+    return sendViaSMTP({ to, subject, htmlContent, sender, replyTo }, { host: smtpHost, port: parseInt(smtpPort || '587'), user: smtpUser, pass: smtpPass })
+  }
   if (brevoKey) return sendViaBrevo({ to, subject, htmlContent, sender, replyTo }, brevoKey)
   if (resendKey) return sendViaResend({ to, subject, htmlContent, sender, replyTo }, resendKey)
   if (sendgridKey) return sendViaSendGrid({ to, subject, htmlContent, sender, replyTo }, sendgridKey)
 
   // Dev mode
-  console.log('[Email] No API key configured. Email would be sent:')
+  console.log('[Email] No email service configured. Email would be sent:')
   console.log('[Email] To:', to.map(t => t.email).join(', '))
   console.log('[Email] Subject:', subject)
   console.log('[Email] HTML preview:', htmlContent.substring(0, 300) + '...')
   return { success: true, messageId: 'dev-mode-' + Date.now() }
+}
+
+// ---------- Direct SMTP ----------
+async function sendViaSMTP(
+  { to, subject, htmlContent, sender, replyTo }: EmailPayload,
+  smtp: { host: string; port: number; user: string; pass: string }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const transporter = nodemailer.createTransport({
+      host: smtp.host,
+      port: smtp.port,
+      secure: smtp.port === 465,
+      auth: { user: smtp.user, pass: smtp.pass },
+    })
+
+    const info = await transporter.sendMail({
+      from: `${sender.name} <${sender.email}>`,
+      to: to.map(t => t.name ? `"${t.name}" <${t.email}>` : t.email).join(', '),
+      subject,
+      html: htmlContent,
+      ...(replyTo ? { replyTo: `${replyTo.name} <${replyTo.email}>` } : {}),
+    })
+
+    console.log('[SMTP] Email sent:', info.messageId)
+    return { success: true, messageId: info.messageId }
+  } catch (error: any) {
+    console.error('[SMTP] Error:', error.message)
+    return { success: false, error: error.message }
+  }
 }
 
 // ---------- SendGrid ----------
