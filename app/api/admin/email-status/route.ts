@@ -16,6 +16,8 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
     }
 
+    const hostingerApiKey = process.env.HOSTINGER_MAIL_API_KEY
+    const hostingerMailboxId = process.env.HOSTINGER_MAILBOX_ID
     const smtpHost = process.env.SMTP_HOST
     const smtpUser = process.env.SMTP_USER
     const resendKey = process.env.RESEND_API_KEY
@@ -50,11 +52,12 @@ export async function GET(request: NextRequest) {
       success: true,
       data: {
         apiKeysConfigured: {
+          hostinger: !!(hostingerApiKey && hostingerMailboxId),
           smtp: !!(smtpHost && smtpUser),
           resend: !!resendKey,
           sendgrid: !!sendgridKey,
           brevo: !!brevoKey,
-          activeProvider: smtpHost && smtpUser ? 'smtp' : brevoKey ? 'brevo' : resendKey ? 'resend' : sendgridKey ? 'sendgrid' : 'none',
+          activeProvider: hostingerApiKey && hostingerMailboxId ? 'hostinger' : smtpHost && smtpUser ? 'smtp' : brevoKey ? 'brevo' : resendKey ? 'resend' : sendgridKey ? 'sendgrid' : 'none',
         },
         templates: templateStatus,
         sender: senderSetting?.value ? JSON.parse(senderSetting.value) : null,

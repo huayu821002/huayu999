@@ -1,10 +1,10 @@
 /**
- * Email Service — Direct SMTP / SendGrid / Brevo / Resend
- * Set one of: SMTP_HOST (direct SMTP) | SENDGRID_API_KEY | BREVO_API_KEY | RESEND_API_KEY
- * Direct SMTP uses nodemailer with Hostinger SMTP or any SMTP server.
+ * Email Service — Hostinger Mail API / Direct SMTP / SendGrid / Brevo / Resend
+ * Set one of: HOSTINGER_MAIL_API_KEY + HOSTINGER_MAILBOX_ID | SMTP_HOST | SENDGRID_API_KEY | BREVO_API_KEY | RESEND_API_KEY
  */
 
 import nodemailer from 'nodemailer'
+import { HostingerMailApi, Configuration, V1SendRequest } from 'hostinger-mail-api-sdk'
 
 const SENDGRID_API_URL = 'https://api.sendgrid.com/v3/mail/send'
 const BREVO_API_URL = 'https://api.brevo.com/v3'
@@ -25,6 +25,8 @@ export async function sendEmail({
   sender,
   replyTo,
 }: EmailPayload): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const hostingerApiKey = process.env.HOSTINGER_MAIL_API_KEY
+  const hostingerMailboxId = process.env.HOSTINGER_MAILBOX_ID
   const smtpHost = process.env.SMTP_HOST
   const smtpPort = process.env.SMTP_PORT
   const smtpUser = process.env.SMTP_USER
@@ -33,7 +35,10 @@ export async function sendEmail({
   const sendgridKey = process.env.SENDGRID_API_KEY
   const resendKey = process.env.RESEND_API_KEY
 
-  // Priority: Direct SMTP > Brevo > Resend > SendGrid
+  // Priority: Hostinger Mail API > Direct SMTP > Brevo > Resend > SendGrid
+  if (hostingerApiKey && hostingerMailboxId) {
+    return sendViaHostingerMail({ to, subject, htmlContent, sender, replyTo }, { apiKey: hostingerApiKey, mailboxId: hostingerMailboxId })
+  }
   if (smtpHost && smtpUser && smtpPass) {
     return sendViaSMTP({ to, subject, htmlContent, sender, replyTo }, { host: smtpHost, port: parseInt(smtpPort || '587'), user: smtpUser, pass: smtpPass })
   }
@@ -47,6 +52,35 @@ export async function sendEmail({
   console.log('[Email] Subject:', subject)
   console.log('[Email] HTML preview:', htmlContent.substring(0, 300) + '...')
   return { success: true, messageId: 'dev-mode-' + Date.now() }
+}
+
+// ---------- Hostinger Mail API ----------
+async function sendViaHostingerMail(
+  { to, subject, htmlContent, sender }: EmailPayload,
+  config: { apiKey: string; mailboxId: string }
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  try {
+    const configuration = new Configuration({ apiKey: config.apiKey })
+    const api = new HostingerMailApi(configuration)
+
+    const request: V1SendRequest = {
+      to: to.map(t => t.name ? `"${t.name}" <${t.email}>` : t.email),
+      displayName: sender.name,
+      subject,
+      text: '',
+      html: htmlContent,
+      cc: [],
+      bcc: [],
+      attachments: [],
+    }
+
+    await api.sendEmail(config.mailboxId, request)
+    console.log('[Hostinger Mail] Email sent successfully')
+    return { success: true }
+  } catch (error: any) {
+    console.error('[Hostinger Mail] Error:', error.message)
+    return { success: false, error: error.message }
+  }
 }
 
 // ---------- Direct SMTP ----------
