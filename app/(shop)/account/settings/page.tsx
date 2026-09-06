@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
@@ -12,7 +12,21 @@ import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
 import { countries } from '@/lib/countries'
 import { cn } from '@/lib/utils'
-import { getSavedAddresses, saveAddresses, getStoredAuth, type SavedAddress } from '@/lib/addresses'
+
+interface DbAddress {
+  id: string
+  label: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  street: string
+  city: string
+  state: string
+  country: string
+  zipCode: string
+  isDefault: boolean
+}
 
 const EMPTY_FORM = {
   label: '',
@@ -20,42 +34,57 @@ const EMPTY_FORM = {
   lastName: '',
   email: '',
   phone: '',
-  address: '',
+  street: '',
   city: '',
   state: '',
-  zip: '',
-  country: 'United States',
+  country: 'US',
+  zipCode: '',
   isDefault: false,
 }
 
 export default function AccountSettingsPage() {
   const router = useRouter()
   const [isLoading, setIsLoading] = useState(true)
-  const [user, setUser] = useState<{ name: string; email: string } | null>(null)
+  const [user, setUser] = useState<{ id: string; name: string; email: string } | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [showAddForm, setShowAddForm] = useState(false)
   const [form, setForm] = useState({ ...EMPTY_FORM })
   const [formErrors, setFormErrors] = useState<Record<string, string>>({})
-  const [addresses, setAddresses] = useState<SavedAddress[]>([])
+  const [addresses, setAddresses] = useState<DbAddress[]>([])
 
-  // Poll localStorage for changes (handles both same-tab and cross-tab updates)
-  const readFromStorage = useCallback(() => {
-    const auth = getStoredAuth()
-    if (!auth.isAuthenticated) {
+  useEffect(() => {
+    const userStr = localStorage.getItem('user')
+    const token = localStorage.getItem('token')
+    if (!userStr || !token) {
       router.push('/login')
       return
     }
-    setUser(auth.user)
-    setAddresses(getSavedAddresses())
-    setIsLoading(false)
+    try {
+      const parsedUser = JSON.parse(userStr)
+      setUser(parsedUser)
+      fetchAddresses(token)
+    } catch {
+      router.push('/login')
+    }
   }, [router])
 
-  useEffect(() => {
-    readFromStorage()
-    const interval = setInterval(readFromStorage, 500)
-    return () => clearInterval(interval)
-  }, [readFromStorage])
+  const fetchAddresses = async (token?: string) => {
+    try {
+      const t = token || localStorage.getItem('token')
+      const res = await fetch('/api/site/addresses', {
+        headers: { 'Authorization': `Bearer ${t}` }
+      })
+      const data = await res.json()
+      if (data.success) {
+        setAddresses(data.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch addresses:', err)
+    } finally {
+      setIsLoading(false)
+    }
+  }
 
   const validateForm = () => {
     const errors: Record<string, string> = {}
@@ -65,55 +94,105 @@ export default function AccountSettingsPage() {
     if (!form.email.trim()) errors.email = 'Email is required'
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errors.email = 'Invalid email'
     if (!form.phone.trim()) errors.phone = 'Phone is required'
-    if (!form.address.trim()) errors.address = 'Address is required'
+    if (!form.street.trim()) errors.street = 'Address is required'
     if (!form.city.trim()) errors.city = 'City is required'
     if (!form.state.trim()) errors.state = 'State is required'
-    if (!form.zip.trim()) errors.zip = 'ZIP is required'
+    if (!form.zipCode.trim()) errors.zipCode = 'ZIP is required'
     setFormErrors(errors)
     return Object.keys(errors).length === 0
   }
 
-  const handleSaveAddress = () => {
+  const handleSaveAddress = async () => {
     if (!validateForm()) return
     setIsSaving(true)
-    setTimeout(() => {
-      let updated: SavedAddress[]
-      if (editingId) {
-        updated = addresses.map(a => a.id === editingId ? { ...form, id: editingId } : a)
+    try {
+      const token = localStorage.getItem('token')
+      const method = editingId ? 'PUT' : 'POST'
+      const url = editingId ? `/api/site/addresses` : '/api/site/addresses'
+      const body = editingId 
+        ? { id: editingId, ...form }
+        : form
+
+      const res = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(body),
+      })
+      const data = await res.json()
+      
+      if (data.success) {
+        await fetchAddresses(token!)
+        setForm({ ...EMPTY_FORM })
         setEditingId(null)
-      } else {
-        updated = [...addresses, { ...form, id: Date.now().toString() }]
         setShowAddForm(false)
+        setFormErrors({})
       }
-      // If setting as default, clear other defaults
-      if (form.isDefault) {
-        updated = updated.map(a => ({ ...a, isDefault: a.id === (editingId ?? updated[updated.length - 1].id) }))
-      }
-      setAddresses(updated)
-      saveAddresses(updated)
-      setForm({ ...EMPTY_FORM })
-      setFormErrors({})
+    } catch (err) {
+      console.error('Failed to save address:', err)
+    } finally {
       setIsSaving(false)
-    }, 500)
+    }
   }
 
-  const handleEdit = (addr: SavedAddress) => {
-    setForm({ ...addr, isDefault: addr.isDefault ?? false })
+  const handleEdit = (addr: DbAddress) => {
+    setForm({
+      label: addr.label,
+      firstName: addr.firstName,
+      lastName: addr.lastName,
+      email: addr.email,
+      phone: addr.phone,
+      street: addr.street,
+      city: addr.city,
+      state: addr.state,
+      country: addr.country,
+      zipCode: addr.zipCode,
+      isDefault: addr.isDefault,
+    })
     setEditingId(addr.id)
     setShowAddForm(true)
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (!confirm('Delete this address?')) return
-    const updated = addresses.filter(a => a.id !== id)
-    setAddresses(updated)
-    saveAddresses(updated)
+    try {
+      const token = localStorage.getItem('token')
+      const res = await fetch(`/api/site/addresses?id=${id}`, {
+        method: 'DELETE',
+        headers: { 'Authorization': `Bearer ${token}` }
+      })
+      const data = await res.json()
+      if (data.success) {
+        setAddresses(addresses.filter(a => a.id !== id))
+      }
+    } catch (err) {
+      console.error('Failed to delete address:', err)
+    }
   }
 
-  const handleSetDefault = (id: string) => {
-    const updated = addresses.map(a => ({ ...a, isDefault: a.id === id }))
-    setAddresses(updated)
-    saveAddresses(updated)
+  const handleSetDefault = async (id: string) => {
+    try {
+      const token = localStorage.getItem('token')
+      const addr = addresses.find(a => a.id === id)
+      if (!addr) return
+      
+      const res = await fetch('/api/site/addresses', {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ id, ...addr, isDefault: true }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        await fetchAddresses(token!)
+      }
+    } catch (err) {
+      console.error('Failed to set default:', err)
+    }
   }
 
   const handleCancel = () => {
@@ -176,14 +255,14 @@ export default function AccountSettingsPage() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="font-semibold text-joy-gray-900">{addr.label}</span>
+                          <span className="font-semibold text-joy-gray-900">{addr.label || 'Address'}</span>
                           {addr.isDefault && (
                             <span className="text-xs bg-joy-orange text-white px-2 py-0.5 rounded-full">Default</span>
                           )}
                         </div>
                         <p className="text-sm text-joy-gray-600">{addr.firstName} {addr.lastName}</p>
-                        <p className="text-sm text-joy-gray-500">{addr.address}, {addr.city}, {addr.state} {addr.zip}</p>
-                        <p className="text-sm text-joy-gray-400">{addr.country}</p>
+                        <p className="text-sm text-joy-gray-500">{addr.street}, {addr.city}, {addr.state} {addr.zipCode}</p>
+                        <p className="text-sm text-joy-gray-400">{countries.find(c => c.code === addr.country)?.name || addr.country}</p>
                         <p className="text-sm text-joy-gray-400 mt-1">{addr.phone} | {addr.email}</p>
                       </div>
                       <div className="flex items-center gap-1">
@@ -241,11 +320,11 @@ export default function AccountSettingsPage() {
                     <Input label="Email *" type="email" placeholder="john@example.com" value={form.email} onChange={e => setForm({ ...form, email: e.target.value })} error={formErrors.email} />
                     <Input label="Phone *" type="tel" placeholder="+1 234 567 8900" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} error={formErrors.phone} />
                   </div>
-                  <Input label="Address *" placeholder="123 Main St" value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} error={formErrors.address} />
+                  <Input label="Address *" placeholder="123 Main St" value={form.street} onChange={e => setForm({ ...form, street: e.target.value })} error={formErrors.street} />
                   <div className="grid grid-cols-3 gap-4">
                     <Input label="City *" placeholder="New York" value={form.city} onChange={e => setForm({ ...form, city: e.target.value })} error={formErrors.city} />
                     <Input label="State *" placeholder="NY" value={form.state} onChange={e => setForm({ ...form, state: e.target.value })} error={formErrors.state} />
-                    <Input label="ZIP *" placeholder="10001" value={form.zip} onChange={e => setForm({ ...form, zip: e.target.value })} error={formErrors.zip} />
+                    <Input label="ZIP *" placeholder="10001" value={form.zipCode} onChange={e => setForm({ ...form, zipCode: e.target.value })} error={formErrors.zipCode} />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-joy-gray-700 mb-1.5">Country / Region *</label>

@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
 import { cn, formatCurrency, convertPrice } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
-import { getSavedAddresses, getStoredAuth, type SavedAddress } from '@/lib/addresses'
+
 import { parseProductImages } from '@/lib/imageUtils'
 import { countries } from '@/lib/countries'
 import type { Currency, CartItem } from '@/types'
@@ -42,18 +42,36 @@ interface WarehouseGroup {
 export default function CheckoutPage() {
   const router = useRouter()
   const { items, currency, getSubtotal, getTotalWeight, clearCart } = useCartStore()
-  // Read saved addresses from localStorage directly for reliability
-  const [savedAddresses, setSavedAddresses] = useState<SavedAddress[]>([])
+  // Fetch saved addresses from database
+  const [savedAddresses, setSavedAddresses] = useState<any[]>([])
   const [hasSavedAuth, setHasSavedAuth] = useState(false)
+  
   useEffect(() => {
-    const read = () => {
-      const auth = getStoredAuth()
-      setHasSavedAuth(auth.isAuthenticated)
-      setSavedAddresses(auth.isAuthenticated ? getSavedAddresses() : [])
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    if (token && userStr) {
+      setHasSavedAuth(true)
+      fetch('/api/site/addresses', {
+        headers: { 'Authorization': `Bearer ${token}` }
+      }).then(res => res.json()).then(data => {
+        if (data.success) {
+          setSavedAddresses(data.data.map((a: any) => ({
+            id: a.id,
+            label: a.label,
+            firstName: a.firstName,
+            lastName: a.lastName,
+            email: a.email,
+            phone: a.phone,
+            address: a.street,
+            city: a.city,
+            state: a.state,
+            zip: a.zipCode,
+            country: a.country,
+            isDefault: a.isDefault,
+          })))
+        }
+      }).catch(() => {})
     }
-    read()
-    const interval = setInterval(read, 500)
-    return () => clearInterval(interval)
   }, [])
   const [currentStep, setCurrentStep] = useState(1)
   const [isProcessing, setIsProcessing] = useState(false)
