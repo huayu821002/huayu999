@@ -211,8 +211,14 @@ export default function OrderDetailPage() {
               <div className="space-y-4">
                 {items.map((item: any, i: number) => (
                   <div key={i} className="flex items-center gap-4">
-                    <div className="w-16 h-16 bg-joy-gray-100 rounded-lg flex items-center justify-center">
-                      <Icons.Package size={24} className="text-joy-gray-400" />
+                    <div className="w-16 h-16 bg-joy-gray-100 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
+                      {item.image ? (
+                        <img src={item.image} alt={item.name} className="w-full h-full object-cover" />
+                      ) : item.product?.images?.[0] ? (
+                        <img src={item.product.images[0]} alt={item.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <Icons.Package size={24} className="text-joy-gray-400" />
+                      )}
                     </div>
                     <div className="flex-1">
                       <p className="font-medium text-joy-gray-900">{item.name}</p>
