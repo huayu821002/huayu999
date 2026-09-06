@@ -175,8 +175,6 @@ export default function AccountSettingsPage() {
   const handleSetDefault = async (id: string) => {
     try {
       const token = localStorage.getItem('token')
-      const addr = addresses.find(a => a.id === id)
-      if (!addr) return
       
       const res = await fetch('/api/site/addresses', {
         method: 'PUT',
@@ -184,7 +182,7 @@ export default function AccountSettingsPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ id, ...addr, isDefault: true }),
+        body: JSON.stringify({ id, isDefault: true }),
       })
       const data = await res.json()
       if (data.success) {
