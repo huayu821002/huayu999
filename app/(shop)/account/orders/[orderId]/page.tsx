@@ -91,7 +91,7 @@ export default function OrderDetailPage() {
     for (const item of orderItems) {
       if (item.productId && !item.image) {
         try {
-          const res = await fetch(`/api/products/${item.productId}`)
+          const res = await fetch(`/api/products/id/${item.productId}`)
           const data = await res.json()
           if (data.success && data.data?.images?.[0]) {
             images[item.productId] = data.data.images[0]
