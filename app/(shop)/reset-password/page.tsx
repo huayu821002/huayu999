@@ -74,7 +74,7 @@ export default function ResetPasswordPage() {
         <main className="flex-1 flex items-center justify-center px-4 py-12">
           <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
             <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-              <Icons.AlertCircle className="w-8 h-8 text-red-600" />
+              <Icons.X className="w-8 h-8 text-red-600" />
             </div>
             <h1 className="text-xl font-bold text-gray-900 mb-2">Invalid Reset Link</h1>
             <p className="text-gray-600 mb-6">
