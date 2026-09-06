@@ -63,7 +63,7 @@ async function sendViaHostingerMail(
     const configuration = new Configuration({ accessToken: config.apiKey })
     const sendApi = new SendApi(configuration)
 
-    const request: V1SendRequest = {
+    const request = {
       to: to.map(t => t.name ? `"${t.name}" <${t.email}>` : t.email),
       displayName: sender.name,
       subject,
@@ -72,7 +72,7 @@ async function sendViaHostingerMail(
       cc: [],
       bcc: [],
       attachments: [],
-    }
+    } as V1SendRequest
 
     await sendApi.sendEmail(config.mailboxId, request)
     console.log('[Hostinger Mail] Email sent successfully')
