@@ -4,7 +4,7 @@
  */
 
 import nodemailer from 'nodemailer'
-import { HostingerMailApi, Configuration, V1SendRequest } from 'hostinger-mail-api-sdk'
+import { SendApi, Configuration, V1SendRequest } from 'hostinger-mail-api-sdk'
 
 const SENDGRID_API_URL = 'https://api.sendgrid.com/v3/mail/send'
 const BREVO_API_URL = 'https://api.brevo.com/v3'
@@ -61,7 +61,7 @@ async function sendViaHostingerMail(
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
     const configuration = new Configuration({ apiKey: config.apiKey })
-    const api = new HostingerMailApi(configuration)
+    const sendApi = new SendApi(configuration)
 
     const request: V1SendRequest = {
       to: to.map(t => t.name ? `"${t.name}" <${t.email}>` : t.email),
@@ -74,7 +74,7 @@ async function sendViaHostingerMail(
       attachments: [],
     }
 
-    await api.sendEmail(config.mailboxId, request)
+    await sendApi.sendEmail(config.mailboxId, request)
     console.log('[Hostinger Mail] Email sent successfully')
     return { success: true }
   } catch (error: any) {
