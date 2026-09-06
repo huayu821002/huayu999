@@ -60,7 +60,7 @@ async function sendViaHostingerMail(
   config: { apiKey: string; mailboxId: string }
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   try {
-    const configuration = new Configuration({ apiKey: config.apiKey })
+    const configuration = new Configuration({ accessToken: config.apiKey })
     const sendApi = new SendApi(configuration)
 
     const request: V1SendRequest = {
