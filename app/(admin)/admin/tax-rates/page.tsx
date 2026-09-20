@@ -290,7 +290,7 @@ export default function TaxRatesPage() {
                               {(rate.rate * 100).toFixed(1)}%
                             </span>
                             <Button size="sm" variant="ghost" onClick={() => handleEdit(rate)}>
-                              <Icons.Edit size={14} />
+                              <Icons.Edit3 size={14} />
                             </Button>
                             <Button
                               size="sm"
