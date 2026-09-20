@@ -85,6 +85,7 @@ export default function CheckoutPage() {
   const [shippingErrors, setShippingErrors] = useState<Record<string, string>>({})
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([])
   const [selectedShipping, setSelectedShipping] = useState<string>('')
+  const [taxRate, setTaxRate] = useState(0)
   const [paymentMethod, setPaymentMethod] = useState<'STRIPE' | 'PAYPAL' | 'BANK_TRANSFER'>('STRIPE')
   const [paypalClientId, setPaypalClientId] = useState<string>('')
   const [paypalLoaded, setPaypalLoaded] = useState(false)
@@ -143,6 +144,9 @@ export default function CheckoutPage() {
       fetchShippingRates()
     }
     fetchPaymentSettings()
+    if (shippingForm.country) {
+      fetchTaxRate(shippingForm.country)
+    }
   }, [subtotal, totalWeight, shippingForm.country])
 
   // Fetch shipping rates for each warehouse group
@@ -240,6 +244,21 @@ export default function CheckoutPage() {
     }
   }
 
+  const fetchTaxRate = async (countryCode: string) => {
+    try {
+      const res = await fetch(`/api/site/tax-rate?country=${countryCode}`)
+      const data = await res.json()
+      if (data.success) {
+        setTaxRate(data.rate || 0)
+      } else {
+        setTaxRate(0)
+      }
+    } catch (err) {
+      console.error('Failed to fetch tax rate:', err)
+      setTaxRate(0)
+    }
+  }
+
   // Fetch shipping for all warehouse groups when country changes
   useEffect(() => {
     if (currentStep === 2 && shippingForm.country && warehouseGroups.length > 0) {
@@ -251,7 +270,7 @@ export default function CheckoutPage() {
 
   const selectedOption = shippingOptions.find(o => o.id === selectedShipping)
   const shippingCost = selectedOption?.cost || 0
-  const tax = subtotal * 0.08
+  const tax = subtotal * taxRate
   const total = subtotal + shippingCost + tax
 
   // Calculate totals for multi-warehouse orders
@@ -260,7 +279,7 @@ export default function CheckoutPage() {
     return warehouseGroups.map(group => {
       const selected = group.shippingOptions.find(o => o.id === group.selectedShipping)
       const shipping = selected?.cost || 0
-      const groupTax = group.subtotal * 0.08
+      const groupTax = group.subtotal * taxRate
       const groupTotal = group.subtotal + shipping + groupTax
       return { shipping, tax: groupTax, total: groupTotal }
     })
@@ -1124,7 +1143,7 @@ export default function CheckoutPage() {
                     <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Shipping ({totalWeight.toFixed(2)}kg)</span><span className="font-medium">{shippingCost === 0 ? <span className="text-joy-green">FREE</span> : formatCurrency(shippingCost, currency)}</span></div>
                   )}
                   
-                  <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Tax (8%)</span><span className="font-medium">{formatCurrency(tax, currency)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Tax ({(taxRate * 100).toFixed(0)}%)</span><span className="font-medium">{formatCurrency(tax, currency)}</span></div>
                   <div className="flex justify-between text-base sm:text-lg font-bold pt-2 sm:pt-3 border-t border-joy-gray-100"><span>Total</span><span className="text-joy-orange">{formatCurrency(hasMultipleWarehouses ? grandTotal : total, currency)}</span></div>
                   
                   {hasMultipleWarehouses && (

@@ -326,3 +326,14 @@ model WarehouseShippingRate {
 
   @@unique([warehouseId, countryCode])
 }
+
+model TaxRate {
+  id          String   @id @default(cuid())
+  countryCode String   @unique
+  countryName String
+  rate        Float    // 税率，如 0.21 表示 21%
+  region      String   // 地区分组，如 "EU", "NORTH_AMERICA", "ASIA_PACIFIC"
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
