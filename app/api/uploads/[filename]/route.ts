@@ -29,7 +29,16 @@ export async function GET(
 
     const buffer = await readFile(filepath)
     const ext = filename.split('.').pop()?.toLowerCase() || 'jpg'
-    const contentType = ext === 'png' ? 'image/png' : ext === 'gif' ? 'image/gif' : ext === 'webp' ? 'image/webp' : 'image/jpeg'
+    const contentTypeMap: Record<string, string> = {
+      png: 'image/png',
+      gif: 'image/gif',
+      webp: 'image/webp',
+      jpg: 'image/jpeg',
+      jpeg: 'image/jpeg',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      pdf: 'application/pdf',
+    }
+    const contentType = contentTypeMap[ext] || 'application/octet-stream'
 
     return new NextResponse(buffer, {
       headers: {
