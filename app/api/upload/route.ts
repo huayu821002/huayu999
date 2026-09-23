@@ -39,9 +39,10 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'File too large. Max 32MB' }, { status: 400 })
     }
 
-    // 生成唯一文件名
+    // 生成唯一文件名（DOCX 保留原名以便直接访问）
     const ext = file.name.split('.').pop() || 'jpg'
-    const filename = `${randomUUID()}.${ext}`
+    const isDoc = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    const filename = isDoc ? file.name : `${randomUUID()}.${ext}`
 
     // 上传到持久目录（部署后不会被清空）
     if (!existsSync(PERSISTENT_UPLOAD_DIR)) {
