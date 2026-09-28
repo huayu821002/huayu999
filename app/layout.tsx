@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Inter, Poppins } from 'next/font/google'
 import { Toaster } from 'sonner'
 import { Providers } from '@/components/Providers'
+import { TidioChat } from '@/components/TidioChat'
 import './globals.css'
 
 const inter = Inter({ 
@@ -62,6 +63,7 @@ export default function RootLayout({
       <body className="min-h-screen bg-joy-gray-50 antialiased">
         <Providers>
           {children}
+          <TidioChat />
           <Toaster 
             position="top-center" 
             toastOptions={{
