@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
       content: m.content,
     }))
 
-    // Call SiliconFlow API
+    // Call MiniMax native API
     let botReply = ''
     try {
       if (MINIMAX_API_KEY) {
@@ -117,11 +117,11 @@ export async function POST(request: NextRequest) {
         })
 
         const data = await response.json()
-        console.log('SiliconFlow response:', JSON.stringify(data).substring(0, 300))
+        console.log('MiniMax response:', JSON.stringify(data).substring(0, 300))
         if (data.choices?.[0]?.message?.content) {
           botReply = data.choices[0].message.content.trim()
         } else {
-          console.log('SiliconFlow no reply, error:', data)
+          console.log('MiniMax no reply, error:', data)
         }
       } else {
         // Fallback: keyword-based if no API key
