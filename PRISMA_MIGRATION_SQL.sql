@@ -2,7 +2,7 @@
 -- Run this in Supabase SQL Editor or pgAdmin
 
 CREATE TABLE IF NOT EXISTS "ChatConversation" (
-  "id" TEXT PRIMARY KEY DEFAULT cuid(),
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   "visitorEmail" TEXT,
   "visitorName" TEXT,
   "status" TEXT DEFAULT 'OPEN',
@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS "ChatConversation" (
 CREATE INDEX IF NOT EXISTS "ChatConversation_status_lastMessageAt_idx" ON "ChatConversation"("status", "lastMessageAt");
 
 CREATE TABLE IF NOT EXISTS "ChatMessage" (
-  "id" TEXT PRIMARY KEY DEFAULT cuid(),
-  "conversationId" TEXT NOT NULL,
+  "id" UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  "conversationId" UUID NOT NULL,
   "content" TEXT NOT NULL,
   "senderType" TEXT NOT NULL,
   "senderId" TEXT,
