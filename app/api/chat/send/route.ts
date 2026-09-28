@@ -105,7 +105,7 @@ export async function POST(request: NextRequest) {
             'Authorization': `Bearer ${MINIMAX_API_KEY}`,
           },
           body: JSON.stringify({
-            model: 'abab7-chat',
+            model: 'MiniMax-M2',
             tokens_to_generate: 300,
             temperature: 0.7,
             messages: [
