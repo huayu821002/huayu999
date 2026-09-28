@@ -89,6 +89,11 @@ export function ChatWidget() {
     } catch (err) {
       console.error('Send error:', err)
       setState(s => ({ ...s, isLoading: false, isTyping: false }))
+    } finally {
+      // Safety fallback: always reset loading state after 15s
+      setTimeout(() => {
+        setState(s => { if (s.isLoading) return { ...s, isLoading: false, isTyping: false }; return s })
+      }, 15000)
     }
   }
 

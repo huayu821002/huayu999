@@ -116,7 +116,11 @@ export async function POST(request: NextRequest) {
         })
 
         const data = await response.json()
-        if (data.choices?.[0]?.messages?.[0]?.text) {
+        // MiniMax API response: choices[0].message.content
+        if (data.choices?.[0]?.message?.content) {
+          botReply = data.choices[0].message.content.trim()
+        } else if (data.choices?.[0]?.messages?.[0]?.text) {
+          // Fallback for other formats
           botReply = data.choices[0].messages[0].text.trim()
         }
       } else {
