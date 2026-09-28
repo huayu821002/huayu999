@@ -32,8 +32,12 @@ interface ChatMessage {
 }
 
 export async function POST(request: NextRequest) {
+  let convId: string | null = null
+  let userMessage = ''
   try {
     const { message, conversationId, visitorEmail, visitorName } = await request.json()
+    convId = conversationId
+    userMessage = message || ''
 
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
@@ -165,8 +169,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       success: true,
       data: {
-        conversationId: conversationId || 'temp-' + Date.now(),
-        reply: getSimpleResponse(message || 'Hi'),
+        conversationId: convId || 'temp-' + Date.now(),
+        reply: getSimpleResponse(userMessage || 'Hi'),
       }
     })
   }
