@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-const MINIMAX_API = 'https://api.minimax.chat/v1/text/chatcompletion_v2'
+// SiliconFlow (OpenAI-compatible) for MiniMax subscription keys
+const SILICONFLOW_API = 'https://api.siliconflow.cn/v1/chat/completions'
 const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY || ''
-const MINIMAX_BOT_ID = process.env.MINIMAX_BOT_ID || ''
-const MINIMAX_GROUP_ID = process.env.MINIMAX_GROUP_ID || ''
+const MINIMAX_MODEL = process.env.MINIMAX_MODEL || 'MiniMax/MiniMax-Text-01'
 
 const SYSTEM_PROMPT = `You are Fiestaflare, a friendly B2B wholesale customer service assistant. Your website is fiestaflare.com.
 
@@ -95,37 +95,41 @@ export async function POST(request: NextRequest) {
       content: m.content,
     }))
 
-    // Call MiniMax API
+    // Call SiliconFlow (MiniMax subscription)
     let botReply = ''
     try {
-      const groupId = MINIMAX_GROUP_ID || MINIMAX_BOT_ID
-      const requestUrl = groupId ? `${MINIMAX_API}?GroupId=${groupId}` : MINIMAX_API
       if (MINIMAX_API_KEY) {
-        const response = await fetch(requestUrl, {
+        const response = await fetch(SILICONFLOW_API, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${MINIMAX_API_KEY}`,
           },
           body: JSON.stringify({
-            model: 'abab7-chat',
-            tokens_to_generate: 300,
+            model: MINIMAX_MODEL,
+            max_tokens: 300,
             temperature: 0.7,
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
               ...historyMessages,
-              { role: 'user', content: message },
+              { role: 'user', content: userMessage },
             ],
           }),
         })
 
         const data = await response.json()
+        console.log('MiniMax response:', JSON.stringify(data).substring(0, 300))
         // MiniMax API response: choices[0].message.content
         if (data.choices?.[0]?.message?.content) {
           botReply = data.choices[0].message.content.trim()
         } else if (data.choices?.[0]?.messages?.[0]?.text) {
           // Fallback for other formats
           botReply = data.choices[0].messages[0].text.trim()
+        } else if (data.text) {
+          // Plain text response
+          botReply = data.text.trim()
+        } else {
+          console.log('No reply extracted from MiniMax response')
         }
       } else {
         // Fallback: simple keyword-based response if no API key
