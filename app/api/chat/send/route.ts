@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// MiniMax native API
-const MINIMAX_API = 'https://api.minimax.chat/v1/text/chatcompletion_v2'
+// SiliconFlow (OpenAI-compatible, MiniMax subscription key sk-cp-xxx)
+const SF_API = 'https://api.siliconflow.cn/v1/chat/completions'
 const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY || ''
 
 const SYSTEM_PROMPT = `You are Fiestaflare, a friendly B2B wholesale customer service assistant. Your website is fiestaflare.com.
@@ -94,19 +94,19 @@ export async function POST(request: NextRequest) {
       content: m.content,
     }))
 
-    // Call MiniMax native API
+    // Call SiliconFlow API
     let botReply = ''
     try {
       if (MINIMAX_API_KEY) {
-        const response = await fetch(MINIMAX_API, {
+        const response = await fetch(SF_API, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${MINIMAX_API_KEY}`,
           },
           body: JSON.stringify({
-            model: 'MiniMax-M2',
-            tokens_to_generate: 300,
+            model: 'MiniMax/MiniMax-Text-01',
+            max_tokens: 300,
             temperature: 0.7,
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
@@ -117,16 +117,14 @@ export async function POST(request: NextRequest) {
         })
 
         const data = await response.json()
-        console.log('MiniMax response:', JSON.stringify(data).substring(0, 300))
+        console.log('SiliconFlow response:', JSON.stringify(data).substring(0, 300))
         if (data.choices?.[0]?.message?.content) {
           botReply = data.choices[0].message.content.trim()
-        } else if (data.choices?.[0]?.messages?.[0]?.text) {
-          botReply = data.choices[0].messages[0].text.trim()
         } else {
-          console.log('No reply extracted from MiniMax response')
+          console.log('SiliconFlow no reply, error:', data)
         }
       } else {
-        // Fallback: simple keyword-based response if no API key
+        // Fallback: keyword-based if no API key
         botReply = getSimpleResponse(userMessage)
       }
     } catch (err) {
