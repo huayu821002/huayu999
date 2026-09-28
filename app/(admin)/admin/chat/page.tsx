@@ -77,7 +77,7 @@ export default function ChatPage() {
             onClick={() => fetchConversations()}
             className="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
           >
-            <Icons.refreshCw className="w-4 h-4" />
+            <Icons.RefreshCw className="w-4 h-4" />
             Refresh
           </button>
         </div>
