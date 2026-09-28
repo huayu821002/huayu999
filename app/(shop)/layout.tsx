@@ -43,10 +43,17 @@ export async function generateMetadata(): Promise<Metadata> {
   }
 }
 
+import { ChatWidget } from '@/components/ChatWidget'
+
 export default async function ShopLayout({
   children,
 }: {
   children: React.ReactNode
 }) {
-  return <>{children}</>
+  return (
+    <>
+      {children}
+      <ChatWidget />
+    </>
+  )
 }
