@@ -4,6 +4,7 @@ import { prisma } from '@/lib/prisma'
 const MINIMAX_API = 'https://api.minimax.chat/v1/text/chatcompletion_v2'
 const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY || ''
 const MINIMAX_BOT_ID = process.env.MINIMAX_BOT_ID || ''
+const MINIMAX_GROUP_ID = process.env.MINIMAX_GROUP_ID || ''
 
 const SYSTEM_PROMPT = `You are Fiestaflare, a friendly B2B wholesale customer service assistant. Your website is fiestaflare.com.
 
@@ -93,8 +94,10 @@ export async function POST(request: NextRequest) {
     // Call MiniMax API
     let botReply = ''
     try {
-      if (MINIMAX_API_KEY && MINIMAX_BOT_ID) {
-        const response = await fetch(`${MINIMAX_API}?GroupId=${MINIMAX_BOT_ID}`, {
+      const groupId = MINIMAX_GROUP_ID || MINIMAX_BOT_ID
+      const requestUrl = groupId ? `${MINIMAX_API}?GroupId=${groupId}` : MINIMAX_API
+      if (MINIMAX_API_KEY) {
+        const response = await fetch(requestUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
