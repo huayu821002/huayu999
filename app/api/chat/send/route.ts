@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-// SiliconFlow (OpenAI-compatible, MiniMax subscription key sk-cp-xxx)
-const SF_API = 'https://api.siliconflow.cn/v1/chat/completions'
+// MiniMax native API
+const MINIMAX_API = 'https://api.minimax.chat/v1/text/chatcompletion_v2'
 const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY || ''
 
 const SYSTEM_PROMPT = `You are Fiestaflare, a friendly B2B wholesale customer service assistant. Your website is fiestaflare.com.
@@ -98,15 +98,15 @@ export async function POST(request: NextRequest) {
     let botReply = ''
     try {
       if (MINIMAX_API_KEY) {
-        const response = await fetch(SF_API, {
+        const response = await fetch(MINIMAX_API, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${MINIMAX_API_KEY}`,
           },
           body: JSON.stringify({
-            model: 'MiniMax/MiniMax-Text-01',
-            max_tokens: 300,
+            model: 'MiniMax-M2.7',
+            tokens_to_generate: 300,
             temperature: 0.7,
             messages: [
               { role: 'system', content: SYSTEM_PROMPT },
