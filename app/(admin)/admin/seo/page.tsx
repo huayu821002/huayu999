@@ -16,8 +16,6 @@ const PAGE_TYPES = [
 
 const LOCALES = [
   { value: 'en', label: '🇺🇸 English' },
-  { value: 'pt', label: '🇧🇷 Portuguese (BR)' },
-  { value: 'ru', label: '🇷🇺 Russian' },
 ]
 
 interface SeoSetting {

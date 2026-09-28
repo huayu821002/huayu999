@@ -1,4 +1,4 @@
-export type Currency = 'USD' | 'MXN' | 'BRL'
+export type Currency = 'USD' | 'AUD' | 'KRW' | 'JPY' | 'IDR' | 'MYR' | 'SGD'
 
 export type UserRole = 'ADMIN' | 'CUSTOMER' | 'WHOLESALER'
 
@@ -152,34 +152,76 @@ export interface PaginatedResponse<T> {
 // Currency conversion rates (base: USD)
 export const CURRENCY_RATES: Record<Currency, number> = {
   USD: 1,
-  MXN: 17.15,
-  BRL: 5.65,
+  AUD: 1.53,     // 1 USD = 1.53 AUD
+  KRW: 1330,     // 1 USD = 1330 KRW
+  JPY: 148,      // 1 USD = 148 JPY
+  IDR: 15400,   // 1 USD = 15400 IDR
+  MYR: 4.6,     // 1 USD = 4.6 MYR
+  SGD: 1.34,     // 1 USD = 1.34 SGD
 }
 
 export const CURRENCY_SYMBOLS: Record<Currency, string> = {
   USD: '$',
-  MXN: 'MX$',
-  BRL: 'R$',
+  AUD: 'A$',
+  KRW: '₩',
+  JPY: '¥',
+  IDR: 'Rp',
+  MYR: 'RM',
+  SGD: 'S$',
 }
 
 export const CURRENCY_NAMES: Record<Currency, string> = {
   USD: 'US Dollar',
-  MXN: 'Mexican Peso',
-  BRL: 'Brazilian Real',
+  AUD: 'Australian Dollar',
+  KRW: 'South Korean Won',
+  JPY: 'Japanese Yen',
+  IDR: 'Indonesian Rupiah',
+  MYR: 'Malaysian Ringgit',
+  SGD: 'Singapore Dollar',
+}
+
+// Country code to Currency mapping
+export const COUNTRY_CURRENCY: Record<string, Currency> = {
+  US: 'USD',
+  AU: 'AUD',
+  NZ: 'AUD',
+  KR: 'KRW',
+  JP: 'JPY',
+  ID: 'IDR',
+  MY: 'MYR',
+  SG: 'SGD',
+}
+
+// Currency to decimal places (IDR/KRW/JPY use 0, others use 2)
+export const CURRENCY_DECIMALS: Record<Currency, number> = {
+  USD: 2,
+  AUD: 2,
+  KRW: 0,
+  JPY: 0,
+  IDR: 0,
+  MYR: 2,
+  SGD: 2,
 }
 
 // Timezone to Currency mapping
 export const TIMEZONE_CURRENCY: Record<string, Currency> = {
+  // Americas
   'America/New_York': 'USD',
   'America/Los_Angeles': 'USD',
   'America/Chicago': 'USD',
   'America/Denver': 'USD',
   'America/Phoenix': 'USD',
-  'America/Mexico_City': 'MXN',
-  'America/Cancun': 'MXN',
-  'America/Sao_Paulo': 'BRL',
-  'America/Rio_Branco': 'BRL',
-  'America/Brasilia': 'BRL',
+  // Asia Pacific
+  'Australia/Sydney': 'AUD',
+  'Australia/Melbourne': 'AUD',
+  'Australia/Brisbane': 'AUD',
+  'Australia/Perth': 'AUD',
+  'Pacific/Auckland': 'AUD',
+  'Asia/Seoul': 'KRW',
+  'Asia/Tokyo': 'JPY',
+  'Asia/Jakarta': 'IDR',
+  'Asia/Singapore': 'SGD',
+  'Asia/Kuala_Lumpur': 'MYR',
 }
 
 // Price tier thresholds
