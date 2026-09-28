@@ -1,6 +1,6 @@
 import { clsx, type ClassValue } from 'clsx'
 import { twMerge } from 'tailwind-merge'
-import { CURRENCY_RATES, CURRENCY_SYMBOLS, type Currency } from '@/types'
+import { CURRENCY_RATES, CURRENCY_SYMBOLS, CURRENCY_DECIMALS, type Currency } from '@/types'
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
@@ -10,8 +10,9 @@ export function formatCurrency(amount: number, currency: Currency = 'USD'): stri
   const symbol = CURRENCY_SYMBOLS[currency]
   const rate = CURRENCY_RATES[currency]
   const converted = amount * rate
+  const decimals = CURRENCY_DECIMALS[currency]
   
-  return `${symbol}${converted.toFixed(2)}`
+  return `${symbol}${converted.toFixed(decimals)}`
 }
 
 export function convertPrice(priceUSD: number, toCurrency: Currency): number {
@@ -108,6 +109,7 @@ export function getPriceFromTieredPricing(
 
 export function getCurrencyFromTimezone(timezone: string): Currency {
   const currencyMap: Record<string, Currency> = {
+    // Americas
     'America/New_York': 'USD',
     'America/Los_Angeles': 'USD',
     'America/Chicago': 'USD',
@@ -115,19 +117,22 @@ export function getCurrencyFromTimezone(timezone: string): Currency {
     'America/Phoenix': 'USD',
     'America/Toronto': 'USD',
     'America/Vancouver': 'USD',
-    'America/Mexico_City': 'MXN',
-    'America/Cancun': 'MXN',
-    'America/Monterrey': 'MXN',
-    'America/Sao_Paulo': 'BRL',
-    'America/Rio_Branco': 'BRL',
-    'America/Brasilia': 'BRL',
-    'America/Buenos_Aires': 'BRL',
-    'America/Lima': 'BRL',
-    'America/Bogota': 'BRL',
-    'America/Santiago': 'BRL',
+    // Asia Pacific
+    'Australia/Sydney': 'AUD',
+    'Australia/Melbourne': 'AUD',
+    'Australia/Brisbane': 'AUD',
+    'Australia/Perth': 'AUD',
+    'Australia/Adelaide': 'AUD',
+    'Pacific/Auckland': 'AUD',
+    'Asia/Seoul': 'KRW',
+    'Asia/Tokyo': 'JPY',
+    'Asia/Jakarta': 'IDR',
+    'Asia/Shanghai': 'SGD',
+    'Asia/Singapore': 'SGD',
+    'Asia/Kuala_Lumpur': 'MYR',
   }
 
-  return currencyMap[timezone] || 'USD'
+  return currencyMap[timezone] || 'AUD'
 }
 
 export function formatDate(date: Date | string, options?: Intl.DateTimeFormatOptions): string {

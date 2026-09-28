@@ -1,6 +1,6 @@
 import { Metadata } from 'next'
 import { notFound } from 'next/navigation'
-import { cookies, headers } from 'next/headers'
+import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { CategoryClient } from './CategoryClient'
 
@@ -13,21 +13,7 @@ interface Props {
 
 // Fetch category SEO from SeoSetting or build defaults
 async function getCategorySeo(slug: string, name: string) {
-  // Priority: cookie (set by subdomain middleware) > Accept-Language header > default 'en'
-  const cookieStore = cookies()
-  const localeCookie = cookieStore.get('NEXT_LOCALE')
-  let locale = localeCookie?.value as string | undefined
-
-  if (!locale) {
-    const headersList = headers()
-    const acceptLanguage = headersList.get('accept-language')
-    if (acceptLanguage) {
-      const lang = acceptLanguage.toLowerCase()
-      if (lang.includes('pt') || lang.includes('pt-br')) locale = 'pt'
-      else if (lang.includes('ru')) locale = 'ru'
-    }
-  }
-  if (!locale) locale = 'en'
+  const locale = 'en'
 
   try {
     const setting = await prisma.seoSetting.findUnique({
@@ -74,9 +60,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     alternates: {
       canonical,
       languages: {
-        'en-US': `${SITE_URL}/categories/${slug}?locale=en`,
-        'pt-BR': `${SITE_URL}/pt/categories/${slug}`,
-        'ru-RU': `${SITE_URL}/ru/categories/${slug}`,
+        'en-US': `${SITE_URL}/categories/${slug}`,
       }
     },
     openGraph: {

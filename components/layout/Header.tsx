@@ -14,8 +14,12 @@ import type { Currency } from '@/types'
 
 const CURRENCIES: { code: Currency; symbol: string; name: string }[] = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
-  { code: 'MXN', symbol: 'MX$', name: 'Mexican Peso' },
-  { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar' },
+  { code: 'KRW', symbol: '₩', name: 'South Korean Won' },
+  { code: 'JPY', symbol: '¥', name: 'Japanese Yen' },
+  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah' },
+  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar' },
 ]
 
 const defaultHeaderSettings = {

@@ -15,18 +15,7 @@ export async function middleware(request: NextRequest) {
   // Locale detection
   const hostname = request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
   const subdomain = hostname.split('.')[0]
-  const localeMap: Record<string, string> = { br: 'pt', ru: 'ru' }
-  const detectedLocale = localeMap[subdomain]
-
-  if (detectedLocale) {
-    const response = NextResponse.next()
-    response.cookies.set(LOCALE_COOKIE, detectedLocale, {
-      path: '/',
-      maxAge: 60 * 60 * 24 * 30,
-      sameSite: 'lax',
-    })
-    return response
-  }
+  // Language detection via subdomain disabled (only English now)
 
   return NextResponse.next()
 }
