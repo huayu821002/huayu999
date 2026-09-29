@@ -39,6 +39,30 @@ export function ChatWidget() {
     scrollToBottom()
   }, [state.messages])
 
+  // Poll for new messages when there's an active conversation
+  useEffect(() => {
+    if (!state.conversationId || !state.isOpen) return
+
+    const pollInterval = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/chat/conversations/${state.conversationId}`)
+        const data = await res.json()
+        if (data.success && data.data.messages) {
+          setState(s => {
+            const existingIds = new Set(s.messages.map(m => m.id))
+            const newMessages = data.data.messages.filter((m: Message) => !existingIds.has(m.id))
+            if (newMessages.length === 0) return s
+            return { ...s, messages: [...s.messages, ...newMessages] }
+          })
+        }
+      } catch (err) {
+        console.error('Poll error:', err)
+      }
+    }, 3000)
+
+    return () => clearInterval(pollInterval)
+  }, [state.conversationId, state.isOpen])
+
   // Focus input when chat opens
   useEffect(() => {
     if (state.isOpen && inputRef.current) {
