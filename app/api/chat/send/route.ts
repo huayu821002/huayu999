@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { writeFileSync, appendFileSync, existsSync } from 'fs'
+import path from 'path'
 
 // MiniMax native API
 const MINIMAX_API = 'https://api.minimax.chat/v1/text/chatcompletion_v2'
@@ -96,39 +98,63 @@ export async function POST(request: NextRequest) {
 
     // Call MiniMax native API
     let botReply = ''
+    const logFile = '/tmp/chat_send_log.txt'
+    const logEntry = (msg: string) => {
+      const ts = new Date().toISOString()
+      const line = `[${ts}] ${msg}\n`
+      appendFileSync(logFile, line)
+      console.log(msg)
+    }
+    
     try {
       if (MINIMAX_API_KEY) {
+        const requestBody = {
+          model: 'MiniMax-M2.7',
+          tokens_to_generate: 300,
+          temperature: 0.7,
+          messages: [
+            { role: 'system', content: SYSTEM_PROMPT },
+            ...historyMessages,
+            { role: 'user', content: userMessage },
+          ],
+        }
+        logEntry(`MiniMax request: ${JSON.stringify(requestBody).substring(0, 500)}`)
+        
         const response = await fetch(MINIMAX_API, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
             'Authorization': `Bearer ${MINIMAX_API_KEY}`,
           },
-          body: JSON.stringify({
-            model: 'MiniMax-M2.7',
-            tokens_to_generate: 300,
-            temperature: 0.7,
-            messages: [
-              { role: 'system', content: SYSTEM_PROMPT },
-              ...historyMessages,
-              { role: 'user', content: userMessage },
-            ],
-          }),
+          body: JSON.stringify(requestBody),
         })
 
         const data = await response.json()
-        console.log('MiniMax response:', JSON.stringify(data).substring(0, 300))
-        if (data.choices?.[0]?.message?.content) {
-          botReply = data.choices[0].message.content.trim()
+        logEntry(`MiniMax raw response status: ${response.status}`)
+        logEntry(`MiniMax response: ${JSON.stringify(data).substring(0, 500)}`)
+        
+        // Try different response paths
+        botReply = data.choices?.[0]?.message?.content?.trim()
+          || data.choices?.[0]?.text?.trim()
+          || data.text?.trim()
+          || ''
+        
+        if (botReply) {
+          logEntry(`Bot reply extracted: ${botReply.substring(0, 100)}`)
         } else {
-          console.log('MiniMax no reply, error:', data)
+          logEntry(`Bot reply EMPTY - full response: ${JSON.stringify(data)}`)
         }
       } else {
-        // Fallback: keyword-based if no API key
+        logEntry('No MINIMAX_API_KEY - using fallback')
         botReply = getSimpleResponse(userMessage)
       }
-    } catch (err) {
-      console.error('MiniMax API error:', err)
+    } catch (err: any) {
+      logEntry(`MiniMax API error: ${err.message}`)
+      botReply = getSimpleResponse(message)
+    }
+
+    if (!botReply) {
+      logEntry(`Final botReply is empty, using fallback. Conversation ID: ${conversation?.id}`)
       botReply = getSimpleResponse(message)
     }
 
