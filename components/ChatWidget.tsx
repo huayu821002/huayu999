@@ -98,11 +98,11 @@ export function ChatWidget() {
           conversationId: data.data.conversationId,
           messages: [
             ...s.messages,
-            { id: Date.now() + 'u', content: userMessage, senderType: 'USER', createdAt: new Date().toISOString() },
+            { id: Date.now() + 'u', content: userMessage, senderType: 'USER' as const, createdAt: new Date().toISOString() },
             ...(data.data.aiDisabled
-              ? [{ id: Date.now() + 'b', content: 'A human will reply soon. Thank you for your patience!', senderType: 'BOT', createdAt: new Date().toISOString() }]
+              ? [{ id: Date.now() + 'b', content: 'A human will reply soon. Thank you for your patience!', senderType: 'BOT' as const, createdAt: new Date().toISOString() }]
               : data.data.reply
-                ? [{ id: Date.now() + 'b', content: data.data.reply, senderType: 'BOT', createdAt: new Date().toISOString() }]
+                ? [{ id: Date.now() + 'b', content: data.data.reply, senderType: 'BOT' as const, createdAt: new Date().toISOString() }]
                 : []
             ),
           ],
