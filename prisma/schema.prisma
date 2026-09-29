@@ -340,7 +340,7 @@ model TaxRate {
 
 // Customer Service / Chat system
 model ChatConversation {
-  id          String   @id @default(cuid())
+  id          String   @id @default(dbgenerated("gen_random_uuid()"))
   visitorEmail String?
   visitorName  String?
   status      String   @default("OPEN") // OPEN | CLOSED
@@ -354,7 +354,7 @@ model ChatConversation {
 }
 
 model ChatMessage {
-  id             String   @id @default(cuid())
+  id             String   @id @default(dbgenerated("gen_random_uuid()"))
   conversationId String
   conversation   ChatConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   content        String
