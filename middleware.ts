@@ -1,21 +1,31 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { jwtVerify } from 'jose'
 
-const LOCALE_COOKIE = 'NEXT_LOCALE'
+const JWT_SECRET = new TextEncoder().encode(
+  process.env.JWT_SECRET || 'fallback-secret-do-not-use-in-production'
+)
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // TEMPORARILY DISABLED: Admin route protection
-  // TODO: Re-enable after fixing adminFetch token issue
-  // if (pathname.startsWith('/api/admin')) {
-  //   return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
-  // }
+  // Protect admin API routes
+  if (pathname.startsWith('/api/admin')) {
+    const authHeader = request.headers.get('authorization')
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    }
 
-  // Locale detection
-  const hostname = request.headers.get('x-forwarded-host') || request.headers.get('host') || ''
-  const subdomain = hostname.split('.')[0]
-  // Language detection via subdomain disabled (only English now)
+    const token = authHeader.substring(7)
+    try {
+      const { payload } = await jwtVerify(token, JWT_SECRET)
+      if (payload.role !== 'ADMIN') {
+        return NextResponse.json({ success: false, error: 'Forbidden' }, { status: 403 })
+      }
+    } catch {
+      return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 })
+    }
+  }
 
   return NextResponse.next()
 }
