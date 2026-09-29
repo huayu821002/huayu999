@@ -59,6 +59,13 @@ export default function RootLayout({
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
         {/* Favicon */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
+        {/* PWA Manifest */}
+        <link rel="manifest" href="/manifest.json" />
+        {/* Apple PWA meta tags */}
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-title" content="FiestaAdmin" />
+        <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body className="min-h-screen bg-joy-gray-50 antialiased">
         <Providers>
