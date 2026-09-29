@@ -70,6 +70,17 @@ export default function ChatConversationPage({ params }: { params: { id: string 
     fetchConversation()
   }, [id])
 
+  // Poll for new messages every 3 seconds
+  useEffect(() => {
+    if (!id) return
+    
+    const pollInterval = setInterval(() => {
+      fetchConversation()
+    }, 3000)
+    
+    return () => clearInterval(pollInterval)
+  }, [id])
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [conversation?.messages])
