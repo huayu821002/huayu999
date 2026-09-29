@@ -19,7 +19,27 @@ export default function ChatPage() {
   const [conversations, setConversations] = useState<Conversation[]>([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState<string>('all')
+  const [isAdmin, setIsAdmin] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    if (!token || !userStr) {
+      router.push('/login')
+      return
+    }
+    try {
+      const user = JSON.parse(userStr)
+      if (user.role !== 'ADMIN') {
+        router.push('/login')
+        return
+      }
+      setIsAdmin(true)
+    } catch {
+      router.push('/login')
+    }
+  }, [router])
 
   const fetchConversations = async () => {
     try {
@@ -105,6 +125,8 @@ export default function ChatPage() {
         <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
           {loading ? (
             <div className="p-8 text-center text-gray-500">Loading...</div>
+          ) : !isAdmin ? (
+            <div className="p-8 text-center text-gray-500">Checking permissions...</div>
           ) : conversations.length === 0 ? (
             <div className="p-8 text-center text-gray-500">
               <div className="text-4xl mb-2">💬</div>

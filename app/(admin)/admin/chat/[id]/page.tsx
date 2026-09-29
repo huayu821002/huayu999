@@ -29,8 +29,28 @@ export default function ChatConversationPage({ params }: { params: { id: string 
   const [loading, setLoading] = useState(true)
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
+
+  useEffect(() => {
+    const token = localStorage.getItem('token')
+    const userStr = localStorage.getItem('user')
+    if (!token || !userStr) {
+      router.push('/login')
+      return
+    }
+    try {
+      const user = JSON.parse(userStr)
+      if (user.role !== 'ADMIN') {
+        router.push('/login')
+        return
+      }
+      setIsAdmin(true)
+    } catch {
+      router.push('/login')
+    }
+  }, [router])
 
   const fetchConversation = async () => {
     try {
@@ -94,12 +114,12 @@ export default function ChatConversationPage({ params }: { params: { id: string 
     return new Date(dateStr).toLocaleString()
   }
 
-  if (loading) {
+  if (loading || !isAdmin) {
     return (
       <div className="min-h-screen bg-gray-50">
         <Header />
         <div className="max-w-4xl mx-auto px-4 py-6">
-          <div className="text-center py-12 text-gray-500">Loading conversation...</div>
+          <div className="text-center py-12 text-gray-500">Loading...</div>
         </div>
       </div>
     )
