@@ -139,6 +139,17 @@ export async function POST(request: NextRequest) {
           || data.text?.trim()
           || ''
         
+        // DEBUG: if still empty, return the raw data for inspection
+        if (!botReply) {
+          return NextResponse.json({
+            success: false,
+            debug: true,
+            miniMaxStatus: response.status,
+            miniMaxData: data,
+            error: 'botReply was empty, check miniMaxData'
+          })
+        }
+        
         if (botReply) {
           logEntry(`Bot reply extracted: ${botReply.substring(0, 100)}`)
         } else {
@@ -178,6 +189,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
+      debug_version: 'with-logging',
       data: {
         conversationId: conversation.id,
         reply: botReply,
