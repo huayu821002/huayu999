@@ -96,6 +96,20 @@ export async function POST(request: NextRequest) {
       content: m.content,
     }))
 
+    // If human has replied, disable AI and just save the message
+    if (conversation.aiDisabled) {
+      return NextResponse.json({
+        success: true,
+        data: {
+          conversationId: conversation.id,
+          reply: '',
+          visitorEmail: conversation.visitorEmail,
+          visitorName: conversation.visitorName,
+          aiDisabled: true,
+        }
+      })
+    }
+
     // Call MiniMax native API
     let botReply = ''
     const logFile = '/tmp/chat_send_log.txt'

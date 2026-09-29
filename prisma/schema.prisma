@@ -348,6 +348,7 @@ model ChatConversation {
   lastMessageAt DateTime @default(now())
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  aiDisabled  Boolean  @default(false) // true when human admin has replied
   messages    ChatMessage[]
 
   @@index([status, lastMessageAt])

@@ -99,7 +99,12 @@ export function ChatWidget() {
           messages: [
             ...s.messages,
             { id: Date.now() + 'u', content: userMessage, senderType: 'USER', createdAt: new Date().toISOString() },
-            { id: Date.now() + 'b', content: data.data.reply, senderType: 'BOT', createdAt: new Date().toISOString() },
+            ...(data.data.aiDisabled
+              ? [{ id: Date.now() + 'b', content: 'A human will reply soon. Thank you for your patience!', senderType: 'BOT', createdAt: new Date().toISOString() }]
+              : data.data.reply
+                ? [{ id: Date.now() + 'b', content: data.data.reply, senderType: 'BOT', createdAt: new Date().toISOString() }]
+                : []
+            ),
           ],
           isLoading: false,
           isTyping: false,

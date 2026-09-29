@@ -30,6 +30,7 @@ export default function ChatConversationPage({ params }: { params: { id: string 
   const [reply, setReply] = useState('')
   const [sending, setSending] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
+  const [lastMsgCount, setLastMsgCount] = useState(0)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
 
@@ -57,6 +58,36 @@ export default function ChatConversationPage({ params }: { params: { id: string 
       const res = await fetch(`/api/chat/conversations/${id}`)
       const data = await res.json()
       if (data.success) {
+        const prevCount = lastMsgCount
+        const newCount = data.data.messages?.length || 0
+        
+        // Check if new USER message arrived (notification)
+        if (newCount > prevCount && prevCount > 0) {
+          const newMsgs = data.data.messages.slice(prevCount)
+          const hasNewUserMsg = newMsgs.some((m: Message) => m.senderType === 'USER')
+          
+          if (hasNewUserMsg) {
+            // Play sound
+            try {
+              const audio = new Audio('https://www.soundjay.com/buttons/beep-07.mp3')
+              audio.volume = 0.5
+              audio.play().catch(() => {})
+            } catch {}
+            
+            // Browser notification if not focused
+            if (document.hidden) {
+              if (Notification.permission === 'granted') {
+                new Notification('💬 New visitor message!', {
+                  body: newMsgs.find((m: Message) => m.senderType === 'USER')?.content?.substring(0, 80) || '',
+                })
+              } else if (Notification.permission === 'default') {
+                Notification.requestPermission()
+              }
+            }
+          }
+        }
+        
+        setLastMsgCount(newCount)
         setConversation(data.data)
       }
     } catch (err) {

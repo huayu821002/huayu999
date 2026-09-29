@@ -32,13 +32,14 @@ export async function POST(
       }
     })
 
-    // Update conversation
+    // Update conversation - human has replied, disable AI
     await prisma.chatConversation.update({
       where: { id: params.id },
       data: {
         lastMessage: content.substring(0, 100),
         lastMessageAt: new Date(),
         status: 'OPEN',
+        aiDisabled: true,
       }
     })
 
