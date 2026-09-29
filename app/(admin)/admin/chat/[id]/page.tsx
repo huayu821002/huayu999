@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, use } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 
@@ -23,8 +23,8 @@ interface Conversation {
   messages: Message[]
 }
 
-export default function ChatConversationPage({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = use(params)
+export default function ChatConversationPage({ params }: { params: { id: string } }) {
+  const { id } = params
   const [conversation, setConversation] = useState<Conversation | null>(null)
   const [loading, setLoading] = useState(true)
   const [reply, setReply] = useState('')
