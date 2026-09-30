@@ -40,10 +40,12 @@ export async function generateMetadata(): Promise<Metadata> {
       index: true,
       follow: true,
     },
+    manifest: '/manifest.json',
   }
 }
 
 import { ChatWidget } from '@/components/ChatWidget'
+import { PWAInstaller } from '@/components/PWAInstaller'
 
 export default async function ShopLayout({
   children,
@@ -54,6 +56,7 @@ export default async function ShopLayout({
     <>
       {children}
       <ChatWidget />
+      <PWAInstaller />
     </>
   )
 }
