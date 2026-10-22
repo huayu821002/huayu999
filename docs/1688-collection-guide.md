@@ -6,8 +6,9 @@
 ## 一、安装采集脚本
 
 1. 浏览器安装 [Tampermonkey](https://www.tampermonkey.net/)（Chrome / Edge / Firefox 都有）
-2. 打开 https://fiestaflare.com/1688-collector.user.js → Tampermonkey 会弹出「安装」页 → 点「安装」
-3. 或者把 `scripts/1688-collector.user.js` 手动粘贴进 Tampermonkey 新建脚本
+2. 打开 **https://fiestaflare.com/1688-collector** 安装引导页（含三种方案，推荐「方案 B 控制台」，无需装扩展）
+3. 或直接安装：https://raw.githubusercontent.com/huayu821002/huayu999/master/scripts/1688-collector.user.js
+   （若浏览器仍下载文件，改用引导页的方案 B）
 
 ## 二、准备 Token
 
@@ -49,7 +50,7 @@
 ## 五、接口（供自动化调用）
 
 ```
-POST /api/admin/import/1688
+POST /api/import/1688   （跨域采集用；鉴权同样要求管理员 Bearer Token）
 Headers: Authorization: Bearer <管理员Token>
 Body 单条: { "data": { "sourceId":"615063287157", "title":"...", "priceMin":1.2, "moq":2, "images":["https://..."] } }
 Body 批量: { "items": [ {...}, {...} ] }

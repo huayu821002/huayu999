@@ -156,14 +156,14 @@ export default function SupplierProductsPage() {
             <li>
               安装脚本：打开{' '}
               <a
-                href="/1688-collector.user.js"
+                href="/1688-collector"
                 className="text-joy-orange underline"
                 target="_blank"
                 rel="noreferrer"
               >
-                /1688-collector.user.js
+                /1688-collector
               </a>{' '}
-              → Tampermonkey 会提示安装
+              安装引导页（含控制台一键采集方案，不用装扩展也能用）
             </li>
             <li>登录 1688（你自己的账号），打开任意商品页或搜索结果页</li>
             <li>右下角出现「Fiestaflare 采集器」面板 → 粘贴管理员 Token → 点「采集当前商品」/「采集本页列表」</li>
@@ -177,10 +177,10 @@ export default function SupplierProductsPage() {
               复制采集 Token
             </button>
             <button
-              onClick={() => window.open('/1688-collector.user.js', '_blank')}
+              onClick={() => window.open('/1688-collector', '_blank')}
               className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-sm hover:bg-gray-50"
             >
-              查看脚本
+              打开安装引导
             </button>
           </div>
           {msg && <div className="mt-3 text-sm text-gray-700 bg-gray-50 rounded-lg px-3 py-2">{msg}</div>}

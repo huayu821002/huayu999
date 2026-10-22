@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { upsertSupplierProduct, ensureSupplierProductTable } from '@/lib/supplier'
+import { isAdminRequest } from '@/lib/chatAuth'
 
 /**
- * POST /api/admin/import/1688
- * 接收采集到的商品数据（油猴脚本 / 采集器推送）。
- * 鉴权：中间件已校验 Authorization Bearer 的 role=ADMIN。
- * 支持单条 { data: {...} } 或批量 { items: [...] }
+ * POST /api/import/1688
+ * 接收采集到的商品数据（油猴脚本 / 采集器 / 控制台脚本推送）。
+ *
+ * 放在 /api/admin 之外是有意的：采集脚本运行在 1688 域名下，属于跨域请求，
+ * 预检(OPTIONS)不能被中间件的 JWT 校验拦住，所以鉴权放在这里自己做。
  */
 
 export async function OPTIONS(request: NextRequest) {
@@ -21,7 +23,23 @@ export async function OPTIONS(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  const origin = request.headers.get('origin') || '*'
+  const cors = {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-import-key',
+    'Vary': 'Origin',
+  }
+
   try {
+    // 鉴权：管理员 JWT（Authorization: Bearer xxx）
+    if (!(await isAdminRequest(request))) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized' },
+        { status: 401, headers: cors }
+      )
+    }
+
     const body = await request.json()
     const items: any[] = Array.isArray(body?.items)
       ? body.items
@@ -32,7 +50,7 @@ export async function POST(request: NextRequest) {
     if (items.length === 0) {
       return NextResponse.json(
         { success: false, error: 'No data provided. Send { data: {...} } or { items: [...] }' },
-        { status: 400 }
+        { status: 400, headers: cors }
       )
     }
 
@@ -74,13 +92,13 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json(
       { success: true, imported: results.length, failed: errors.length, results, errors },
-      { status: 200 }
+      { status: 200, headers: cors }
     )
   } catch (error: any) {
     console.error('1688 import error:', error)
     return NextResponse.json(
       { success: false, error: error?.message || 'Import failed' },
-      { status: 500 }
+      { status: 500, headers: cors }
     )
   }
 }

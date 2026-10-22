@@ -9,6 +9,11 @@ const JWT_SECRET = new TextEncoder().encode(
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
+  // CORS 预检请求不带 Authorization，必须放行，否则跨域采集会被 401 拦掉
+  if (request.method === 'OPTIONS') {
+    return NextResponse.next()
+  }
+
   // Protect admin API routes
   if (pathname.startsWith('/api/admin')) {
     const authHeader = request.headers.get('authorization')

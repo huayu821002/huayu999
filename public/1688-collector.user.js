@@ -280,7 +280,7 @@
     return new Promise(resolve => {
       GM_xmlhttpRequest({
         method: 'POST',
-        url: `${API}/api/admin/import/1688`,
+        url: `${API}/api/import/1688`,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
