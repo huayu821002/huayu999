@@ -108,10 +108,13 @@
         `供应商: ${payload.supplierName || '?'}`,
         `描述: ${payload.description ? payload.description.length + ' 字' : '无'}`,
         `截获接口: ${debug.captured} 条（重放 ${debug.replayed || 0}）`,
+        `价格依据: ${(payload as any).raw?.priceWhy || '-'}`,
         `offerId: ${payload.sourceId}`,
       ]
       kv.style.display = 'block'
       kv.textContent = lines.join('\n')
+      console.log('[Fiestaflare] 解析结果：', payload)
+      console.log('[Fiestaflare] 调试信息：', debug)
       say('预览完成，确认无误后点「采集并推送」')
       return payload
     }
