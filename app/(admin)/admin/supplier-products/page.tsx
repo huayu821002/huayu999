@@ -333,6 +333,18 @@ export default function SupplierProductsPage() {
               />
             </label>
 
+            <details className="mt-4">
+              <summary className="text-sm text-gray-600 cursor-pointer select-none">
+                原始数据 raw（用于排查采集字段，展开后可复制发给我）
+              </summary>
+              <textarea
+                readOnly
+                value={(selected as any).raw || ''}
+                className="mt-2 w-full h-40 border border-gray-300 rounded-lg p-2 text-[10px] font-mono"
+                onFocus={e => e.currentTarget.select()}
+              />
+            </details>
+
             {selected.images?.length > 0 && (
               <div className="mt-4">
                 <span className="text-sm text-gray-600">图片（{selected.images.length}）</span>

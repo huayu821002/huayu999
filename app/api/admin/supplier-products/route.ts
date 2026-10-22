@@ -40,6 +40,7 @@ export async function GET(request: NextRequest) {
       limit,
       data: items.map((i: any) => ({
         ...i,
+        raw: i.raw ? i.raw.slice(0, 20000) : null,
         images: parseImagesField(i.images),
         attributes: parseJsonField(i.attributes),
         skuText: parseJsonField(i.skuText),
