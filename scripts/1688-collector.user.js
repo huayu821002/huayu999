@@ -643,10 +643,10 @@
     push,
     api: API,
   }
-})()
+})();
 /* ========================== 面板 UI ========================== */
 
-(function () {
+;(function () {
   'use strict'
   if (window.__FF_PANEL_READY__) return
   window.__FF_PANEL_READY__ = true
@@ -655,32 +655,59 @@
   const CORE_URL = 'https://fiestaflare.com/1688-core.js'
   const TOKEN_KEY = 'ff_token'
 
-  // 尽早安装钩子（document-start），才能截获页面自己的接口返回
+  // ---- 极简存储：GM_* 不可用时自动降级到 localStorage ----
+  const store = {
+    get(k) {
+      try { if (typeof GM_getValue === 'function') return GM_getValue(k, '') } catch (e) {}
+      try { return localStorage.getItem(k) || '' } catch (e) { return '' }
+    },
+    set(k, v) {
+      try { if (typeof GM_setValue === 'function') { GM_setValue(k, v); return } } catch (e) {}
+      try { localStorage.setItem(k, v) } catch (e) {}
+    },
+  }
+
+  // 最早安装钩子（document-start），才能截获页面自己的接口返回
   try { if (window.FF1688) window.FF1688.install() } catch (e) {}
 
-  // 尝试热更新内核（若页面 CSP 允许）；失败也没关系，内联版本已经可用
+  // ---- 出错时把错误直接显示出来（而不是默默失败）----
+  const fatal = (msg) => {
+    try {
+      const d = document.createElement('div')
+      d.style.cssText =
+        'position:fixed;right:8px;bottom:8px;z-index:2147483647;max-width:320px;background:#fee2e2;color:#991b1b;border:1px solid #fca5a5;border-radius:10px;padding:10px 12px;font:12px/1.5 sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.25)'
+      d.innerHTML = '<b>Fiestaflare 采集器出错</b><br>' + String(msg).replace(/</g, '&lt;')
+      ;(document.documentElement || document.body).appendChild(d)
+    } catch (e) {}
+  }
+  window.addEventListener('error', e => {
+    if (e && e.message && /FF1688|ff1688/.test(String(e.message) + String(e.filename || ''))) {
+      fatal(e.message)
+    }
+  })
+
+  // 尝试热更新内核（页面 CSP 允许时生效；失败则用内联版本）
   try {
     fetch(CORE_URL + '?t=' + Date.now())
       .then(r => (r.ok ? r.text() : ''))
       .then(txt => {
         if (!txt || txt.indexOf('__FF1688_CORE__') < 0) return
-        try {
-          ;(0, eval)(txt)
-        } catch (e) {}
+        try { ;(0, eval)(txt) } catch (e) {}
       })
       .catch(() => {})
   } catch (e) {}
 
+  // 尝试热更新内核（若页面 CSP 允许）；失败也没关系，内联版本已经可用
   const $ = sel => document.querySelector(sel)
 
   function createPanel() {
     if ($('#ff1688-panel')) return
-    const token = GM_getValue(TOKEN_KEY, '')
+    const token = store.get(TOKEN_KEY)
     const panel = document.createElement('div')
     panel.id = 'ff1688-panel'
     panel.innerHTML = `
       <style>
-        #ff1688-panel{position:fixed;right:16px;bottom:16px;z-index:2147483000;font:13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#222;border:1px solid #ddd;border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.2);width:340px;overflow:hidden}
+        #ff1688-panel{position:fixed!important;right:8px!important;bottom:8px!important;z-index:2147483647!important;font:13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#222;border:1px solid #ddd;border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.2);width:340px;overflow:hidden}
         #ff1688-panel .hd{background:#ff6b35;color:#fff;padding:9px 12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
         #ff1688-panel .bd{padding:12px}
         #ff1688-panel.collapsed .bd{display:none}
@@ -706,7 +733,9 @@
         <div class="kv" id="ff-kv" style="display:none"></div>
         <div class="st" id="ff-st">就绪。建议先点「预览解析」确认字段再推送。</div>
       </div>`
-    document.body.appendChild(panel)
+    const root = document.documentElement || document.body
+    if (!root) return
+    root.appendChild(panel)
 
     const st = $('#ff-st', panel)
     const kv = $('#ff-kv', panel)
@@ -717,9 +746,9 @@
     if (!isDetail) $('#ff-preview', panel).style.display = 'none'
     if (!isList) $('#ff-list', panel).style.display = 'none'
 
-    $('#ff-token', panel).value = GM_getValue(TOKEN_KEY, '')
+    $('#ff-token', panel).value = store.get(TOKEN_KEY)
     $('#ff-save', panel).onclick = () => {
-      GM_setValue(TOKEN_KEY, $('#ff-token', panel).value.trim())
+      store.set(TOKEN_KEY, $('#ff-token', panel).value.trim())
       say('设置已保存')
     }
     $('.hd', panel).onclick = () => {
@@ -795,11 +824,15 @@
 
   function boot() {
     const tryPanel = () => {
-      if (document.body) createPanel()
-      else setTimeout(tryPanel, 300)
+      try {
+        if (!document.documentElement) { setTimeout(tryPanel, 300); return }
+        createPanel()
+        console.log('[Fiestaflare] 采集器已启动，内核版本：', (window.FF1688 && window.FF1688.__v) || '未加载')
+      } catch (e) {
+        fatal(e && (e.stack || e.message) || e)
+      }
     }
     tryPanel()
-    // 内联内核已在页面上下文运行；这里再装一次钩子（幂等）
     try { if (window.FF1688) window.FF1688.install() } catch (e) {}
   }
 

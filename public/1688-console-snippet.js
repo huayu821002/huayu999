@@ -634,10 +634,10 @@
     push,
     api: API,
   }
-})()
+})();
 /* ========================== 控制台流程 ========================== */
 
-(function () {
+;(function () {
   'use strict'
   const API = 'https://fiestaflare.com'
 

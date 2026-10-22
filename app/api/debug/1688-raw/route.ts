@@ -9,6 +9,14 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
   const limit = Math.min(Number(url.searchParams.get('limit') || 5), 20)
+
+  // 清理测试脏数据：?del=<sourceId>
+  const del = url.searchParams.get('del')
+  if (del) {
+    const r = await prisma.supplierProduct.deleteMany({ where: { sourceId: del } })
+    return NextResponse.json({ deleted: r.count, sourceId: del })
+  }
+
   const rows = await prisma.supplierProduct.findMany({
     orderBy: { createdAt: 'desc' },
     take: limit,
