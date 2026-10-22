@@ -171,11 +171,22 @@
         ensureCore()
         const payload = lastPayload || (await preview())
         say('推送中…')
-        const r = await window.FF1688.push(payload, $('#ff-token', panel).value.trim())
-        if (r.status === 200) say('✅ 已推送，后台「采集品库」查看')
-        else if (r.status === 401) say('❌ Token 无效，请重新复制')
-        else if (r.status === 0) say('❌ ' + (r.text || '请求失败'))
-        else say('❌ 推送失败 ' + r.status + ' ' + (r.text || '').slice(0, 200))
+        const r = await window.FF1688.push(payload, $('#ff-token', panel).value.trim(), $('#ff-api', panel).value)
+        if (r.status === 200) {
+          say('✅ 已推送 ' + ((r.json && r.json.imported) || '') + ' 条，后台「采集品库」查看')
+          kv.style.display = 'block'
+          kv.textContent = '推送成功：' + (r.text || '').slice(0, 300)
+        } else {
+          const detail = [
+            '状态码: ' + r.status,
+            '请求地址: ' + (r.url || '-'),
+            '返回: ' + (r.text || '(空)').slice(0, 400),
+          ].join('\n')
+          kv.style.display = 'block'
+          kv.textContent = detail
+          say('❌ 推送失败 ' + r.status + '（详情见下方）')
+          console.log('[Fiestaflare] 推送失败详情：', r)
+        }
       } catch (e) {
         say('异常: ' + e.message)
       }
@@ -188,11 +199,15 @@
         const { payload } = await window.FF1688.parseSearch()
         if (!payload.length) { say('本页没抓到商品'); return }
         say(`抓到 ${payload.length} 条，推送中…`)
-        const r = await window.FF1688.push(payload, $('#ff-token', panel).value.trim())
-        if (r.status === 200) say(`✅ 已推送 ${(r.json && r.json.imported) || ''} 条`)
-        else if (r.status === 401) say('❌ Token 无效，请重新复制')
-        else if (r.status === 0) say('❌ ' + (r.text || '请求失败'))
-        else say('❌ 推送失败 ' + r.status)
+        const r = await window.FF1688.push(payload, $('#ff-token', panel).value.trim(), $('#ff-api', panel).value)
+        if (r.status === 200) {
+          say(`✅ 已推送 ${(r.json && r.json.imported) || ''} 条`)
+        } else {
+          kv.style.display = 'block'
+          kv.textContent = ['状态码: ' + r.status, '地址: ' + (r.url || '-'), '返回: ' + (r.text || '(空)').slice(0, 400)].join('\n')
+          say('❌ 推送失败 ' + r.status + '（详情见下方）')
+          console.log('[Fiestaflare] 推送失败详情：', r)
+        }
       } catch (e) {
         say('异常: ' + e.message)
       }

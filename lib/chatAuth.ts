@@ -47,6 +47,30 @@ export async function isAdminRequest(request: NextRequest): Promise<boolean> {
   }
 }
 
+/**
+ * 诊断式鉴权：告诉调用方到底是「没带 Token / Token 无效 / 角色不对」，
+ * 避免采集脚本只看到一个 401/403 猜不出原因。
+ */
+export async function describeAuth(request: NextRequest): Promise<{
+  valid: boolean
+  role?: string
+  reason: string
+}> {
+  const authHeader = request.headers.get('authorization')
+  if (!authHeader) return { valid: false, reason: 'missing_authorization_header' }
+  if (!authHeader.startsWith('Bearer ')) return { valid: false, reason: 'bad_authorization_scheme' }
+  const token = authHeader.substring(7).trim()
+  if (!token) return { valid: false, reason: 'empty_token' }
+  try {
+    const { payload } = await jwtVerify(token, getSecret())
+    const role = (payload as any).role
+    if (role === 'ADMIN') return { valid: true, role, reason: 'ok' }
+    return { valid: true, role, reason: 'role_not_admin' }
+  } catch (e: any) {
+    return { valid: false, reason: 'token_verify_failed: ' + (e?.message || 'unknown') }
+  }
+}
+
 /** Read the visitor token from header or body */
 export function getVisitorToken(request: NextRequest, body?: any): string | null {
   return request.headers.get('x-chat-token') || body?.visitorToken || null
