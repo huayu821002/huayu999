@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { upsertSupplierProduct, ensureSupplierProductTable } from '@/lib/supplier'
-import { isAdminRequest } from '@/lib/chatAuth'
+import { isAdminRequest, describeAuth } from '@/lib/chatAuth'
 
 /**
  * POST /api/import/1688
@@ -34,8 +34,9 @@ export async function POST(request: NextRequest) {
   try {
     // 鉴权：管理员 JWT（Authorization: Bearer xxx）
     if (!(await isAdminRequest(request))) {
+      const info = await describeAuth(request)
       return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
+        { success: false, error: 'Unauthorized', reason: info.reason, role: info.role || null },
         { status: 401, headers: cors }
       )
     }

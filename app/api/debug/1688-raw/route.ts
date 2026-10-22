@@ -10,6 +10,15 @@ export async function GET(req: Request) {
   }
   const limit = Math.min(Number(url.searchParams.get('limit') || 5), 20)
 
+  // 查用户角色（诊断鉴权问题）
+  if (url.searchParams.get('users')) {
+    const users = await prisma.user.findMany({
+      select: { id: true, email: true, name: true, role: true },
+      take: 20,
+    })
+    return NextResponse.json({ users })
+  }
+
   // 清理测试脏数据：?del=<sourceId>
   const del = url.searchParams.get('del')
   if (del) {

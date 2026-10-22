@@ -619,15 +619,39 @@
   }
 
   /* --------------------------------------------------------------- 推送 */
-  async function push(payload, token, api) {
-    const base = api || API
-    const body = JSON.stringify(Array.isArray(payload) ? { items: payload } : { data: payload })
-    const url = base + '/api/import/1688'
-    const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
+  function normalizeBase(base) {
+    let b = String(base || API).trim()
+    b = b.replace(/\/+$/, '')
+    // 去掉用户可能误填的路径后缀（/api、/api/admin、/api/import/1688 等）
+    b = b.replace(/\/(api(\/(admin|import))?(\/1688)?|\/admin)?$/i, '')
+    b = b.replace(/\/+$/, '')
+    return b || 'https://fiestaflare.com'
+  }
 
-    // 1) 优先用 GM_xmlhttpRequest：扩展后台发请求，不受页面 CSP / CORS 限制
+  async function push(payload, token, api) {
+    const base = normalizeBase(api)
+    const body = JSON.stringify(Array.isArray(payload) ? { items: payload } : { data: payload })
+    const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
+    const paths = ['/api/import/1688', '/api/admin/import/1688']
+    const attempts = []
+
+    for (const p of paths) {
+      const url = base + p
+      const r = await requestOnce(url, headers, body)
+      attempts.push({ url, status: r.status, text: (r.text || '').slice(0, 300) })
+      // 成功就返回；401/403 也返回（说明已到达服务端，只是鉴权不过）
+      if (r.status === 200 || r.status === 400 || r.status === 401 || r.status === 403) {
+        return { ...r, attempts, url }
+      }
+    }
+    const last = attempts[attempts.length - 1]
+    return { status: last ? last.status : 0, json: null, text: last ? last.text : '无响应', attempts, url: base }
+  }
+
+  /** 优先用 GM_xmlhttpRequest（不受页面 CSP 限制），否则 fetch */
+  function requestOnce(url, headers, body) {
     if (typeof GM_xmlhttpRequest === 'function') {
-      const viaGM = await new Promise(resolve => {
+      return new Promise(resolve => {
         try {
           GM_xmlhttpRequest({
             method: 'POST',
@@ -643,22 +667,14 @@
           resolve({ status: 0, json: null, text: 'GM 异常: ' + (e && e.message) })
         }
       })
-      if (viaGM.status !== 0) return viaGM
-      // GM 失败再试 fetch
     }
-
-    // 2) fetch 兜底（控制台方案走这条；可能被页面 CSP 的 connect-src 拦）
-    try {
-      const res = await fetch(url, { method: 'POST', headers, body })
-      const text = await res.text()
-      return { status: res.status, json: safeJson(text), text }
-    } catch (e) {
-      return {
+    return fetch(url, { method: 'POST', headers, body })
+      .then(async res => ({ status: res.status, json: safeJson(await res.text()), text: await res.text() }))
+      .catch(e => ({
         status: 0,
         json: null,
         text: '请求被页面安全策略拦截（fetch: ' + (e && e.message) + '）。请改用油猴脚本，扩展请求不受此限制。',
-      }
-    }
+      }))
   }
 
   function safeJson(t) {
@@ -828,11 +844,22 @@
         ensureCore()
         const payload = lastPayload || (await preview())
         say('推送中…')
-        const r = await window.FF1688.push(payload, $('#ff-token', panel).value.trim())
-        if (r.status === 200) say('✅ 已推送，后台「采集品库」查看')
-        else if (r.status === 401) say('❌ Token 无效，请重新复制')
-        else if (r.status === 0) say('❌ ' + (r.text || '请求失败'))
-        else say('❌ 推送失败 ' + r.status + ' ' + (r.text || '').slice(0, 200))
+        const r = await window.FF1688.push(payload, $('#ff-token', panel).value.trim(), $('#ff-api', panel).value)
+        if (r.status === 200) {
+          say('✅ 已推送 ' + ((r.json && r.json.imported) || '') + ' 条，后台「采集品库」查看')
+          kv.style.display = 'block'
+          kv.textContent = '推送成功：' + (r.text || '').slice(0, 300)
+        } else {
+          const detail = [
+            '状态码: ' + r.status,
+            '请求地址: ' + (r.url || '-'),
+            '返回: ' + (r.text || '(空)').slice(0, 400),
+          ].join('\n')
+          kv.style.display = 'block'
+          kv.textContent = detail
+          say('❌ 推送失败 ' + r.status + '（详情见下方）')
+          console.log('[Fiestaflare] 推送失败详情：', r)
+        }
       } catch (e) {
         say('异常: ' + e.message)
       }
@@ -845,11 +872,15 @@
         const { payload } = await window.FF1688.parseSearch()
         if (!payload.length) { say('本页没抓到商品'); return }
         say(`抓到 ${payload.length} 条，推送中…`)
-        const r = await window.FF1688.push(payload, $('#ff-token', panel).value.trim())
-        if (r.status === 200) say(`✅ 已推送 ${(r.json && r.json.imported) || ''} 条`)
-        else if (r.status === 401) say('❌ Token 无效，请重新复制')
-        else if (r.status === 0) say('❌ ' + (r.text || '请求失败'))
-        else say('❌ 推送失败 ' + r.status)
+        const r = await window.FF1688.push(payload, $('#ff-token', panel).value.trim(), $('#ff-api', panel).value)
+        if (r.status === 200) {
+          say(`✅ 已推送 ${(r.json && r.json.imported) || ''} 条`)
+        } else {
+          kv.style.display = 'block'
+          kv.textContent = ['状态码: ' + r.status, '地址: ' + (r.url || '-'), '返回: ' + (r.text || '(空)').slice(0, 400)].join('\n')
+          say('❌ 推送失败 ' + r.status + '（详情见下方）')
+          console.log('[Fiestaflare] 推送失败详情：', r)
+        }
       } catch (e) {
         say('异常: ' + e.message)
       }
