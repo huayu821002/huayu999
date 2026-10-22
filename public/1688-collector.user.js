@@ -108,7 +108,7 @@
         `供应商: ${payload.supplierName || '?'}`,
         `描述: ${payload.description ? payload.description.length + ' 字' : '无'}`,
         `截获接口: ${debug.captured} 条（重放 ${debug.replayed || 0}）`,
-        `价格依据: ${(payload as any).raw?.priceWhy || '-'}`,
+        `价格依据: ${(payload.raw && payload.raw.priceWhy) || '-'}`,
         `offerId: ${payload.sourceId}`,
       ]
       kv.style.display = 'block'
