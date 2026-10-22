@@ -99,13 +99,13 @@ function numOrNull(v: any): number | null {
 }
 
 function slugify(input: string): string {
-  return (
-    input
-      .toLowerCase()
-      .replace(/[^a-z0-9一-龥]+/g, '-')
-      .replace(/^-+|-+$/g, '')
-      .slice(0, 60) || 'product'
-  )
+  const ascii = input
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 60)
+  // 纯中文标题退化为拼音不可得时用 p- 前缀 + offerId，避免 URL 编码问题
+  return ascii || 'item'
 }
 
 async function uniqueSlug(base: string, sourceId: string): Promise<string> {
