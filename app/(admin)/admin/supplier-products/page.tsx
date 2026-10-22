@@ -159,6 +159,16 @@ export default function SupplierProductsPage() {
       setMsg('未找到登录 Token，请先登录后台')
       return
     }
+    // 解出角色，避免再次拿到非管理员 Token 导致 403
+    let role = ''
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+      role = payload.role || ''
+    } catch {}
+    if (role && role !== 'ADMIN') {
+      setMsg(`⚠️ 当前登录账号角色是 ${role}，不是 ADMIN，采集接口会返回 403。请用管理员账号（如 admin@fiestaflare.com）登录后台后重新复制。`)
+      return
+    }
     try {
       await navigator.clipboard.writeText(token)
       setMsg('Token 已复制到剪贴板，粘贴到油猴脚本面板即可')

