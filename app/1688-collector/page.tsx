@@ -36,6 +36,11 @@ export default function CollectorInstallPage() {
       <div className="max-w-3xl mx-auto space-y-6">
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h1 className="text-2xl font-bold text-gray-900">🧩 1688 采集器安装</h1>
+          <div className="mt-3 rounded-lg bg-orange-50 border border-orange-200 px-4 py-3 text-sm text-orange-800">
+            <b>已更新到 v2.1（内核已内联）</b>：旧版本依赖外部加载内核，会被 1688 的 CSP 拦截并报
+            <code>parseDetail undefined</code>。
+            <b>请务必重新安装/更新一次</b>：点下方「一键安装（GitHub raw）」即可覆盖旧版。
+          </div>
           <p className="text-sm text-gray-600 mt-2">
             采集器在**你自己的浏览器**里运行，用你已登录的 1688 账号抓数据，
             不需要代理池、不需要打码平台、不会封号。
@@ -103,6 +108,8 @@ export default function CollectorInstallPage() {
               </a>{' '}
               扩展
             </li>
+            <li>
+              <b>必须先装扩展</b>，否则浏览器只会把脚本当普通文件下载（这就是之前「点了没反应」的原因）
             <li>
               点下面按钮安装脚本（如果浏览器仍然下载文件，说明扩展没装好，改用方案 B）：
               <div className="mt-2 flex gap-2 flex-wrap">
