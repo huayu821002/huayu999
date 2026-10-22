@@ -48,7 +48,11 @@
       console.log('推送结果：', r.status, r.json || r.text)
       if (r.status === 200) console.log('✅ 采集成功，去后台「采集品库」查看')
       else if (r.status === 401) console.warn('❌ Token 无效或已过期')
-      else console.warn('❌ 推送失败：', r.text)
+      else if (r.status === 0) {
+        console.warn('❌ ' + r.text)
+        console.warn('⤵ 跨域被拦截的兜底：把下面这段 JSON 复制，粘到后台「采集品库 → 手动粘贴导入」：')
+        console.log(JSON.stringify(payload))
+      } else console.warn('❌ 推送失败：', r.text)
     } else if (isList) {
       const { payload } = await window.FF1688.parseSearch()
       console.log('列表解析：', payload.length, '条')
