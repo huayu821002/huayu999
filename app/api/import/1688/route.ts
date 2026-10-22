@@ -41,15 +41,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const items: any[] = Array.isArray(body?.items)
-      ? body.items
-      : body?.data
-        ? [body.data]
-        : []
+    let items: any[] = []
+    if (Array.isArray(body?.items)) {
+      items = body.items
+    } else if (body?.data) {
+      items = Array.isArray(body.data) ? body.data : [body.data]
+    } else if (body && (body.sourceId || body.offerId)) {
+      // 直接粘贴的单条商品 JSON
+      items = [body]
+    }
 
     if (items.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'No data provided. Send { data: {...} } or { items: [...] }' },
+        { success: false, error: 'No data provided. Send { data: {...} } or { items: [...] } or a single product object' },
         { status: 400, headers: cors }
       )
     }

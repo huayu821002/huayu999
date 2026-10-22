@@ -601,16 +601,48 @@
   /* --------------------------------------------------------------- 推送 */
   async function push(payload, token, api) {
     const base = api || API
-    const body = Array.isArray(payload) ? { items: payload } : { data: payload }
-    const res = await fetch(base + '/api/import/1688', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
-      body: JSON.stringify(body),
-    })
-    const text = await res.text()
-    let json = null
-    try { json = JSON.parse(text) } catch (e) {}
-    return { status: res.status, json, text }
+    const body = JSON.stringify(Array.isArray(payload) ? { items: payload } : { data: payload })
+    const url = base + '/api/import/1688'
+    const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
+
+    // 1) 优先用 GM_xmlhttpRequest：扩展后台发请求，不受页面 CSP / CORS 限制
+    if (typeof GM_xmlhttpRequest === 'function') {
+      const viaGM = await new Promise(resolve => {
+        try {
+          GM_xmlhttpRequest({
+            method: 'POST',
+            url,
+            headers,
+            data: body,
+            timeout: 30000,
+            onload: r => resolve({ status: r.status, json: safeJson(r.responseText), text: r.responseText }),
+            onerror: e => resolve({ status: 0, json: null, text: 'GM 请求失败: ' + ((e && e.error) || '网络错误') }),
+            ontimeout: () => resolve({ status: 0, json: null, text: 'GM 请求超时' }),
+          })
+        } catch (e) {
+          resolve({ status: 0, json: null, text: 'GM 异常: ' + (e && e.message) })
+        }
+      })
+      if (viaGM.status !== 0) return viaGM
+      // GM 失败再试 fetch
+    }
+
+    // 2) fetch 兜底（控制台方案走这条；可能被页面 CSP 的 connect-src 拦）
+    try {
+      const res = await fetch(url, { method: 'POST', headers, body })
+      const text = await res.text()
+      return { status: res.status, json: safeJson(text), text }
+    } catch (e) {
+      return {
+        status: 0,
+        json: null,
+        text: '请求被页面安全策略拦截（fetch: ' + (e && e.message) + '）。请改用油猴脚本，扩展请求不受此限制。',
+      }
+    }
+  }
+
+  function safeJson(t) {
+    try { return JSON.parse(t) } catch (e) { return null }
   }
 
   window.FF1688 = {

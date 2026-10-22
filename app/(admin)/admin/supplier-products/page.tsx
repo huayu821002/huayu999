@@ -192,6 +192,48 @@ export default function SupplierProductsPage() {
           </button>
         </div>
 
+        {/* 手动粘贴导入（跨域被拦时的兜底） */}
+        <details className="bg-white rounded-xl shadow-sm p-5 mb-6 border-l-4 border-gray-300">
+          <summary className="font-semibold text-gray-900 cursor-pointer select-none">
+            📋 手动粘贴导入（跨域被拦时用）
+          </summary>
+          <p className="text-sm text-gray-600 mt-2 mb-2">
+            如果控制台采集推送失败（提示请求被拦截），把控制台打印的 JSON 复制到这里粘贴导入。
+          </p>
+          <textarea
+            id="ff-manual-json"
+            rows={6}
+            placeholder='粘贴采集到的 JSON，例如 {"source":"1688","sourceId":"1022060080982","title":"..."}'
+            className="w-full border border-gray-300 rounded-lg p-3 text-xs font-mono"
+          />
+          <button
+            onClick={async () => {
+              const ta = document.getElementById('ff-manual-json') as HTMLTextAreaElement
+              const txt = (ta?.value || '').trim()
+              if (!txt) { setMsg('请先粘贴 JSON'); return }
+              try {
+                const parsed = JSON.parse(txt)
+                const body = Array.isArray(parsed) ? { items: parsed }
+                  : parsed.items || parsed.data ? parsed
+                  : { data: parsed }
+                const res = await adminFetch('/api/import/1688', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify(body),
+                })
+                const d = await res.json()
+                setMsg(d.success ? `已导入 ${d.imported} 条` : d.error || '导入失败')
+                if (d.success) { ta.value = ''; load() }
+              } catch (e: any) {
+                setMsg('JSON 解析失败：' + (e?.message || e))
+              }
+            }}
+            className="mt-2 px-4 py-2 bg-joy-orange text-white rounded-lg text-sm"
+          >
+            导入这段 JSON
+          </button>
+        </details>
+
         {/* 采集助手 */}
         <div className="bg-white rounded-xl shadow-sm p-5 mb-6 border-l-4 border-joy-orange">
           <h2 className="font-semibold text-gray-900 mb-2">🧩 采集助手（油猴脚本）</h2>
@@ -212,8 +254,7 @@ export default function SupplierProductsPage() {
             <li>右下角出现「Fiestaflare 采集器」面板 → 粘贴管理员 Token → 点「采集当前商品」/「采集本页列表」</li>
             <li>采集结果会进入下面的列表，审核后可一键生成商品</li>
           </ol>
-          <div className="flex gap-2 flex-wrap">
-            <button
+          <div className="flex gap-2 flex-wrap">            <button
               onClick={copyToken}
               className="px-4 py-2 bg-joy-orange text-white rounded-lg text-sm hover:bg-joy-orange/90"
             >
