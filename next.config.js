@@ -12,6 +12,8 @@ const nextConfig = {
     serverActions: {
       bodySizeLimit: '5mb',
     },
+    // Hostinger 共享主机进程数受限，静态生成 worker 并发太多会 EAGAIN（spawn worker failed）
+    cpus: 2,
   },
   // Build 后自动创建 uploads 符号链接，指向持久化目录
   after: async () => {
