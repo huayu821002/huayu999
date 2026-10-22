@@ -107,32 +107,47 @@ export async function upsertSupplierProduct(input: SupplierProductInput) {
   await ensureSupplierProductTable()
 
   const source = input.source || '1688'
-  const data = {
+  const sourceId = String(input.sourceId)
+
+  // 仅包含本次实际提供的字段，避免二次采集覆盖掉已有数据
+  const provided: any = {
     source,
-    sourceId: String(input.sourceId),
-    sourceUrl: input.sourceUrl ?? null,
-    title: input.title?.slice(0, 500) || '(untitled)',
-    titleCn: input.titleCn ?? null,
-    description: input.description ?? null,
-    images: toJson(input.images ?? null),
-    videoUrl: input.videoUrl ?? null,
-    priceMin: input.priceMin ?? null,
-    priceMax: input.priceMax ?? null,
-    moq: input.moq ?? null,
-    unit: input.unit ?? null,
-    skuText: toJson(input.skuText ?? null),
-    attributes: toJson(input.attributes ?? null),
-    supplierName: input.supplierName ?? null,
-    supplierUrl: input.supplierUrl ?? null,
-    shippingText: input.shippingText ?? null,
-    raw: toJson(input.raw ?? null),
-    updatedAt: new Date(),
+    sourceId,
+    sourceUrl: input.sourceUrl,
+    title: input.title?.slice(0, 500),
+    titleCn: input.titleCn,
+    description: input.description,
+    images: input.images !== undefined ? toJson(input.images) : undefined,
+    videoUrl: input.videoUrl,
+    priceMin: input.priceMin,
+    priceMax: input.priceMax,
+    moq: input.moq,
+    unit: input.unit,
+    skuText: input.skuText !== undefined ? toJson(input.skuText) : undefined,
+    attributes: input.attributes !== undefined ? toJson(input.attributes) : undefined,
+    supplierName: input.supplierName,
+    supplierUrl: input.supplierUrl,
+    shippingText: input.shippingText,
+    raw: input.raw !== undefined ? toJson(input.raw) : undefined,
   }
 
+  const updateData: any = {}
+  for (const [k, v] of Object.entries(provided)) {
+    if (v !== undefined) updateData[k] = v
+  }
+  updateData.updatedAt = new Date()
+
+  const createData: any = { ...provided }
+  for (const k of Object.keys(createData)) {
+    if (createData[k] === undefined) createData[k] = null
+  }
+  createData.title = createData.title || '(untitled)'
+  createData.status = 'pending'
+
   return prisma.supplierProduct.upsert({
-    where: { source_sourceId: { source, sourceId: data.sourceId } },
-    create: { ...data, status: 'pending' },
-    update: data,
+    where: { source_sourceId: { source, sourceId } },
+    create: createData,
+    update: updateData,
   })
 }
 

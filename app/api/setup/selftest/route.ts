@@ -43,11 +43,12 @@ export async function POST() {
     report.steps.push('re-upsert (idempotent): ' + (again.id === rec.id ? 'OK' : 'FAIL'))
 
     const found = await prisma.supplierProduct.findUnique({ where: { id: rec.id } })
+    const imgCount = parseImagesField(found?.images || null).length
     report.steps.push(
       'read: ' +
         (found && found.title.includes('updated') ? 'OK' : 'FAIL') +
-        ' images=' +
-        parseImagesField(found?.images || null).length
+        ' images=' + imgCount +
+        (imgCount === 1 ? ' (保留 OK)' : ' (图片被覆盖 FAIL)')
     )
 
     const updated = await prisma.supplierProduct.update({
