@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
-import { writeFileSync, appendFileSync, existsSync } from 'fs'
-import path from 'path'
+import { appendFileSync } from 'fs'
+import { signVisitorToken, verifyVisitorToken, getVisitorToken } from '@/lib/chatAuth'
 
 // MiniMax native API
 const MINIMAX_API = 'https://api.minimax.chat/v1/text/chatcompletion_v2'
@@ -44,13 +44,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
     }
 
-    // Find or create conversation
+    // Find or create conversation.
+    // A conversation may only be continued by whoever holds its visitor token.
     let conversation
     if (conversationId) {
-      conversation = await prisma.chatConversation.findUnique({
-        where: { id: conversationId },
-        include: { messages: { orderBy: { createdAt: 'asc' } } }
-      })
+      const token = getVisitorToken(request)
+      const ownsConversation = await verifyVisitorToken(token, conversationId)
+      if (ownsConversation) {
+        conversation = await prisma.chatConversation.findUnique({
+          where: { id: conversationId },
+          include: { messages: { orderBy: { createdAt: 'asc' } } }
+        })
+      } else {
+        console.warn(`[chat] rejected continuation of conversation ${conversationId}: invalid visitor token`)
+      }
     }
 
     if (!conversation) {
@@ -97,11 +104,15 @@ export async function POST(request: NextRequest) {
     }))
 
     // If human has replied, disable AI and just save the message
+    // Visitor token proving ownership of this conversation (sent back to the browser)
+    const visitorToken = await signVisitorToken(conversation.id)
+
     if (conversation.aiDisabled) {
       return NextResponse.json({
         success: true,
         data: {
           conversationId: conversation.id,
+          visitorToken,
           reply: '',
           visitorEmail: conversation.visitorEmail,
           visitorName: conversation.visitorName,
@@ -133,41 +144,57 @@ export async function POST(request: NextRequest) {
           ],
         }
         logEntry(`MiniMax request: ${JSON.stringify(requestBody).substring(0, 500)}`)
-        
-        const response = await fetch(MINIMAX_API, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Authorization': `Bearer ${MINIMAX_API_KEY}`,
-          },
-          body: JSON.stringify(requestBody),
-        })
 
-        const data = await response.json()
-        logEntry(`MiniMax raw response status: ${response.status}`)
-        logEntry(`MiniMax response: ${JSON.stringify(data).substring(0, 500)}`)
-        
-        // Try different response paths
-        botReply = data.choices?.[0]?.message?.content?.trim()
-          || data.choices?.[0]?.text?.trim()
-          || data.text?.trim()
-          || ''
-        
-        // DEBUG: if still empty, return the raw data for inspection
-        if (!botReply) {
-          return NextResponse.json({
-            success: false,
-            debug: true,
-            miniMaxStatus: response.status,
-            miniMaxData: data,
-            error: 'botReply was empty, check miniMaxData'
-          })
+        let data: any = null
+        let status = 0
+
+        // Retry up to 2 times: MiniMax commonly answers 529 (overloaded) under load
+        for (let attempt = 1; attempt <= 3; attempt++) {
+          try {
+            const response = await fetch(MINIMAX_API, {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${MINIMAX_API_KEY}`,
+              },
+              body: JSON.stringify(requestBody),
+            })
+
+            status = response.status
+            data = await response.json()
+            logEntry(`MiniMax raw response status: ${status} (attempt ${attempt})`)
+            logEntry(`MiniMax response: ${JSON.stringify(data).substring(0, 500)}`)
+
+            botReply = data.choices?.[0]?.message?.content?.trim()
+              || data.choices?.[0]?.text?.trim()
+              || data.text?.trim()
+              || ''
+
+            if (botReply) break
+
+            // Retryable errors (overload / rate limit / server error)
+            if (status === 529 || status === 429 || status >= 500) {
+              if (attempt < 3) {
+                logEntry(`MiniMax retryable status ${status}, retrying in ${attempt * 2}s...`)
+                await new Promise(r => setTimeout(r, attempt * 2000))
+                continue
+              }
+            }
+            break
+          } catch (err: any) {
+            logEntry(`MiniMax API error (attempt ${attempt}): ${err.message}`)
+            if (attempt < 3) {
+              await new Promise(r => setTimeout(r, attempt * 2000))
+              continue
+            }
+            throw err
+          }
         }
-        
-        if (botReply) {
-          logEntry(`Bot reply extracted: ${botReply.substring(0, 100)}`)
-        } else {
-          logEntry(`Bot reply EMPTY - full response: ${JSON.stringify(data)}`)
+
+        if (!botReply) {
+          // Never leave the customer hanging: fall back to canned answers
+          logEntry(`MiniMax produced no reply (status ${status}) - using keyword fallback`)
+          botReply = getSimpleResponse(userMessage)
         }
       } else {
         logEntry('No MINIMAX_API_KEY - using fallback')
@@ -206,6 +233,7 @@ export async function POST(request: NextRequest) {
       debug_version: 'with-logging',
       data: {
         conversationId: conversation.id,
+        visitorToken,
         reply: botReply,
         visitorEmail: conversation.visitorEmail,
         visitorName: conversation.visitorName,

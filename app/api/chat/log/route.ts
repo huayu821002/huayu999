@@ -1,7 +1,12 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { readFileSync } from 'fs'
+import { requireAdminOrDev } from '@/lib/chatAuth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Diagnostic endpoint: hidden from public in production
+  const denied = await requireAdminOrDev(request)
+  if (denied) return denied
+
   const logFile = '/tmp/chat_send_log.txt'
   try {
     const content = readFileSync(logFile, 'utf-8')

@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isAdminRequest } from '@/lib/chatAuth'
 
-// POST - Admin reply to conversation
+// POST - Admin reply to conversation (admin only)
 export async function POST(
   request: NextRequest,
   { params }: { params: { id: string } }
 ) {
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { content, adminId } = await request.json()
 

@@ -1,6 +1,11 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
+import { requireAdminOrDev } from '@/lib/chatAuth'
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  // Diagnostic endpoint: hidden from public in production
+  const denied = await requireAdminOrDev(request)
+  if (denied) return denied
+
   const apiKey = process.env.MINIMAX_API_KEY || ''
   const hasKey = apiKey.length > 0
   const maskedKey = hasKey ? apiKey.substring(0, 8) + '...' : 'NOT SET'

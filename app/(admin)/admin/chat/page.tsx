@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
 import { Icons } from '@/components/ui/Icons'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface Conversation {
   id: string
@@ -43,7 +44,7 @@ export default function ChatPage() {
 
   const fetchConversations = async () => {
     try {
-      const res = await fetch('/api/chat/conversations?status=' + (filter === 'all' ? '' : filter))
+      const res = await adminFetch('/api/chat/conversations?status=' + (filter === 'all' ? '' : filter))
       const data = await res.json()
       if (data.success) {
         setConversations(data.data)

@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { requireAdminOrDev } from '@/lib/chatAuth'
 
 const MINIMAX_API = 'https://api.minimax.chat/v1/text/chatcompletion_v2'
 const MINIMAX_API_KEY = process.env.MINIMAX_API_KEY || ''
 
 export async function GET(request: NextRequest) {
+  // Diagnostic endpoint: hidden from public in production
+  const denied = await requireAdminOrDev(request)
+  if (denied) return denied
+
   const hasKey = !!MINIMAX_API_KEY
   let apiResult = 'NO_KEY'
   let statusCode = 0

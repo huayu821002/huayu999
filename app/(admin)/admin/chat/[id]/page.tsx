@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { Header } from '@/components/layout/Header'
+import { adminFetch } from '@/lib/adminFetch'
 
 interface Message {
   id: string
@@ -55,7 +56,7 @@ export default function ChatConversationPage({ params }: { params: { id: string 
 
   const fetchConversation = async () => {
     try {
-      const res = await fetch(`/api/chat/conversations/${id}`)
+      const res = await adminFetch(`/api/chat/conversations/${id}`)
       const data = await res.json()
       if (data.success) {
         const prevCount = lastMsgCount
@@ -122,7 +123,7 @@ export default function ChatConversationPage({ params }: { params: { id: string 
 
     setSending(true)
     try {
-      const res = await fetch(`/api/chat/conversations/${id}/reply`, {
+      const res = await adminFetch(`/api/chat/conversations/${id}/reply`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: reply.trim() }),
@@ -141,7 +142,7 @@ export default function ChatConversationPage({ params }: { params: { id: string 
 
   const closeConversation = async () => {
     try {
-      await fetch(`/api/chat/conversations/${id}`, {
+      await adminFetch(`/api/chat/conversations/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ status: 'CLOSED' }),

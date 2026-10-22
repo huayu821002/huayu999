@@ -11,15 +11,20 @@ interface Message {
 
 interface ChatState {
   conversationId: string | null
+  visitorToken: string | null
   messages: Message[]
   isOpen: boolean
   isLoading: boolean
   isTyping: boolean
 }
 
+const TOKEN_KEY = 'fiestaflare_chat_token'
+const CONV_KEY = 'fiestaflare_chat_conv'
+
 export function ChatWidget() {
   const [state, setState] = useState<ChatState>({
     conversationId: null,
+    visitorToken: null,
     messages: [],
     isOpen: false,
     isLoading: false,
@@ -39,13 +44,26 @@ export function ChatWidget() {
     scrollToBottom()
   }, [state.messages])
 
+  // Restore the conversation + visitor token from a previous visit
+  useEffect(() => {
+    try {
+      const token = localStorage.getItem(TOKEN_KEY)
+      const conv = localStorage.getItem(CONV_KEY)
+      if (token && conv) {
+        setState(s => ({ ...s, visitorToken: token, conversationId: conv }))
+      }
+    } catch {}
+  }, [])
+
   // Poll for new messages when there's an active conversation
   useEffect(() => {
     if (!state.conversationId || !state.isOpen) return
 
     const pollInterval = setInterval(async () => {
       try {
-        const res = await fetch(`/api/chat/conversations/${state.conversationId}`)
+        const res = await fetch(`/api/chat/conversations/${state.conversationId}`, {
+          headers: state.visitorToken ? { 'x-chat-token': state.visitorToken } : {},
+        })
         const data = await res.json()
         if (data.success && data.data.messages) {
           setState(s => {
@@ -61,7 +79,7 @@ export function ChatWidget() {
     }, 3000)
 
     return () => clearInterval(pollInterval)
-  }, [state.conversationId, state.isOpen])
+  }, [state.conversationId, state.visitorToken, state.isOpen])
 
   // Focus input when chat opens
   useEffect(() => {
@@ -85,6 +103,7 @@ export function ChatWidget() {
         body: JSON.stringify({
           message: userMessage,
           conversationId: state.conversationId,
+          visitorToken: state.visitorToken || undefined,
           visitorEmail: visitorEmail || undefined,
           visitorName: undefined,
         }),
@@ -93,9 +112,17 @@ export function ChatWidget() {
       const data = await res.json()
 
       if (data.success) {
+        // Persist the visitor token so we can keep reading this conversation
+        if (data.data.visitorToken) {
+          try {
+            localStorage.setItem(TOKEN_KEY, data.data.visitorToken)
+            localStorage.setItem(CONV_KEY, data.data.conversationId)
+          } catch {}
+        }
         setState(s => ({
           ...s,
           conversationId: data.data.conversationId,
+          visitorToken: data.data.visitorToken || s.visitorToken,
           messages: [
             ...s.messages,
             { id: Date.now() + 'u', content: userMessage, senderType: 'USER' as const, createdAt: new Date().toISOString() },

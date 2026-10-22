@@ -1,8 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { isAdminRequest } from '@/lib/chatAuth'
 
-// GET - List all conversations (admin)
+// GET - List all conversations (admin only)
 export async function GET(request: NextRequest) {
+  // Only admins may list every visitor conversation
+  if (!(await isAdminRequest(request))) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+  }
+
   try {
     const { searchParams } = new URL(request.url)
     const status = searchParams.get('status') // OPEN | CLOSED | all
