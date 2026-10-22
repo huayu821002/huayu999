@@ -55,6 +55,12 @@ export async function PATCH(
     for (const [k, v] of Object.entries(allowed)) {
       if (v !== undefined) data[k] = v
     }
+    // 数字字段转成 number，避免字符串写库失败
+    for (const k of ['priceMin', 'priceMax', 'moq']) {
+      if (data[k] === undefined) continue
+      const n = Number(data[k])
+      data[k] = Number.isFinite(n) ? n : null
+    }
     data.updatedAt = new Date()
 
     const item = await prisma.supplierProduct.update({

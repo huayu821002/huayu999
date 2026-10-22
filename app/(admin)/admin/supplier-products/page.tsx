@@ -89,13 +89,56 @@ export default function SupplierProductsPage() {
     }
   }
 
+  /** 读取弹窗里的编辑值 */
+  const readForm = () => ({
+    title: (document.getElementById('edit-title') as HTMLInputElement)?.value?.trim() || '',
+    supplierName: (document.getElementById('edit-supplier') as HTMLInputElement)?.value?.trim() || '',
+    priceMin: (document.getElementById('edit-price') as HTMLInputElement)?.value || '',
+    moq: (document.getElementById('edit-moq') as HTMLInputElement)?.value || '',
+    note: (document.getElementById('edit-note') as HTMLTextAreaElement)?.value || '',
+    sale: (document.getElementById('edit-sale') as HTMLInputElement)?.value || '',
+    cost: (document.getElementById('edit-cost') as HTMLInputElement)?.value || '',
+  })
+
+  /** 采集价(CNY) + 倍率 → 售价/成本价(USD) */
+  const recalc = () => {
+    const cny = parseFloat((document.getElementById('edit-price') as HTMLInputElement)?.value || '0') || 0
+    const mult = parseFloat((document.getElementById('edit-markup') as HTMLInputElement)?.value || '3') || 3
+    const rate = 7.2 // CNY → USD
+    const sale = document.getElementById('edit-sale') as HTMLInputElement
+    const cost = document.getElementById('edit-cost') as HTMLInputElement
+    if (sale) sale.value = ((cny * mult) / rate).toFixed(2)
+    if (cost) cost.value = (cny / rate).toFixed(2)
+  }
+
   const publish = async (item: SupplierItem, isActive: boolean) => {
     setSaving(true)
     try {
+      // 先把弹窗里编辑过的字段存回采集品，再发布
+      const form = readForm()
+      if (form.title || form.priceMin || form.moq) {
+        await adminFetch(`/api/admin/supplier-products/${item.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: form.title || undefined,
+            supplierName: form.supplierName || undefined,
+            priceMin: form.priceMin || undefined,
+            moq: form.moq || undefined,
+            note: form.note || undefined,
+          }),
+        })
+      }
       const res = await adminFetch(`/api/admin/supplier-products/${item.id}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ isActive }),
+        body: JSON.stringify({
+          isActive,
+          name: form.title || undefined,
+          price: form.sale || undefined,
+          costPrice: form.cost || undefined,
+          minOrderQty: form.moq || undefined,
+        }),
       })
       const data = await res.json()
       if (data.success) {
@@ -306,10 +349,38 @@ export default function SupplierProductsPage() {
                 />
               </label>
               <label className="block">
-                <span className="text-sm text-gray-600">成本价（USD，发布时默认用）</span>
+                <span className="text-sm text-gray-600">采集价（CNY，1688 价）</span>
                 <input
                   defaultValue={selected.priceMin ?? ''}
                   id="edit-price"
+                  onChange={recalc}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-gray-600">加价倍率（×）</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  defaultValue="3"
+                  id="edit-markup"
+                  onChange={recalc}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-gray-600">售价（USD，按倍率自动算，可改）</span>
+                <input
+                  id="edit-sale"
+                  defaultValue={selected.priceMin ? ((selected.priceMin * 3) / 7.2).toFixed(2) : ''}
+                  className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                />
+              </label>
+              <label className="block">
+                <span className="text-sm text-gray-600">成本价（USD，自动换算，可改）</span>
+                <input
+                  id="edit-cost"
+                  defaultValue={selected.priceMin ? (selected.priceMin / 7.2).toFixed(2) : ''}
                   className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                 />
               </label>
