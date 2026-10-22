@@ -110,6 +110,7 @@ export default function CollectorInstallPage() {
             </li>
             <li>
               <b>必须先装扩展</b>，否则浏览器只会把脚本当普通文件下载（这就是之前「点了没反应」的原因）
+            </li>
             <li>
               点下面按钮安装脚本（如果浏览器仍然下载文件，说明扩展没装好，改用方案 B）：
               <div className="mt-2 flex gap-2 flex-wrap">
