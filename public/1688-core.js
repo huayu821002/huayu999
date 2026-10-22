@@ -11,9 +11,9 @@
  *  - MOQ 支持 "2件起批" 这类字符串
  *  - raw.candidates 回传每个字段的候选与得分，便于服务端事后校正
  */
-(function () {
+(function () { /* __FF1688_CORE__ */
   'use strict'
-  if (window.FF1688 && window.FF1688.__v) return
+  if (window.FF1688 && window.FF1688.__v === '3.0.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
