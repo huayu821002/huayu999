@@ -293,6 +293,13 @@ export default function AdminDashboard() {
 
           {/* Quick Actions */}
           <div className="mt-8 grid grid-cols-2 md:grid-cols-4 gap-4">
+            <Link href="/admin/supplier-products" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="w-12 h-12 rounded-xl bg-joy-navy/10 flex items-center justify-center mb-4 group-hover:bg-joy-navy/20 transition-colors">
+                <Icons.Download size={24} className="text-joy-navy" />
+              </div>
+              <h3 className="font-semibold text-joy-gray-900">采集品库</h3>
+              <p className="text-sm text-joy-gray-500">1688 采集与铺货</p>
+            </Link>
             <Link href="/admin/products" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="w-12 h-12 rounded-xl bg-joy-orange/10 flex items-center justify-center mb-4 group-hover:bg-joy-orange/20 transition-colors">
                 <Icons.Plus size={24} className="text-joy-orange" />

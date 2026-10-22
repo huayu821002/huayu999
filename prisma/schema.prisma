@@ -339,6 +339,38 @@ model TaxRate {
 }
 
 // Customer Service / Chat system
+model SupplierProduct {
+  id           String   @id @default(uuid())
+  source       String   @default("1688")
+  sourceId     String
+  sourceUrl    String?
+  title        String
+  titleCn      String?
+  description  String?
+  images       String?
+  videoUrl     String?
+  priceMin     Float?
+  priceMax     Float?
+  moq          Int?
+  unit         String?
+  skuText      String?
+  attributes   String?
+  supplierName String?
+  supplierUrl  String?
+  shippingText String?
+  raw          String?
+  status       String   @default("pending")
+  productId    String?
+  publishedAt  DateTime?
+  note         String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([source, sourceId])
+  @@index([status, createdAt])
+  @@index([source, sourceId])
+}
+
 model ChatConversation {
   id          String   @id @default(dbgenerated("gen_random_uuid()"))
   visitorEmail String?

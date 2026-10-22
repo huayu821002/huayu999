@@ -26,3 +26,39 @@ CREATE TABLE IF NOT EXISTS "ChatMessage" (
 );
 
 CREATE INDEX IF NOT EXISTS "ChatMessage_conversationId_createdAt_idx" ON "ChatMessage"("conversationId", "createdAt");
+
+-- ============================================================
+-- 采集品表（1688 等供应商商品采集） 2026-10-22
+-- 运行时也会自愈式创建（lib/supplier.ts ensureSupplierProductTable）
+-- ============================================================
+CREATE TABLE IF NOT EXISTS "SupplierProduct" (
+  "id" TEXT NOT NULL,
+  "source" TEXT NOT NULL DEFAULT '1688',
+  "sourceId" TEXT NOT NULL,
+  "sourceUrl" TEXT,
+  "title" TEXT NOT NULL,
+  "titleCn" TEXT,
+  "description" TEXT,
+  "images" TEXT,
+  "videoUrl" TEXT,
+  "priceMin" DOUBLE PRECISION,
+  "priceMax" DOUBLE PRECISION,
+  "moq" INTEGER,
+  "unit" TEXT,
+  "skuText" TEXT,
+  "attributes" TEXT,
+  "supplierName" TEXT,
+  "supplierUrl" TEXT,
+  "shippingText" TEXT,
+  "raw" TEXT,
+  "status" TEXT NOT NULL DEFAULT 'pending',
+  "productId" TEXT,
+  "publishedAt" TIMESTAMP(3),
+  "note" TEXT,
+  "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT "SupplierProduct_pkey" PRIMARY KEY ("id")
+);
+CREATE UNIQUE INDEX IF NOT EXISTS "SupplierProduct_source_sourceId_key" ON "SupplierProduct"("source", "sourceId");
+CREATE INDEX IF NOT EXISTS "SupplierProduct_status_createdAt_idx" ON "SupplierProduct"("status", "createdAt");
+CREATE INDEX IF NOT EXISTS "SupplierProduct_source_sourceId_idx" ON "SupplierProduct"("source", "sourceId");
