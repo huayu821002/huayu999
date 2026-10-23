@@ -36,6 +36,11 @@ const payloads = [
           { beginAmount: 100, price: '0.95' },
         ],
         skuMap: { 颜色: ['红色', '蓝色'], 规格: ['单个', '10个装'] },
+        skuMapReal: { '颜色分类:红色;尺码:M': { skuId: '5123456789012', amount: '12' } },
+        skuProps: [
+          { name: '颜色', value: '红色' },
+          { name: '尺码', value: 'M' },
+        ],
       },
     },
   },
@@ -85,6 +90,11 @@ vm.runInContext(CORE, sandbox)
     ['描述有内容', (payload.description || '').length > 20],
     ['阶梯价有数据', !!payload.priceTiers],
     ['SKU 有数据', !!payload.skuText],
+    ['阶梯价归一化', Array.isArray(JSON.parse(payload.priceLadder || '[]')) && JSON.parse(payload.priceLadder).length === 2],
+    ['阶梯价首个=2件1.2', JSON.parse(payload.priceLadder || '[]')[0]?.minQty === 2 && JSON.parse(payload.priceLadder)[0]?.price === 1.2],
+    ['批发价=采集价下限', payload.wholesalePrice === 1.2],
+    ['首个规格/颜色已提取', !!payload.firstSku],
+    ['首个规格不是乱码', !/[:：]/.test(payload.firstSku || '')],
   ]
   let pass = 0
   for (const [name, ok] of checks) {
@@ -101,6 +111,10 @@ vm.runInContext(CORE, sandbox)
     supplierName: payload.supplierName,
     images: payload.images,
     priceTiers: payload.priceTiers,
+    priceLadder: payload.priceLadder,
+    wholesalePrice: payload.wholesalePrice,
+    firstSku: payload.firstSku,
+    sourceSkuId: payload.sourceSkuId,
     skuText: payload.skuText,
     descLen: (payload.description || '').length,
   }, null, 2))

@@ -24,7 +24,7 @@
  */
 (function () { /* __FF1688_CORE__ */
   'use strict'
-  if (window.FF1688 && window.FF1688.__v === '3.0.0') return
+  if (window.FF1688 && window.FF1688.__v === '3.1.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -66,6 +66,9 @@
 
   function install() {
     if (STORE.installed) return
+    // 热更新后新内核也会 install；若旧内核已挂钩过 fetch/XHR，则不再重复挂钩
+    if (window.__FF1688_INSTALLED__) { STORE.installed = true; return }
+    window.__FF1688_INSTALLED__ = true
     STORE.installed = true
 
     const origFetch = window.fetch
@@ -186,7 +189,8 @@
     price: {
       strong: ['priceRange', 'priceMin', 'minPrice', 'priceMax', 'maxPrice', 'priceDesc', 'priceText', 'priceInfo', 'priceRangeList', 'priceRanges', 'priceRangeInfo', 'minPriceDesc', 'maxPriceDesc', 'price', 'salePrice', 'showPrice', 'priceAmount', 'lowestPrice', 'highestPrice', 'priceDetail', 'priceStr'],
       weak: ['value', 'amount'],
-      neg: ['count', 'qty', 'num', 'quantity', 'discount', 'freight', 'shipping', 'postage', 'tax', 'weight', 'stock', 'inventory', 'index', 'step', 'id', 'rate', 'ratio', 'coupon', 'reduction'],
+      // 注意：必须把时间戳类 key 排除，否则 1792659779466 会被当成价格
+      neg: ['count', 'qty', 'num', 'quantity', 'discount', 'freight', 'shipping', 'postage', 'tax', 'weight', 'stock', 'inventory', 'index', 'step', 'id', 'rate', 'ratio', 'coupon', 'reduction', 'gmt', 'create', 'update', 'time', 'date', 'timestamp', 'seq', 'sort', 'version', 'hash', 'md5', 'score', 'rank', 'trace', 'spm', 'seq'],
     },
     moq: {
       strong: ['beginAmount', 'moq', 'minOrderQuantity', 'minOrderQty', 'beginCount', 'saleMinCount', 'minOrder', 'minPurchaseQuantity', 'begin'],
@@ -257,14 +261,16 @@
 
     let best = { lo: null, hi: null, score: -99, why: '' }
 
-    // 1) 区间字符串
+    // 1) 区间字符串（key 必须像价格，否则时间戳等噪声会被误选）
     for (const c of cands) {
       const m = String(c.value).match(/([\d.]+)\s*[-~～至]\s*([\d.]+)/)
       if (!m) continue
-      let s = keyScore(c.key, K.price)
-      if (/priceRange|priceDesc|priceText|priceInfo/i.test(c.key)) s += 3
+      const s = keyScore(c.key, K.price)
+      if (s <= 0) continue
       const lo = parseFloat(m[1]); const hi = parseFloat(m[2])
-      if (s > best.score) best = { lo: Math.min(lo, hi), hi: Math.max(lo, hi), score: s, why: 'range:' + c.key }
+      if (lo <= 0.01 || hi < lo || hi > 1000000) continue
+      const score = s + (/priceRange|priceDesc|priceText|priceInfo/i.test(c.key) ? 3 : 0)
+      if (score > best.score) best = { lo: Math.min(lo, hi), hi: Math.max(lo, hi), score, why: 'range:' + c.key }
     }
 
     // 2) min/max 配对
@@ -276,7 +282,7 @@
       const lo = num(bestLow.c.value); const hi = num(bestHigh.c.value)
       if (lo !== null && hi !== null) {
         const s = Math.min(bestLow.s, bestHigh.s) + 2
-        if (s > best.score && lo > 0.01 && hi >= lo) {
+        if (s > best.score && lo > 0.01 && hi >= lo && hi < 1000000) {
           best = { lo, hi, score: s, why: 'minmax:' + bestLow.c.key + '/' + bestHigh.c.key }
         }
       }
@@ -286,14 +292,15 @@
     if (best.lo === null) {
       for (const c of cands) {
         if (/[\d.]+\s*[-~～至]\s*[\d.]+/.test(String(c.value))) continue
-        const n = num(c.value)
-        if (n === null || n <= 0.01) continue
         const s = keyScore(c.key, K.price)
+        if (s <= 0) continue
+        const n = num(c.value)
+        if (n === null || n <= 0.01 || n > 1000000) continue
         if (s > best.score) best = { lo: n, hi: n, score: s, why: 'single:' + c.key }
       }
     }
 
-    // 4) 兜底：DOM
+    // 4) 接口里没有价格（1688 价格是前端渲染的）→ 走 DOM
     if (best.lo === null) {
       const dom = domFallback()
       if (dom.priceMin) best = { lo: dom.priceMin, hi: dom.priceMax ?? dom.priceMin, score: 0, why: 'dom' }
@@ -451,6 +458,147 @@
     try { return JSON.stringify(best).slice(0, 8000) } catch (e) { return undefined }
   }
 
+  /* ------------------------------------------- 货号 / 首个规格 / 阶梯价 */
+  /**
+   * 找到 skuMap（形如 { "颜色分类:红色;尺码:M": { skuId: "..." } }）。
+   * 判据：对象的 key 里有 "规格组合" 样式（含冒号/分号），或字段名带 sku/spec/prop。
+   */
+  function pickSkuMap(payloads) {
+    const cands = collect(payloads, (k, v) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false
+      const n = Object.keys(v).length
+      return n >= 1 && n <= 120
+    })
+    let best = null
+    let bestScore = -99
+    for (const c of cands) {
+      const keys = Object.keys(c.value)
+      const combo = keys.filter(kk => /[:：;；]/.test(String(kk))).length
+      const specWord = /sku|spec|prop|sale/i.test(c.key) ? 3 : 0
+      if (combo === 0 && specWord === 0) continue
+      const score = combo * 2 + specWord + Math.min(keys.length, 5)
+      if (score > bestScore) { bestScore = score; best = c.value }
+    }
+    return best
+  }
+
+  /** 从 skuMap 里取：货号（skuId）、第一个规格/颜色 */
+  function parseSkuMap(map) {
+    const out = { sourceSkuId: '', firstSku: '', specNames: [], skuIds: [] }
+    if (!map) return out
+    for (const combo of Object.keys(map)) {
+      const val = map[combo]
+      const firstSeg = String(combo).split(/[;；]/)[0].trim()
+      const idx = firstSeg.search(/[:：]/)
+      let specName = idx >= 0 ? firstSeg.slice(0, idx).trim() : ''
+      let specVal = idx >= 0 ? firstSeg.slice(idx + 1).trim() : ''
+      if (Array.isArray(val)) {
+        // 形如 { 颜色: ['红色','蓝色'] } → 取第一个值作为规格
+        if (!specVal && val.length) {
+          const v0 = val[0]
+          specVal = typeof v0 === 'string' || typeof v0 === 'number' ? String(v0) : (v0 && (v0.name || v0.value)) ? String(v0.name || v0.value) : ''
+        }
+        if (!specName) specName = firstSeg
+      }
+      if (!out.firstSku) out.firstSku = specVal || firstSeg
+      if (specName && !out.specNames.includes(specName)) out.specNames.push(specName)
+
+      let id = ''
+      if (typeof val === 'string' || typeof val === 'number') {
+        id = String(val)
+      } else if (val && typeof val === 'object') {
+        id = String(val.skuId || val.skuID || val.skuCode || val.outerId || val.itemId || val.id || '')
+      }
+      if (id && !out.skuIds.includes(id)) out.skuIds.push(id)
+    }
+    if (!out.sourceSkuId && out.skuIds.length) out.sourceSkuId = out.skuIds[0]
+    return out
+  }
+
+  /** 兜底：从 saleProp / skuProps 数组里取第一个规格 */
+  function pickFirstSpec(payloads) {
+    const cands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length < 60)
+    let best = ''
+    let bestScore = -99
+    for (const c of cands) {
+      if (!/saleprop|skuprops|skulist|props|spec/i.test(c.key)) continue
+      const s = keyScore(c.key, { strong: ['saleProp', 'skuProps', 'skuList', 'skuModel'], weak: ['props', 'spec'], neg: [] })
+      if (s <= bestScore) continue
+      for (const it of c.value) {
+        if (!it || typeof it !== 'object') continue
+        const name = it.name || it.propName || it.attrName || ''
+        const val = it.value || it.propValue || it.attrValue || it.valueName || ''
+        if (!val) continue
+        const text = name ? String(name) + ': ' + String(val) : String(val)
+        best = text
+        bestScore = s
+        break
+      }
+    }
+    return best
+  }
+
+  /** 把 1688 的阶梯价结构归一化成 [{ minQty, maxQty, price }] */
+  function normalizeTiers(tiers) {
+    const out = []
+    const push = (minQty, price, maxQty) => {
+      if (minQty === null || price === null) return
+      if (minQty <= 0 || price <= 0) return
+      out.push({ minQty: Math.round(minQty), maxQty: maxQty ? Math.round(maxQty) : null, price })
+    }
+    for (const t of tiers) {
+      if (!t || typeof t !== 'object') continue
+      const minQty = num(
+        t.beginAmount ?? t.startQuantity ?? t.minQuantity ?? t.minQty ??
+        t.begin ?? t.count ?? t.amount ?? t.num ?? t.quantity
+      )
+      const maxQty = num(t.endAmount ?? t.maxQuantity ?? t.end ?? t.maxQty ?? t.endCount)
+      const price = num(
+        t.price ?? t.priceValue ?? t.stepPrice ?? t.salePrice ?? t.tradePrice ??
+        t.wholesalePrice ?? t.value ?? t.amount
+      )
+      push(minQty, price, maxQty)
+    }
+    return out
+  }
+
+  /** 阶梯价对象形态：{ "2": 12.5, "100": 10 } */
+  function normalizeTierMap(map) {
+    const out = []
+    if (!map || typeof map !== 'object') return out
+    for (const k of Object.keys(map)) {
+      const minQty = num(k)
+      const price = num(map[k])
+      if (minQty !== null && price !== null) pushTier(out, minQty, price)
+    }
+    return out
+  }
+
+  function pushTier(out, minQty, price) {
+    if (minQty <= 0 || price <= 0) return
+    out.push({ minQty: Math.round(minQty), maxQty: null, price })
+  }
+
+  /** 阶梯价的“对象形态”：字段名像 tier，值是 { 起订量: 价格 } 映射 */
+  function pickTierObject(payloads) {
+    const cands = collect(payloads, (k, v) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false
+      const n = Object.keys(v).length
+      return n >= 1 && n <= 60
+    })
+    let best = null
+    let bestScore = -99
+    for (const c of cands) {
+      if (!/tier|stepprice|ladder|pricegroup|rangeprice/i.test(c.key)) continue
+      const vals = Object.values(c.value)
+      const numeric = vals.filter(v => num(v) !== null).length
+      if (numeric < 1) continue
+      const score = numeric
+      if (score > bestScore) { bestScore = score; best = c.value }
+    }
+    return best
+  }
+
   function pickAttributes(payloads) {
     const cands = collect(payloads, (k, v) => v && typeof v === 'object' && !Array.isArray(v) && Object.keys(v).length && Object.keys(v).length < 80)
     let best = null; let bestScore = -99
@@ -515,6 +663,26 @@
     const moq = pickMoq(payloads)
     const supplier = pickSupplier(payloads)
 
+    // 货号 / 首个规格 / 阶梯价 / 批发价（新增字段，不影响原有字段）
+    const skuMap = pickSkuMap(payloads)
+    const skuInfo = parseSkuMap(skuMap)
+    const firstSpecFallback = skuInfo.firstSku ? '' : pickFirstSpec(payloads)
+    const tiersRaw = pickTiers(payloads)
+    let tiers = []
+    let tierSource = ''
+    if (tiersRaw) {
+      try {
+        const parsed = JSON.parse(tiersRaw)
+        if (Array.isArray(parsed)) { tiers = normalizeTiers(parsed); tierSource = 'array' }
+        else if (parsed && typeof parsed === 'object') { tiers = normalizeTierMap(parsed); tierSource = 'map' }
+      } catch (e) {}
+    }
+    if (!tiers.length) {
+      const tierObj = pickTierObject(payloads)
+      if (tierObj) { tiers = normalizeTierMap(tierObj); tierSource = 'obj' }
+    }
+    const wholesalePrice = pr.lo !== null && pr.lo !== undefined ? pr.lo : undefined
+
     const payload = {
       source: '1688',
       sourceId: offerId,
@@ -531,6 +699,12 @@
       supplierName: supplier || dom.supplierName || undefined,
       shippingText: '以 1688 页面实际为准',
       priceTiers: pickTiers(payloads),
+      // ↓ 新增：货号 / 首个规格 / 阶梯价 / 批发价（CNY）
+      sourceSkuId: skuInfo.sourceSkuId || undefined,
+      firstSku: skuInfo.firstSku || firstSpecFallback || undefined,
+      wholesalePrice,
+      priceLadder: tiers.length ? JSON.stringify(tiers) : undefined,
+      skuSpecNames: skuInfo.specNames.length ? skuInfo.specNames : undefined,
       raw: {
         offerId,
         url: url.split('?')[0],
@@ -538,6 +712,8 @@
         capturedCount: payloads.length,
         replayed,
         priceWhy: pr.why,
+        tierSource,
+        skuCount: skuInfo.skuIds.length,
         capturedUrls: payloads.slice(0, 25).map(p => p.url),
         snapshot: payloads.slice(0, 5).map(p => ({ url: p.url, data: p.data })),
       },
@@ -673,7 +849,7 @@
   }
 
   window.FF1688 = {
-    __v: '3.0.0',
+    __v: '3.1.0',
     install,
     capture,
     replayResources,
