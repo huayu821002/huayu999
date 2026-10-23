@@ -190,7 +190,7 @@
       strong: ['priceRange', 'priceMin', 'minPrice', 'priceMax', 'maxPrice', 'priceDesc', 'priceText', 'priceInfo', 'priceRangeList', 'priceRanges', 'priceRangeInfo', 'minPriceDesc', 'maxPriceDesc', 'price', 'salePrice', 'showPrice', 'priceAmount', 'lowestPrice', 'highestPrice', 'priceDetail', 'priceStr'],
       weak: ['value', 'amount'],
       // 注意：必须把时间戳类 key 排除，否则 1792659779466 会被当成价格
-      neg: ['count', 'qty', 'num', 'quantity', 'discount', 'freight', 'shipping', 'postage', 'tax', 'weight', 'stock', 'inventory', 'index', 'step', 'id', 'rate', 'ratio', 'coupon', 'reduction', 'gmt', 'create', 'update', 'time', 'date', 'timestamp', 'seq', 'sort', 'version', 'hash', 'md5', 'score', 'rank', 'trace', 'spm', 'seq'],
+      neg: ['count', 'qty', 'num', 'quantity', 'discount', 'freight', 'shipping', 'postage', 'tax', 'weight', 'stock', 'inventory', 'index', 'step', 'id', 'rate', 'ratio', 'coupon', 'reduction', 'gmt', 'create', 'update', 'time', 'date', 'timestamp', 'seq', 'sort', 'version', 'hash', 'md5', 'score', 'rank', 'trace', 'spm', 'total', 'cost', 'selected', 'expect', 'market'],
     },
     moq: {
       strong: ['beginAmount', 'moq', 'minOrderQuantity', 'minOrderQty', 'beginCount', 'saleMinCount', 'minOrder', 'minPurchaseQuantity', 'begin'],
@@ -250,6 +250,69 @@
   }
 
   /* ---------------------------------------------------------------- 价格 */
+
+  /** 数组项里的单价（priceText 优先，其次 price/skuPrice/...） */
+  function priceOfItem(it) {
+    if (!it || typeof it !== 'object') return null
+    if (it.priceText && /[\d.]/.test(it.priceText)) {
+      const m = String(it.priceText).match(/(\d+(?:\.\d+)?)/)
+      if (m) {
+        const v = parseFloat(m[1])
+        if (v > 0.01 && v < 1000000) return v
+      }
+    }
+    for (const k of ['price', 'skuPrice', 'salePrice', 'tradePrice', 'unitPrice', 'priceValue', 'minPrice', 'maxPrice']) {
+      const n = num(it[k])
+      if (n !== null && n > 0.01 && n < 1000000) return n
+    }
+    return null
+  }
+
+  /**
+   * 找出「规格 → 价格」的数组型 SKU 列表（1688 里每个规格一条 price/priceText）
+   * 返回 [{ key, score, entries: [{ spec, price, skuId, priceText }] }]
+   */
+  function collectSkuEntries(payloads) {
+    const out = []
+    const arrCands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length <= 200)
+    for (const c of arrCands) {
+      const items = c.value.filter(it => it && typeof it === 'object' && !Array.isArray(it))
+      if (!items.length) continue
+      const key = String(c.key)
+      const isSkuKey = /sku|model|spec|prop|saleprop/i.test(key)
+      const hasText = items.some(it => it.priceText && /[\d.]/.test(it.priceText))
+      const hasSpec = items.some(it => it.skuId || it.skuName || it.spec || it.specName || it.propName || it.attrName)
+      if (!isSkuKey && !hasText) continue // 只有裸 price 的数组（多半是阶梯价/区间），不当 SKU
+      if (!isSkuKey && !hasSpec && !hasText) continue
+      const entries = []
+      for (const it of items) {
+        const pr = priceOfItem(it)
+        if (pr === null) continue
+        entries.push({
+          spec: specOfItem(it),
+          price: pr,
+          skuId: String(it.skuId || it.id || ''),
+          priceText: it.priceText || '',
+        })
+      }
+      if (!entries.length) continue
+      const score = (/sku/i.test(key) ? 3 : 0) + (/spec/i.test(key) ? 2 : 0) + (/price/i.test(key) ? 1 : 0) + (hasText ? 1 : 0)
+      out.push({ key, score, entries })
+    }
+    out.sort((a, b) => b.score - a.score)
+    return out
+  }
+
+  /** 条目里的规格名 */
+  function specOfItem(it) {
+    if (!it || typeof it !== 'object') return ''
+    for (const k of ['skuName', 'specName', 'propName', 'attrName', 'skuAttr', 'spec', 'name', 'title']) {
+      const v = it[k]
+      if (typeof v === 'string' && v.trim()) return v.trim().slice(0, 40)
+    }
+    return ''
+  }
+
   function pickPrices(payloads) {
     const cands = collect(payloads, (k, v) => {
       const t = typeof v === 'string' ? v : typeof v === 'number' ? String(v) : ''
@@ -260,35 +323,62 @@
     })
 
     let best = { lo: null, hi: null, score: -99, why: '' }
+    const skuCandidates = []
 
-    // 1) 区间字符串（key 必须像价格，否则时间戳等噪声会被误选）
+    /* ---- A) SKU 列表：数组项里带价格 → 取「第一个规格的价格」 ---- */
+    const arrCands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length <= 200)
+    const skuArrays = collectSkuEntries(payloads)
+    for (const s of skuArrays) {
+      skuCandidates.push({ key: s.key, n: s.entries.length, price: s.entries[0].price, priceText: s.entries[0].priceText, spec: s.entries[0].spec })
+    }
+    if (skuArrays.length) {
+      const s = skuArrays[0]
+      const e0 = s.entries[0]
+      best = { lo: e0.price, hi: e0.price, score: 99, why: 'sku:first(' + s.key + ' → ' + (e0.spec || e0.priceText || '第一个规格') + ')' }
+    }
+
+    /* ---- B) 阶梯价列表：第一个档位的价格（单 SKU 时的真实批发价） ---- */
+    if (best.lo === null) {
+      for (const c of arrCands) {
+        const key = String(c.key)
+        if (!/pricetier|steprice|price.*tier|multiprice|ladder|priceRangeList|priceRanges/i.test(key)) continue
+        const items = c.value.filter(it => it && typeof it === 'object')
+        const priced = items.map(it => ({ it, p: priceOfItem(it) })).filter(x => x.p !== null)
+        if (!priced.length) continue
+        const hasQty = items.some(it => /beginAmount|begin|quantity|qty|minCount/i.test(Object.keys(it).join(',')))
+        if (!hasQty) continue
+        best = { lo: priced[0].p, hi: priced[0].p, score: 90, why: 'tier:first(' + key + ')' }
+        break
+      }
+    }
+
+    /* ---- C) 区间字符串（priceRange: "1.20-3.50"） ---- */
     for (const c of cands) {
+      if (best.lo !== null) break
       const m = String(c.value).match(/([\d.]+)\s*[-~～至]\s*([\d.]+)/)
       if (!m) continue
       const s = keyScore(c.key, K.price)
       if (s <= 0) continue
       const lo = parseFloat(m[1]); const hi = parseFloat(m[2])
       if (lo <= 0.01 || hi < lo || hi > 1000000) continue
-      const score = s + (/priceRange|priceDesc|priceText|priceInfo/i.test(c.key) ? 3 : 0)
-      if (score > best.score) best = { lo: Math.min(lo, hi), hi: Math.max(lo, hi), score, why: 'range:' + c.key }
+      best = { lo: Math.min(lo, hi), hi: Math.max(lo, hi), score: s, why: 'range:' + c.key }
     }
 
-    // 2) min/max 配对
-    const lows = cands.filter(c => /min|low|begin|start|lowest|from/i.test(c.key) && !/max|high|end/i.test(c.key))
-    const highs = cands.filter(c => /max|high|end|highest|to/i.test(c.key))
-    if (lows.length && highs.length) {
-      const bestLow = lows.map(c => ({ c, s: keyScore(c.key, K.price) })).sort((a, b) => b.s - a.s)[0]
-      const bestHigh = highs.map(c => ({ c, s: keyScore(c.key, K.price) })).sort((a, b) => b.s - a.s)[0]
-      const lo = num(bestLow.c.value); const hi = num(bestHigh.c.value)
-      if (lo !== null && hi !== null) {
-        const s = Math.min(bestLow.s, bestHigh.s) + 2
-        if (s > best.score && lo > 0.01 && hi >= lo && hi < 1000000) {
-          best = { lo, hi, score: s, why: 'minmax:' + bestLow.c.key + '/' + bestHigh.c.key }
+    /* ---- D) min/max 配对（必须两个 key 都像价格，且不能是数量/总价） ---- */
+    if (best.lo === null) {
+      const lows = cands.filter(c => /(^|[^a-z])(min|lowest|low)([^a-z]|$)/i.test(c.key) && keyScore(c.key, K.price) > 0)
+      const highs = cands.filter(c => /(^|[^a-z])(max|highest|high|upper)([^a-z]|$)/i.test(c.key) && keyScore(c.key, K.price) > 0)
+      if (lows.length && highs.length) {
+        const bestLow = lows.map(c => ({ c, s: keyScore(c.key, K.price) })).sort((a, b) => b.s - a.s)[0]
+        const bestHigh = highs.map(c => ({ c, s: keyScore(c.key, K.price) })).sort((a, b) => b.s - a.s)[0]
+        const lo = num(bestLow.c.value); const hi = num(bestHigh.c.value)
+        if (lo !== null && hi !== null && lo > 0.01 && hi >= lo && hi < 1000000) {
+          best = { lo, hi, score: Math.min(bestLow.s, bestHigh.s) + 2, why: 'minmax:' + bestLow.c.key + '/' + bestHigh.c.key }
         }
       }
     }
 
-    // 3) 单值
+    /* ---- E) 单值 ---- */
     if (best.lo === null) {
       for (const c of cands) {
         if (/[\d.]+\s*[-~～至]\s*[\d.]+/.test(String(c.value))) continue
@@ -300,17 +390,19 @@
       }
     }
 
-    // 4) 接口里没有价格（1688 价格是前端渲染的）→ 走 DOM
+    /* ---- F) 接口里没有价格（1688 价格是前端渲染的）→ 走 DOM ---- */
     if (best.lo === null) {
       const dom = domFallback()
       if (dom.priceMin) best = { lo: dom.priceMin, hi: dom.priceMax ?? dom.priceMin, score: 0, why: 'dom' }
     }
-    // 5) 价格候选清单（诊断用：告诉用户/开发者到底有哪些 key 和值）
+
+    // 5) 价格候选清单（诊断用）
     const candidates = cands
       .map(c => ({ key: c.key, value: String(c.value).slice(0, 60), score: keyScore(c.key, K.price) }))
       .filter(c => c.score > 0)
       .slice(0, 40)
-    return { lo: best.lo, hi: best.hi, why: best.why, candidates }
+
+    return { lo: best.lo, hi: best.hi, why: best.why, candidates, skuCandidates }
   }
 
   /* ------------------------------------------- 各规格价格（多 SKU 时） */
@@ -323,6 +415,16 @@
   function pickSkuPrices(payloads) {
     const out = []
     const seen = new Set()
+    // 0) 数组型 SKU 列表（最准：每个规格一条 price/priceText）
+    for (const group of collectSkuEntries(payloads)) {
+      for (const e of group.entries) {
+        const key = e.spec + '|' + e.price
+        if (seen.has(key)) continue
+        seen.add(key)
+        out.push({ spec: e.spec, price: e.price, skuId: e.skuId })
+      }
+    }
+    if (out.length) return out
     const push = (spec, price, skuId) => {
       if (price === null || price === undefined) return
       if (!(price > 0.01) || price > 1000000) return
@@ -644,6 +746,14 @@
   }
 
   /** 从 skuMap 里取：货号（skuId）、第一个规格/颜色 */
+  /** 规格名是否是无意义的技术字段（如 args / arg1 / spm / x-ssr） */
+  function isJunkSpec(v) {
+    const t = String(v || '').trim()
+    if (!t) return true
+    if (t.length > 40) return true
+    return /^(args?|arg\d*|spm|x-ssr|detail|offer_id|offerId|itemId|id|none|null|undefined|true|false|detailRedirectUrl|x-fcc|skeleton)$/i.test(t)
+  }
+
   function parseSkuMap(map) {
     const out = { sourceSkuId: '', firstSku: '', specNames: [], skuIds: [] }
     if (!map) return out
@@ -661,7 +771,7 @@
         }
         if (!specName) specName = firstSeg
       }
-      if (!out.firstSku) out.firstSku = specVal || firstSeg
+      if (!out.firstSku && !isJunkSpec(specVal) && !isJunkSpec(firstSeg)) out.firstSku = specVal || firstSeg
       if (specName && !out.specNames.includes(specName)) out.specNames.push(specName)
 
       let id = ''
@@ -691,6 +801,7 @@
         const val = it.value || it.propValue || it.attrValue || it.valueName || ''
         if (!val) continue
         const text = name ? String(name) + ': ' + String(val) : String(val)
+        if (isJunkSpec(val) || isJunkSpec(text)) continue
         best = text
         bestScore = s
         break
@@ -897,7 +1008,9 @@
     // 货号 / 首个规格 / 阶梯价 / 批发价（新增字段，不影响原有字段）
     const skuMap = pickSkuMap(payloads)
     const skuInfo = parseSkuMap(skuMap)
-    const firstSpecFallback = skuInfo.firstSku ? '' : pickFirstSpec(payloads)
+    const skuGroups = collectSkuEntries(payloads)
+    const skuFirstSpec = skuGroups.length ? (skuGroups[0].entries[0].spec || '') : ''
+    const firstSpecFallback = skuInfo.firstSku ? '' : (skuFirstSpec || pickFirstSpec(payloads))
     const tiersRaw = pickTiers(payloads)
     let tiers = []
     let tierSource = ''
@@ -946,6 +1059,7 @@
         replayed,
         priceWhy: pr.why,
         priceCandidates: pr.candidates,
+        skuCandidates: pr.skuCandidates,
         priceRangeOld,
         skuPrices: skuPrices.slice(0, 30),
         tierSource,
@@ -1209,7 +1323,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.8.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.9.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +

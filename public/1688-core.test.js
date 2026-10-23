@@ -40,6 +40,15 @@ const payloads = [
           '颜色分类:红色;尺码:M': { skuId: '5123456789012', amount: '12', price: '8.50' },
           '颜色分类:蓝色;尺码:M': { skuId: '5123456789013', amount: '5', price: '9.90' },
         },
+        // 真实 1688 里每个 SKU 一条 price/priceText（这是「第一个规格的价格」的来源）
+        skuModelList: [
+          { skuId: '7001', skuName: '红色', price: '7', priceText: '¥7', amount: '20' },
+          { skuId: '7002', skuName: '蓝色', price: '11', priceText: '¥11', amount: '8' },
+          { skuId: '7003', skuName: '黑色', price: '12', priceText: '¥12', amount: '3' },
+        ],
+        // 曾经的坑：数量 + 总价被当成 min/max 价格（selectedStartQuantity=1, totalCost=5）
+        selectedStartQuantity: 1,
+        totalCost: 5,
         skuProps: [
           { name: '颜色', value: '红色' },
           { name: '尺码', value: 'M' },
@@ -85,12 +94,14 @@ vm.runInContext(CORE, sandbox)
   const checks = [
     ['标题不是公司名', !/有限公司/.test(payload.title)],
     ['标题正确', /中国结/.test(payload.title)],
-    ['价格取第一个规格价=8.5', payload.priceMin === 8.5],
-    ['价格上限=第一个规格价', payload.priceMax === 8.5],
+    ['价格取第一个规格价=7', payload.priceMin === 7],
+    ['价格上限=第一个规格价', payload.priceMax === 7],
     ['没取到噪声 price=1', payload.priceMin !== 1],
-    ['原区间价保留在 raw 里', payload.raw?.priceRangeOld?.lo === 1.2],
-    ['各规格价格已采集', Array.isArray(payload.skuPrices) && payload.skuPrices.length === 2],
-    ['第一个规格价格=8.5', payload.skuPrices?.[0]?.price === 8.5],
+    ['没把数量/总价当价格', payload.priceMin !== 1 && payload.priceMin !== 5],
+    ['价格来源是 sku:first', /^sku:first/.test(payload.raw?.priceWhy || '')],
+    ['各规格价格已采集', Array.isArray(payload.skuPrices) && payload.skuPrices.length === 3],
+    ['第一个规格价格=7', payload.skuPrices?.[0]?.price === 7],
+    ['第一个规格名=红色', payload.skuPrices?.[0]?.spec === '红色'],
     ['MOQ=2', payload.moq === 2],
     ['图片含主图', payload.images.some(i => /O1CN01MAIN/.test(i))],
     ['主图排在第一张', /O1CN01MAIN/.test(payload.images[0] || '')],
@@ -103,7 +114,7 @@ vm.runInContext(CORE, sandbox)
     ['SKU 有数据', !!payload.skuText],
     ['阶梯价归一化', Array.isArray(JSON.parse(payload.priceLadder || '[]')) && JSON.parse(payload.priceLadder).length === 2],
     ['阶梯价首个=2件1.2', JSON.parse(payload.priceLadder || '[]')[0]?.minQty === 2 && JSON.parse(payload.priceLadder)[0]?.price === 1.2],
-    ['批发价=采集价下限', payload.wholesalePrice === 8.5],
+    ['批发价=采集价下限', payload.wholesalePrice === 7],
     ['首个规格/颜色已提取', !!payload.firstSku],
     ['首个规格不是乱码', !/[:：]/.test(payload.firstSku || '')],
   ]
