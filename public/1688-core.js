@@ -294,7 +294,12 @@
       const dom = domFallback()
       if (dom.priceMin) best = { lo: dom.priceMin, hi: dom.priceMax ?? dom.priceMin, score: 0, why: 'dom' }
     }
-    return { lo: best.lo, hi: best.hi, why: best.why }
+    // 5) 价格候选清单（诊断用：告诉用户/开发者到底有哪些 key 和值）
+    const candidates = cands
+      .map(c => ({ key: c.key, value: String(c.value).slice(0, 60), score: keyScore(c.key, K.price) }))
+      .filter(c => c.score > 0)
+      .slice(0, 40)
+    return { lo: best.lo, hi: best.hi, why: best.why, candidates }
   }
 
   /* ------------------------------------------- 各规格价格（多 SKU 时） */
@@ -929,6 +934,7 @@
         capturedCount: payloads.length,
         replayed,
         priceWhy: pr.why,
+        priceCandidates: pr.candidates,
         priceRangeOld,
         skuPrices: skuPrices.slice(0, 30),
         tierSource,

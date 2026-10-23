@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.6.0
+// @version      2.7.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -105,6 +105,7 @@
         <button id="ff-save" class="ghost">保存设置</button>
         <div style="margin-top:8px">
           <button id="ff-preview">预览解析</button>
+        <button id="ff-diag" class="ghost">复制诊断</button>
           <button id="ff-push">采集并推送</button>
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
@@ -189,6 +190,41 @@
           kv.textContent = detail
           say('❌ 推送失败 ' + r.status + '（详情见下方）')
           console.log('[Fiestaflare] 推送失败详情：', r)
+        }
+      } catch (e) {
+        say('异常: ' + e.message)
+      }
+    }
+
+    $('#ff-diag', panel).onclick = async () => {
+      try {
+        ensureCore()
+        const payload = lastPayload || (await preview())
+        const captured = window.FF1688.capture ? window.FF1688.capture() : []
+        const diag = {
+          url: location.href,
+          priceMin: payload.priceMin,
+          priceMax: payload.priceMax,
+          wholesalePrice: payload.wholesalePrice,
+          priceWhy: payload.raw && payload.raw.priceWhy,
+          priceRangeOld: payload.raw && payload.raw.priceRangeOld,
+          priceCandidates: payload.raw && payload.raw.priceCandidates,
+          skuPrices: payload.skuPrices,
+          priceLadder: payload.priceLadder,
+          firstSku: payload.firstSku,
+          mainImage: payload.mainImage,
+          images: (payload.images || []).slice(0, 3),
+          capturedCount: captured.length,
+          captured,
+        }
+        const txt = JSON.stringify(diag, null, 2)
+        try {
+          await navigator.clipboard.writeText(txt)
+          say('✅ 诊断数据已复制，粘贴给开发者即可定位价格问题')
+        } catch (e) {
+          kv.style.display = 'block'
+          kv.textContent = txt.slice(0, 20000)
+          say('诊断数据如下（复制上面的文本）')
         }
       } catch (e) {
         say('异常: ' + e.message)
