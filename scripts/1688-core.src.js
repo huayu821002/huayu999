@@ -175,7 +175,8 @@
     price: {
       strong: ['priceRange', 'priceMin', 'minPrice', 'priceMax', 'maxPrice', 'priceDesc', 'priceText', 'priceInfo', 'priceRangeList', 'priceRanges', 'priceRangeInfo', 'minPriceDesc', 'maxPriceDesc', 'price', 'salePrice', 'showPrice', 'priceAmount', 'lowestPrice', 'highestPrice', 'priceDetail', 'priceStr'],
       weak: ['value', 'amount'],
-      neg: ['count', 'qty', 'num', 'quantity', 'discount', 'freight', 'shipping', 'postage', 'tax', 'weight', 'stock', 'inventory', 'index', 'step', 'id', 'rate', 'ratio', 'coupon', 'reduction'],
+      // 注意：必须把时间戳类 key 排除，否则 1792659779466 会被当成价格
+      neg: ['count', 'qty', 'num', 'quantity', 'discount', 'freight', 'shipping', 'postage', 'tax', 'weight', 'stock', 'inventory', 'index', 'step', 'id', 'rate', 'ratio', 'coupon', 'reduction', 'gmt', 'create', 'update', 'time', 'date', 'timestamp', 'seq', 'sort', 'version', 'hash', 'md5', 'score', 'rank', 'trace', 'spm', 'seq'],
     },
     moq: {
       strong: ['beginAmount', 'moq', 'minOrderQuantity', 'minOrderQty', 'beginCount', 'saleMinCount', 'minOrder', 'minPurchaseQuantity', 'begin'],
@@ -246,14 +247,16 @@
 
     let best = { lo: null, hi: null, score: -99, why: '' }
 
-    // 1) 区间字符串
+    // 1) 区间字符串（key 必须像价格，否则时间戳等噪声会被误选）
     for (const c of cands) {
       const m = String(c.value).match(/([\d.]+)\s*[-~～至]\s*([\d.]+)/)
       if (!m) continue
-      let s = keyScore(c.key, K.price)
-      if (/priceRange|priceDesc|priceText|priceInfo/i.test(c.key)) s += 3
+      const s = keyScore(c.key, K.price)
+      if (s <= 0) continue
       const lo = parseFloat(m[1]); const hi = parseFloat(m[2])
-      if (s > best.score) best = { lo: Math.min(lo, hi), hi: Math.max(lo, hi), score: s, why: 'range:' + c.key }
+      if (lo <= 0.01 || hi < lo || hi > 1000000) continue
+      const score = s + (/priceRange|priceDesc|priceText|priceInfo/i.test(c.key) ? 3 : 0)
+      if (score > best.score) best = { lo: Math.min(lo, hi), hi: Math.max(lo, hi), score, why: 'range:' + c.key }
     }
 
     // 2) min/max 配对
@@ -265,7 +268,7 @@
       const lo = num(bestLow.c.value); const hi = num(bestHigh.c.value)
       if (lo !== null && hi !== null) {
         const s = Math.min(bestLow.s, bestHigh.s) + 2
-        if (s > best.score && lo > 0.01 && hi >= lo) {
+        if (s > best.score && lo > 0.01 && hi >= lo && hi < 1000000) {
           best = { lo, hi, score: s, why: 'minmax:' + bestLow.c.key + '/' + bestHigh.c.key }
         }
       }
@@ -275,14 +278,15 @@
     if (best.lo === null) {
       for (const c of cands) {
         if (/[\d.]+\s*[-~～至]\s*[\d.]+/.test(String(c.value))) continue
-        const n = num(c.value)
-        if (n === null || n <= 0.01) continue
         const s = keyScore(c.key, K.price)
+        if (s <= 0) continue
+        const n = num(c.value)
+        if (n === null || n <= 0.01 || n > 1000000) continue
         if (s > best.score) best = { lo: n, hi: n, score: s, why: 'single:' + c.key }
       }
     }
 
-    // 4) 兜底：DOM
+    // 4) 接口里没有价格（1688 价格是前端渲染的）→ 走 DOM
     if (best.lo === null) {
       const dom = domFallback()
       if (dom.priceMin) best = { lo: dom.priceMin, hi: dom.priceMax ?? dom.priceMin, score: 0, why: 'dom' }
