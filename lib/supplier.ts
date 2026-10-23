@@ -17,6 +17,15 @@ CREATE TABLE IF NOT EXISTS "SupplierProduct" (
   "sourceUrl" TEXT,
   "title" TEXT NOT NULL,
   "titleCn" TEXT,
+  "titleEn" TEXT,
+  "seoTitle" TEXT,
+  "keywords" TEXT,
+  "shortDescEn" TEXT,
+  "descriptionEn" TEXT,
+  "firstSku" TEXT,
+  "sourceSkuId" TEXT,
+  "wholesalePrice" DOUBLE PRECISION,
+  "priceLadder" TEXT,
   "description" TEXT,
   "images" TEXT,
   "videoUrl" TEXT,
@@ -45,6 +54,19 @@ CREATE INDEX IF NOT EXISTS "SupplierProduct_source_sourceId_idx" ON "SupplierPro
 
 let tableReady = false
 
+/** 新增字段（老表自愈） */
+const ADD_COLUMNS = [
+  ['titleEn', 'TEXT'],
+  ['seoTitle', 'TEXT'],
+  ['keywords', 'TEXT'],
+  ['shortDescEn', 'TEXT'],
+  ['descriptionEn', 'TEXT'],
+  ['firstSku', 'TEXT'],
+  ['sourceSkuId', 'TEXT'],
+  ['wholesalePrice', 'DOUBLE PRECISION'],
+  ['priceLadder', 'TEXT'],
+]
+
 /**
  * 确保采集品表存在。
  * 首次访问时若表缺失（P2021），自动执行 CREATE TABLE IF NOT EXISTS。
@@ -54,6 +76,7 @@ export async function ensureSupplierProductTable(): Promise<void> {
   try {
     await prisma.supplierProduct.count()
     tableReady = true
+    await addMissingColumns()
     return
   } catch (err: any) {
     const code = err?.code || err?.meta?.code
@@ -69,6 +92,20 @@ export async function ensureSupplierProductTable(): Promise<void> {
     await prisma.$executeRawUnsafe(sql)
   }
   tableReady = true
+  await addMissingColumns()
+}
+
+/** 给已存在的表补齐新列（幂等） */
+async function addMissingColumns(): Promise<void> {
+  for (const [col, type] of ADD_COLUMNS) {
+    try {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "SupplierProduct" ADD COLUMN IF NOT EXISTS "${col}" ${type}`
+      )
+    } catch (e) {
+      // 列已存在或权限不足时忽略
+    }
+  }
 }
 
 export interface SupplierProductInput {
@@ -77,6 +114,15 @@ export interface SupplierProductInput {
   sourceUrl?: string
   title: string
   titleCn?: string
+  titleEn?: string
+  seoTitle?: string
+  keywords?: string
+  shortDescEn?: string
+  descriptionEn?: string
+  firstSku?: string
+  sourceSkuId?: string
+  wholesalePrice?: number | null
+  priceLadder?: string
   description?: string
   images?: string[]
   videoUrl?: string
@@ -116,6 +162,15 @@ export async function upsertSupplierProduct(input: SupplierProductInput) {
     sourceUrl: input.sourceUrl,
     title: input.title?.slice(0, 500),
     titleCn: input.titleCn,
+    titleEn: input.titleEn,
+    seoTitle: input.seoTitle,
+    keywords: input.keywords,
+    shortDescEn: input.shortDescEn,
+    descriptionEn: input.descriptionEn,
+    firstSku: input.firstSku,
+    sourceSkuId: input.sourceSkuId,
+    wholesalePrice: input.wholesalePrice,
+    priceLadder: input.priceLadder,
     description: input.description,
     images: input.images !== undefined ? toJson(input.images) : undefined,
     videoUrl: input.videoUrl,

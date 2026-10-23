@@ -346,6 +346,15 @@ model SupplierProduct {
   sourceUrl    String?
   title        String
   titleCn      String?
+  titleEn      String?   // 英文标题（自动翻译）
+  seoTitle     String?   // SEO 优化标题
+  keywords     String?   // SEO 关键词
+  shortDescEn  String?   // 英文短描述
+  descriptionEn String?  // 英文详细描述
+  firstSku     String?   // 第一个规格/颜色
+  sourceSkuId  String?   // 供应商货号（1688 skuId）
+  wholesalePrice Float?  // 批发价（CNY）
+  priceLadder  String?   // 阶梯价 JSON
   description  String?
   images       String?
   videoUrl     String?
