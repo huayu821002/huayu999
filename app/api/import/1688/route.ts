@@ -86,7 +86,13 @@ export async function POST(request: NextRequest) {
           priceLadder: item?.priceLadder,
           skuPrices: Array.isArray(item?.skuPrices) ? JSON.stringify(item.skuPrices) : item?.skuPrices,
           description: item?.description,
-          images: item?.images,
+          images: (() => {
+            const imgs = Array.isArray(item?.images) ? item.images.filter(Boolean) : []
+            const main = item?.mainImage
+            if (main && imgs.includes(main)) return [main, ...imgs.filter((u: string) => u !== main)]
+            if (main) return [main, ...imgs]
+            return imgs
+          })(),
           videoUrl: item?.videoUrl,
           priceMin: numberOrNull(item?.priceMin),
           priceMax: numberOrNull(item?.priceMax),

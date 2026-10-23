@@ -846,7 +846,7 @@ export default function SupplierProductsPage() {
 
             {selected.images?.length > 0 && (
               <div className="mt-4">
-                <span className="text-sm text-gray-600">图片（{selected.images.length}）</span>
+                <span className="text-sm text-gray-600">图片（{selected.images.length}，第 1 张为主图）</span>
                 <div className="flex gap-2 mt-2 flex-wrap">
                   {selected.images.slice(0, 8).map((img, i) => (
                     // eslint-disable-next-line @next/next/no-img-element
