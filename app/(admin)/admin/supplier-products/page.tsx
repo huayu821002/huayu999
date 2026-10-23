@@ -22,6 +22,7 @@ interface SupplierItem {
   sourceSkuId?: string | null
   wholesalePrice?: number | null
   priceLadder?: string | null
+  skuPrices?: string | null
   priceMin: number | null
   priceMax: number | null
   moq: number | null
@@ -684,6 +685,29 @@ export default function SupplierProductsPage() {
                   />
                 </label>
               </div>
+              {(() => {
+                try {
+                  const list = JSON.parse(selected.skuPrices || '[]')
+                  if (!Array.isArray(list) || !list.length) return null
+                  return (
+                    <div className="mt-3">
+                      <span className="text-sm text-gray-600">
+                        各规格价格（默认取第一个规格：{list[0]?.spec || '第一个'} = {list[0]?.price}）
+                      </span>
+                      <div className="mt-1 max-h-40 overflow-auto rounded-lg border border-gray-200 divide-y">
+                        {list.map((s: any, i: number) => (
+                          <div key={i} className="flex items-center justify-between px-3 py-1 text-sm">
+                            <span className="text-gray-700">{s.spec || '规格' + (i + 1)}</span>
+                            <span className="font-medium">¥{s.price}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )
+                } catch {
+                  return null
+                }
+              })()}
             </div>
 
             {/* 商品字段（与产品添加一致） */}

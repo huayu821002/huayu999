@@ -60,6 +60,7 @@ export async function PATCH(
       firstSku: body.firstSku,
       wholesalePrice: body.wholesalePrice,
       priceLadder: body.priceLadder,
+      skuPrices: body.skuPrices,
     }
 
     const data: any = {}

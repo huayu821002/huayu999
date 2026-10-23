@@ -84,6 +84,7 @@ export async function POST(request: NextRequest) {
           sourceSkuId: item?.sourceSkuId,
           wholesalePrice: numberOrNull(item?.wholesalePrice),
           priceLadder: item?.priceLadder,
+          skuPrices: Array.isArray(item?.skuPrices) ? JSON.stringify(item.skuPrices) : item?.skuPrices,
           description: item?.description,
           images: item?.images,
           videoUrl: item?.videoUrl,

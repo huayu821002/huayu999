@@ -26,6 +26,7 @@ CREATE TABLE IF NOT EXISTS "SupplierProduct" (
   "sourceSkuId" TEXT,
   "wholesalePrice" DOUBLE PRECISION,
   "priceLadder" TEXT,
+  "skuPrices" TEXT,
   "description" TEXT,
   "images" TEXT,
   "videoUrl" TEXT,
@@ -65,6 +66,7 @@ const ADD_COLUMNS = [
   ['sourceSkuId', 'TEXT'],
   ['wholesalePrice', 'DOUBLE PRECISION'],
   ['priceLadder', 'TEXT'],
+  ['skuPrices', 'TEXT'],
 ]
 
 /**
@@ -73,10 +75,12 @@ const ADD_COLUMNS = [
  */
 export async function ensureSupplierProductTable(): Promise<void> {
   if (tableReady) return
+  // 先补列（幂等 ALTER）：新增列还没建时，prisma 查询会直接报「列不存在」，
+  // 所以必须先 ALTER 再查，否则第一次访问就会 500。
+  await addMissingColumns()
   try {
     await prisma.supplierProduct.count()
     tableReady = true
-    await addMissingColumns()
     return
   } catch (err: any) {
     const code = err?.code || err?.meta?.code
@@ -129,6 +133,7 @@ export interface SupplierProductInput {
   sourceSkuId?: string
   wholesalePrice?: number | null
   priceLadder?: string
+  skuPrices?: string
   description?: string
   images?: string[]
   videoUrl?: string
@@ -177,6 +182,7 @@ export async function upsertSupplierProduct(input: SupplierProductInput) {
     sourceSkuId: input.sourceSkuId,
     wholesalePrice: input.wholesalePrice,
     priceLadder: input.priceLadder,
+    skuPrices: input.skuPrices,
     description: input.description,
     images: input.images !== undefined ? toJson(input.images) : undefined,
     videoUrl: input.videoUrl,
