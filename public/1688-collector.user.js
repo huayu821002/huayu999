@@ -1,9 +1,11 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.1.0
+// @version      2.2.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
-// @author       Fiestaflare
+// @author       JOHNFUNG
+// @updateURL    https://fiestaflare.com/1688-collector.user.js
+// @downloadURL  https://fiestaflare.com/1688-collector.user.js
 // @match        *://detail.1688.com/offer/*
 // @match        *://m.1688.com/offer/*
 // @match        *://*.1688.com/offer/*
@@ -1068,7 +1070,23 @@
       try {
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
-        console.log('[Fiestaflare] 采集器已启动，内核版本：', (window.FF1688 && window.FF1688.__v) || '未加载')
+        const v = (window.FF1688 && window.FF1688.__v) || ''
+        console.log('[Fiestaflare] 采集器已启动，内核版本：', v || '未加载')
+        // 内核版本自检：过旧则提示更新脚本（新版才有货号 / 首个规格 / 阶梯价）
+        const MIN_CORE = '3.1.0'
+        if (v && v !== MIN_CORE) {
+          const msg =
+            '内核版本过旧（当前 ' + v + '，需要 ' + MIN_CORE + '）。' +
+            '请在 Tampermonkey 里更新或重装本脚本，否则采集不到货号、首个规格与阶梯价。'
+          console.warn('[Fiestaflare]', msg)
+          try {
+            const d = document.createElement('div')
+            d.style.cssText =
+              'position:fixed;right:8px;bottom:8px;z-index:2147483647;max-width:320px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:10px;padding:10px 12px;font:12px/1.5 sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.18)'
+            d.innerHTML = '<b>需要更新采集器</b><br>' + msg.replace(/</g, '&lt;')
+            ;(document.documentElement || document.body).appendChild(d)
+          } catch (e) {}
+        }
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }

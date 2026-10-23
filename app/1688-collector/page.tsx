@@ -142,6 +142,12 @@ export default function CollectorInstallPage() {
               <b>手动安装（最稳）</b>：Tampermonkey → 新建脚本 → 全选删除默认内容 → 粘贴上面的脚本文本 → Ctrl+S 保存
             </li>
             <li>装好后，1688 页面右下角会出现「Fiestaflare 采集器」面板</li>
+            <li>
+              <b>当前脚本版本 2.2.0</b>（内核 3.1.0，带货号 / 首个规格 / 批发价 / 阶梯价）。
+              面板若弹出「需要更新采集器」的橙色提示，说明你装的是旧版，
+              点上面的「一键安装」重新装一次即可；脚本已配置 <code>@updateURL</code>，
+              以后 Tampermonkey 会自动检查更新。
+            </li>
           </ol>
         </div>
 
