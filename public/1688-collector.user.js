@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.3.0
+// @version      2.4.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -317,6 +317,110 @@
       if (dom.priceMin) best = { lo: dom.priceMin, hi: dom.priceMax ?? dom.priceMin, score: 0, why: 'dom' }
     }
     return { lo: best.lo, hi: best.hi, why: best.why }
+  }
+
+  /* ------------------------------------------- 各规格价格（多 SKU 时） */
+  /**
+   * 找出「规格 → 价格」的对应关系：
+   *   1) skuMap 的值对象里带 price
+   *   2) key 像 sku/priceList 的数组或对象映射
+   * 返回 [{ spec, price, skuId }]
+   */
+  function pickSkuPrices(payloads) {
+    const out = []
+    const seen = new Set()
+    const push = (spec, price, skuId) => {
+      if (price === null || price === undefined) return
+      if (!(price > 0.01) || price > 1000000) return
+      const key = String(spec || '') + '|' + price
+      if (seen.has(key)) return
+      seen.add(key)
+      out.push({ spec: String(spec || '').trim(), price, skuId: skuId || '' })
+    }
+
+    // 1) skuMap 值对象里的价格
+    const skuMap = pickSkuMap(payloads)
+    if (skuMap) {
+      for (const combo of Object.keys(skuMap)) {
+        const val = skuMap[combo]
+        if (!val || typeof val !== 'object' || Array.isArray(val)) continue
+        const p = num(
+          val.price ?? val.skuPrice ?? val.salePrice ?? val.tradePrice ?? val.priceValue ??
+          val.discountPrice ?? val.minPrice
+        )
+        if (p === null) continue
+        const spec = String(combo).split(/[;；]/)[0].replace(/^[^:：]*[:：]/, '') || String(combo)
+        push(spec, p, val.skuId || val.id || '')
+      }
+    }
+
+    // 2) key 像 sku/priceList 的数组：[{ spec/props..., price }]
+    const arrCands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length <= 200)
+    for (const c of arrCands) {
+      if (!/sku|price.*list|list.*price|skumodel|skuprice|skuprices/i.test(c.key)) continue
+      if (/tier|beginamount|quantity|阶梯/i.test(c.key)) continue // 阶梯价表不是规格价
+      for (const it of c.value) {
+        if (!it || typeof it !== 'object') continue
+        if (/beginamount|quantity|moq|amount|step/i.test(Object.keys(it).join(','))) continue // 起批量类
+        let price = null
+        for (const kk of Object.keys(it)) {
+          if (!/price/i.test(kk)) continue
+          if (/discount|origin|market|old|max|range|desc|text/i.test(kk)) continue
+          const n = num(it[kk])
+          if (n !== null) { price = n; break }
+        }
+        if (price === null) continue
+        let spec = ''
+        for (const kk of Object.keys(it)) {
+          if (/spec|prop|color|size|skuName|name|title/i.test(kk) && typeof it[kk] === 'string' && it[kk]) {
+            spec = it[kk]
+            break
+          }
+        }
+        if (!spec) {
+          for (const kk of Object.keys(it)) {
+            if (/skuId|specId|id$/i.test(kk)) continue
+            if (typeof it[kk] === 'string' && it[kk] && !/price|url|img|image/i.test(kk)) { spec = it[kk]; break }
+          }
+        }
+        // 至少要有规格或 skuId，否则只是杂项价格
+        const hasId = Object.keys(it).some(kk => /skuId|specId/i.test(kk))
+        if (!spec && !hasId) continue
+        push(spec, price, it.skuId || '')
+      }
+    }
+
+    // 3) key 像 sku 的对象映射：{ "红色;M": 12.5 } 或 { "红色;M": { price } }
+    const objCands = collect(payloads, (k, v) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false
+      const n = Object.keys(v).length
+      return n >= 1 && n <= 120
+    })
+    for (const c of objCands) {
+      if (!/sku|price.*map|map.*price/i.test(c.key)) continue
+      for (const kk of Object.keys(c.value)) {
+        const val = c.value[kk]
+        let price = null
+        if (typeof val === 'number' || typeof val === 'string') price = num(val)
+        else if (val && typeof val === 'object') {
+          for (const p of Object.keys(val)) {
+            if (!/price/i.test(p)) continue
+            const n = num(val[p])
+            if (n !== null) { price = n; break }
+          }
+        }
+        if (price === null) continue
+        const spec = String(kk).split(/[;；]/)[0].replace(/^[^:：]*[:：]/, '') || String(kk)
+        push(spec, price, '')
+      }
+    }
+
+    // 4) DOM 兜底：规格行里的价格
+    if (!out.length) {
+      const dom = domFallback()
+      for (const s of dom.skuPrices || []) push(s.spec, s.price, s.skuId || '')
+    }
+    return out
   }
 
   /* ---------------------------------------------------------------- MOQ */
@@ -652,6 +756,57 @@
       .slice(0, 40)
     const d = document.querySelector('.desc-lazyload-container, .detail-content, #content, [class*="detail-desc"]')
     if (d) out.description = (d.innerHTML || '').slice(0, 30000)
+    out.skuPrices = domSkuPrices()
+    return out
+  }
+
+  /** 从 DOM 里找「规格 → 价格」（优先规格价格表，而不是起批量阶梯价表） */
+  function domSkuPrices() {
+    const out = []
+    const add = (spec, price) => {
+      if (price === null || price === undefined) return
+      if (!(price > 0.01) || price > 1000000) return
+      out.push({ spec: String(spec || '').trim().slice(0, 60), price, skuId: '' })
+    }
+    try {
+      // 1) 表格：表头含规格/颜色/尺码 → 规格价格表；含起批量 → 阶梯价表（往后排）
+      const tierRows = []
+      const skuRows = []
+      for (const table of Array.from(document.querySelectorAll('table'))) {
+        const rows = Array.from(table.querySelectorAll('tr'))
+        if (!rows.length) continue
+        const head = clean(rows[0].innerText || '')
+        const isTier = /起订|起批|数量|件数/.test(head)
+        const isSku = /规格|颜色|尺码|款式|型号|属性/.test(head)
+        if (!isTier && !isSku) continue
+        for (let i = 1; i < rows.length; i++) {
+          const cells = Array.from(rows[i].querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || ''))
+          if (cells.length < 2) continue
+          const priceTxt = cells.slice(1).join(' ').match(/(\d+(?:\.\d+)?)/)
+          const price = priceTxt ? parseFloat(priceTxt[1]) : null
+          if (price === null) continue
+          const item = { spec: cells[0], price }
+          ;(isTier ? tierRows : skuRows).push(item)
+        }
+      }
+      for (const it of skuRows.slice(0, 30)) add(it.spec, it.price)
+      if (!out.length) for (const it of tierRows.slice(0, 30)) add(it.spec, it.price)
+    } catch (e) {}
+    try {
+      // 2) 非表格：带 sku-price / price-item 的元素
+      if (!out.length) {
+        const els = Array.from(document.querySelectorAll('[class*="sku-price"], [class*="price-item"], [class*="skuPrice"], [class*="priceInfo"]'))
+        for (const el of els.slice(0, 30)) {
+          const txt = clean(el.innerText || el.textContent || '')
+          const m = txt.match(/(\d+(?:\.\d+)?)/)
+          if (!m) continue
+          const spec = clean((el.closest('[class*="sku-item"], [class*="sku-row"], li, tr') || el).innerText || '')
+            .replace(txt, '')
+            .slice(0, 60)
+          add(spec, parseFloat(m[1]))
+        }
+      }
+    } catch (e) {}
     return out
   }
 
@@ -670,6 +825,15 @@
 
     const title = pickTitle(payloads) || dom.title
     const pr = pickPrices(payloads)
+
+    // 多 SKU 时，价格取「第一个规格的价格」（1688 各规格价格不同，区间价容易错）
+    const skuPrices = pickSkuPrices(payloads)
+    const priceRangeOld = { lo: pr.lo, hi: pr.hi, why: pr.why }
+    if (skuPrices.length >= 2) {
+      pr.lo = skuPrices[0].price
+      pr.hi = skuPrices[0].price
+      pr.why = 'sku:first(' + (skuPrices[0].spec || '第一个规格') + ') ← 原:' + (priceRangeOld.why || '-')
+    }
     const images = pickImages(payloads)
     const moq = pickMoq(payloads)
     const supplier = pickSupplier(payloads)
@@ -715,6 +879,7 @@
       firstSku: skuInfo.firstSku || firstSpecFallback || undefined,
       wholesalePrice,
       priceLadder: tiers.length ? JSON.stringify(tiers) : undefined,
+      skuPrices: skuPrices.length ? skuPrices : undefined,
       skuSpecNames: skuInfo.specNames.length ? skuInfo.specNames : undefined,
       raw: {
         offerId,
@@ -723,6 +888,8 @@
         capturedCount: payloads.length,
         replayed,
         priceWhy: pr.why,
+        priceRangeOld,
+        skuPrices: skuPrices.slice(0, 30),
         tierSource,
         skuCount: skuInfo.skuIds.length,
         capturedUrls: payloads.slice(0, 25).map(p => p.url),

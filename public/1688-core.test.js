@@ -36,7 +36,10 @@ const payloads = [
           { beginAmount: 100, price: '0.95' },
         ],
         skuMap: { 颜色: ['红色', '蓝色'], 规格: ['单个', '10个装'] },
-        skuMapReal: { '颜色分类:红色;尺码:M': { skuId: '5123456789012', amount: '12' } },
+        skuMapReal: {
+          '颜色分类:红色;尺码:M': { skuId: '5123456789012', amount: '12', price: '8.50' },
+          '颜色分类:蓝色;尺码:M': { skuId: '5123456789013', amount: '5', price: '9.90' },
+        },
         skuProps: [
           { name: '颜色', value: '红色' },
           { name: '尺码', value: 'M' },
@@ -82,9 +85,12 @@ vm.runInContext(CORE, sandbox)
   const checks = [
     ['标题不是公司名', !/有限公司/.test(payload.title)],
     ['标题正确', /中国结/.test(payload.title)],
-    ['价格下限=1.2', payload.priceMin === 1.2],
-    ['价格上限=3.5', payload.priceMax === 3.5],
+    ['价格取第一个规格价=8.5', payload.priceMin === 8.5],
+    ['价格上限=第一个规格价', payload.priceMax === 8.5],
     ['没取到噪声 price=1', payload.priceMin !== 1],
+    ['原区间价保留在 raw 里', payload.raw?.priceRangeOld?.lo === 1.2],
+    ['各规格价格已采集', Array.isArray(payload.skuPrices) && payload.skuPrices.length === 2],
+    ['第一个规格价格=8.5', payload.skuPrices?.[0]?.price === 8.5],
     ['MOQ=2', payload.moq === 2],
     ['图片含主图', payload.images.some(i => /O1CN01MAIN/.test(i))],
     ['图片不含 logo svg', !payload.images.some(i => /\.svg/i.test(i))],
@@ -94,7 +100,7 @@ vm.runInContext(CORE, sandbox)
     ['SKU 有数据', !!payload.skuText],
     ['阶梯价归一化', Array.isArray(JSON.parse(payload.priceLadder || '[]')) && JSON.parse(payload.priceLadder).length === 2],
     ['阶梯价首个=2件1.2', JSON.parse(payload.priceLadder || '[]')[0]?.minQty === 2 && JSON.parse(payload.priceLadder)[0]?.price === 1.2],
-    ['批发价=采集价下限', payload.wholesalePrice === 1.2],
+    ['批发价=采集价下限', payload.wholesalePrice === 8.5],
     ['首个规格/颜色已提取', !!payload.firstSku],
     ['首个规格不是乱码', !/[:：]/.test(payload.firstSku || '')],
   ]
@@ -134,6 +140,7 @@ vm.runInContext(CORE, sandbox)
     images: payload.images,
     priceTiers: payload.priceTiers,
     priceLadder: payload.priceLadder,
+    skuPrices: payload.skuPrices,
     wholesalePrice: payload.wholesalePrice,
     firstSku: payload.firstSku,
     sourceSkuId: payload.sourceSkuId,

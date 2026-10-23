@@ -355,6 +355,7 @@ model SupplierProduct {
   sourceSkuId  String?   // 供应商货号（1688 skuId）
   wholesalePrice Float?  // 批发价（CNY）
   priceLadder  String?   // 阶梯价 JSON
+  skuPrices    String?   // 各规格价格 JSON（多SKU时取第一个作为采集价）
   description  String?
   images       String?
   videoUrl     String?
