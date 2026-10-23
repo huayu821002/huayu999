@@ -1087,47 +1087,84 @@
       attempts.push({ url, status: r.status, text: (r.text || '').slice(0, 300) })
       // 成功就返回；401/403 也返回（说明已到达服务端，只是鉴权不过）
       if (r.status === 200 || r.status === 400 || r.status === 401 || r.status === 403) {
+        // 旧版脚本会打到 /api/admin/import/1688，被中间件拦成 403 Forbidden
+        if (r.status === 403 && /Forbidden/i.test(r.text || '')) {
+          r.text =
+            'Forbidden（403）：这通常说明你装的是旧版脚本（旧版会把请求打到 /api/admin/import/1688，被中间件拦下）。' +
+            '请更新到最新版脚本：https://fiestaflare.com/1688-collector'
+        }
         return { ...r, attempts, url }
       }
     }
     const last = attempts[attempts.length - 1]
     const all = attempts.map(a => a.url + ' → ' + a.status).join('；')
+    const allZero = attempts.every(a => !a.status)
     return {
       status: last ? last.status : 0,
       json: null,
-      text: (last ? last.text : '无响应') + '\n尝试记录：' + all,
+      text:
+        (last ? last.text : '无响应') +
+        '\n尝试记录：' + all +
+        (allZero
+          ? '\n两次请求都没到服务器：可能是站点正在部署（稍等 1-2 分钟重试）、网络不通，或浏览器/扩展把请求拦了。'
+          : ''),
       attempts,
       url: base,
     }
   }
 
   /** 优先用 GM_xmlhttpRequest（不受页面 CSP 限制），否则 fetch */
-  function requestOnce(url, headers, body) {
-    if (typeof GM_xmlhttpRequest === 'function') {
-      return new Promise(resolve => {
-        try {
-          GM_xmlhttpRequest({
-            method: 'POST',
-            url,
-            headers,
-            data: body,
-            timeout: 30000,
-            onload: r => resolve({ status: r.status, json: safeJson(r.responseText), text: r.responseText }),
-            onerror: e => resolve({ status: 0, json: null, text: 'GM 请求失败: ' + ((e && e.error) || '网络错误') }),
-            ontimeout: () => resolve({ status: 0, json: null, text: 'GM 请求超时' }),
-          })
-        } catch (e) {
-          resolve({ status: 0, json: null, text: 'GM 异常: ' + (e && e.message) })
-        }
-      })
-    }
-    return fetch(url, { method: 'POST', headers, body })
-      .then(async res => ({ status: res.status, json: safeJson(await res.text()), text: await res.text() }))
-      .catch(e => ({
+  const sleep = ms => new Promise(r => setTimeout(r, ms))
+
+  /** 普通 fetch 兜底（服务端已放开 CORS；被页面 CSP 拦截时会失败） */
+  async function fetchPost(url, headers, body) {
+    try {
+      const res = await fetch(url, { method: 'POST', headers, body, mode: 'cors' })
+      const text = await res.text()
+      return { status: res.status, json: safeJson(text), text }
+    } catch (e) {
+      return {
         status: 0,
         json: null,
-        text: '请求被页面安全策略拦截（fetch: ' + (e && e.message) + '）。请改用油猴脚本，扩展请求不受此限制。',
-      }))
+        text: '请求未到达服务器（fetch: ' + ((e && e.message) || '网络错误') + '）',
+      }
+    }
+  }
+
+  async function requestOnce(url, headers, body) {
+    if (typeof GM_xmlhttpRequest === 'function') {
+      const gmOnce = () =>
+        new Promise(resolve => {
+          try {
+            GM_xmlhttpRequest({
+              method: 'POST',
+              url,
+              headers,
+              data: body,
+              timeout: 60000,
+              onload: r => resolve({ status: r.status, json: safeJson(r.responseText), text: r.responseText }),
+              onerror: e => resolve({ status: 0, json: null, text: 'GM 请求失败: ' + ((e && e.error) || '网络错误') }),
+              ontimeout: () => resolve({ status: 0, json: null, text: 'GM 请求超时' }),
+            })
+          } catch (e) {
+            resolve({ status: 0, json: null, text: 'GM 异常: ' + (e && e.message) })
+          }
+        })
+      let r = await gmOnce()
+      // 第一次失败（超时/网络）→ 等 1.5s 重试一次
+      if (r.status === 0) {
+        await sleep(1500)
+        r = await gmOnce()
+      }
+      // 还是失败 → 用普通 fetch 兜底（服务端 CORS 允许）
+      if (r.status === 0) {
+        const f = await fetchPost(url, headers, body)
+        if (f.status) return f
+        r.text = (r.text || '') + ' | fetch 兜底也失败: ' + (f.text || '')
+      }
+      return r
+    }
+    return fetchPost(url, headers, body)
   }
 
   function safeJson(t) {
@@ -1172,7 +1209,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.7.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.8.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
