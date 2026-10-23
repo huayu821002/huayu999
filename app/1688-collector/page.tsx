@@ -11,7 +11,18 @@ export default function CollectorInstallPage() {
 
   useEffect(() => {
     // 复制脚本全文，方便手动粘贴安装
-    fetch('/1688-collector.user.js')
+    loadScript()
+
+    // 检测 Tampermonkey / 其他脚本管理器
+    const hasGM =
+      typeof window !== 'undefined' &&
+      (!!(window as any).GM_info || !!(window as any).GM || !!(window as any).GM_getValue)
+    setTmInstalled(!!hasGM)
+  }, [])
+
+  /** 拉取最新脚本内容（强制绕过浏览器/CDN 缓存，避免页面显示旧版本） */
+  const loadScript = () => {
+    fetch('/1688-collector.user.js?t=' + Date.now(), { cache: 'no-store' })
       .then(r => r.text())
       .then(t => {
         setScriptText(t)
@@ -21,13 +32,7 @@ export default function CollectorInstallPage() {
         setCoreVersion(c)
       })
       .catch(() => {})
-
-    // 检测 Tampermonkey / 其他脚本管理器
-    const hasGM =
-      typeof window !== 'undefined' &&
-      (!!(window as any).GM_info || !!(window as any).GM || !!(window as any).GM_getValue)
-    setTmInstalled(!!hasGM)
-  }, [])
+  }
 
   const copy = async (text: string, which: string) => {
     try {
@@ -190,6 +195,26 @@ export default function CollectorInstallPage() {
         {/* 脚本文本 */}
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h2 className="font-semibold text-gray-900 mb-2">脚本全文（手动安装时复制这里）</h2>
+          <div className="flex items-center gap-2 mb-2 flex-wrap">
+            <button
+              onClick={loadScript}
+              className="px-3 py-1.5 bg-joy-orange text-white rounded-lg text-sm"
+            >
+              重新拉取最新脚本内容
+            </button>
+            <span className="text-xs text-gray-500">
+              当前内容版本：<b>v{scriptVersion || '?'}</b>（内核 v{coreVersion || '?'}）
+              {scriptVersion && scriptVersion.startsWith('2.1') ? (
+                <b className="text-red-600"> ← 还是旧版！点上面按钮重新拉取</b>
+              ) : null}
+            </span>
+          </div>
+          <p className="text-xs text-gray-500 mb-2">
+            也可以直接打开这个链接手动复制（地址栏里能看到 @version）：
+            <code className="bg-gray-100 px-1 rounded break-all">
+              https://fiestaflare.com/1688-collector.user.js
+            </code>
+          </p>
           <textarea
             readOnly
             value={scriptText}
