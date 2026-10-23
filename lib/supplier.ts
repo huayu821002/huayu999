@@ -97,14 +97,20 @@ export async function ensureSupplierProductTable(): Promise<void> {
 
 /** 给已存在的表补齐新列（幂等） */
 async function addMissingColumns(): Promise<void> {
+  const failed: string[] = []
   for (const [col, type] of ADD_COLUMNS) {
     try {
       await prisma.$executeRawUnsafe(
         `ALTER TABLE "SupplierProduct" ADD COLUMN IF NOT EXISTS "${col}" ${type}`
       )
-    } catch (e) {
-      // 列已存在或权限不足时忽略
+    } catch (e: any) {
+      // 列已存在或权限不足时忽略，但记下来便于排查
+      failed.push(`${col}(${e?.message || e})`)
+      console.warn(`[supplier] ADD COLUMN "${col}" 失败:`, e?.message || e)
     }
+  }
+  if (failed.length) {
+    console.error('[supplier] 以下新列未能创建，采集品列表可能报错:', failed.join('; '))
   }
 }
 
