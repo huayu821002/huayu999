@@ -102,7 +102,7 @@ export async function translateToEnglish(text: string): Promise<string> {
 
   const parts = src
     .split(/(?<=[。！？；!?;\n])/)
-    .flatMap(p => (p.length > 450 ? p.match(/.{1,450}/gs) || [p] : [p]))
+    .flatMap(p => (p.length > 450 ? p.match(/[\s\S]{1,450}/g) || [p] : [p]))
     .map(p => p.trim())
     .filter(Boolean)
 

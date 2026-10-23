@@ -49,6 +49,17 @@ export async function PATCH(
       status: body.status,
       note: body.note,
       images: body.images ? JSON.stringify(body.images) : undefined,
+      // 英文 / SEO
+      titleEn: body.titleEn,
+      seoTitle: body.seoTitle,
+      keywords: body.keywords,
+      shortDescEn: body.shortDescEn,
+      descriptionEn: body.descriptionEn,
+      // 货号 / 首个规格 / 批发价 / 阶梯价
+      sourceSkuId: body.sourceSkuId,
+      firstSku: body.firstSku,
+      wholesalePrice: body.wholesalePrice,
+      priceLadder: body.priceLadder,
     }
 
     const data: any = {}
@@ -56,7 +67,7 @@ export async function PATCH(
       if (v !== undefined) data[k] = v
     }
     // 数字字段转成 number，避免字符串写库失败
-    for (const k of ['priceMin', 'priceMax', 'moq']) {
+    for (const k of ['priceMin', 'priceMax', 'moq', 'wholesalePrice']) {
       if (data[k] === undefined) continue
       const n = Number(data[k])
       data[k] = Number.isFinite(n) ? n : null

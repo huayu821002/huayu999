@@ -12,6 +12,16 @@ interface SupplierItem {
   sourceId: string
   sourceUrl: string | null
   title: string
+  titleCn?: string | null
+  titleEn?: string | null
+  seoTitle?: string | null
+  keywords?: string | null
+  shortDescEn?: string | null
+  descriptionEn?: string | null
+  firstSku?: string | null
+  sourceSkuId?: string | null
+  wholesalePrice?: number | null
+  priceLadder?: string | null
   priceMin: number | null
   priceMax: number | null
   moq: number | null
@@ -24,6 +34,7 @@ interface SupplierItem {
   status: string
   productId: string | null
   note: string | null
+  raw?: string | null
   createdAt: string
 }
 
@@ -44,6 +55,32 @@ export default function SupplierProductsPage() {
   const [selected, setSelected] = useState<SupplierItem | null>(null)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
+  const [catChecked, setCatChecked] = useState<Record<string, boolean>>({})
+
+  const loadCategories = useCallback(async () => {
+    try {
+      const res = await adminFetch('/api/admin/categories')
+      const data = await res.json()
+      if (data.success && Array.isArray(data.data)) {
+        setCategories(data.data.map((c: any) => ({ id: c.id, name: c.name })))
+      }
+    } catch {
+      /* 分类拉取失败不影响主流程 */
+    }
+  }, [])
+
+  useEffect(() => {
+    loadCategories()
+  }, [loadCategories])
+
+  /** 弹窗里取值 / 写值 */
+  const getVal = (id: string) =>
+    ((document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null)?.value || '').trim()
+  const setVal = (id: string, v: string | null | undefined) => {
+    const el = document.getElementById(id) as HTMLInputElement | HTMLTextAreaElement | null
+    if (el) el.value = v == null ? '' : String(v)
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -98,7 +135,59 @@ export default function SupplierProductsPage() {
     note: (document.getElementById('edit-note') as HTMLTextAreaElement)?.value || '',
     sale: (document.getElementById('edit-sale') as HTMLInputElement)?.value || '',
     cost: (document.getElementById('edit-cost') as HTMLInputElement)?.value || '',
+    // 英文 / SEO
+    titleEn: getVal('edit-title-en'),
+    seoTitle: getVal('edit-seo-title'),
+    keywords: getVal('edit-keywords'),
+    shortDescEn: getVal('edit-short-desc-en'),
+    descriptionEn: getVal('edit-desc-en'),
+    // 采集字段（货号 / 规格 / 批发价 / 阶梯价）
+    sourceSkuId: getVal('edit-sku-id'),
+    firstSku: getVal('edit-first-sku'),
+    wholesalePrice: getVal('edit-wholesale-price'),
+    priceLadder: getVal('edit-price-ladder'),
+    // 商品字段（与产品添加一致）
+    productName: getVal('edit-p-name'),
+    productSku: getVal('edit-p-sku'),
+    comparePrice: getVal('edit-p-compare'),
+    inventory: getVal('edit-p-inventory'),
+    lowStockAlert: getVal('edit-p-lowstock'),
+    weight: getVal('edit-p-weight'),
+    shortDesc: getVal('edit-p-shortdesc'),
+    description: getVal('edit-p-description'),
+    tags: getVal('edit-p-tags'),
+    compliance: getVal('edit-p-compliance'),
   })
+
+  /** 一键翻译：中文 → 英文 + SEO 标题，并回填弹窗 */
+  const translate = async (item: SupplierItem) => {
+    setSaving(true)
+    try {
+      const res = await adminFetch(`/api/admin/supplier-products/${item.id}/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const d = await res.json()
+      if (d.success) {
+        setVal('edit-title-en', d.data.titleEn)
+        setVal('edit-seo-title', d.data.seoTitle)
+        setVal('edit-keywords', d.data.keywords)
+        setVal('edit-short-desc-en', d.data.shortDescEn)
+        setVal('edit-desc-en', d.data.descriptionEn)
+        if (d.data.titleEn) setVal('edit-p-name', d.data.titleEn)
+        if (d.data.shortDescEn) setVal('edit-p-shortdesc', d.data.shortDescEn)
+        if (d.data.descriptionEn) setVal('edit-p-description', d.data.descriptionEn)
+        setMsg('翻译完成，已填入英文与 SEO 字段')
+      } else {
+        setMsg(d.error || '翻译失败')
+      }
+    } catch (e: any) {
+      setMsg(e?.message || '翻译失败')
+    } finally {
+      setSaving(false)
+    }
+  }
 
   /** 采集价(CNY) + 倍率 → 售价/成本价(USD) */
   const recalc = () => {
@@ -126,18 +215,55 @@ export default function SupplierProductsPage() {
             priceMin: form.priceMin || undefined,
             moq: form.moq || undefined,
             note: form.note || undefined,
+            // 英文 / SEO / 货号 / 规格 / 批发价 / 阶梯价（新增，原有字段不动）
+            titleEn: form.titleEn || undefined,
+            seoTitle: form.seoTitle || undefined,
+            keywords: form.keywords || undefined,
+            shortDescEn: form.shortDescEn || undefined,
+            descriptionEn: form.descriptionEn || undefined,
+            sourceSkuId: form.sourceSkuId || undefined,
+            firstSku: form.firstSku || undefined,
+            wholesalePrice: form.wholesalePrice || undefined,
+            priceLadder: form.priceLadder || undefined,
           }),
         })
+      }
+      // 阶梯价：弹窗里是 JSON 文本，发布时转成 { tiers: [...] }
+      let tieredPricing: any = undefined
+      const ladderRaw = form.priceLadder
+      if (ladderRaw) {
+        try {
+          const parsed = JSON.parse(ladderRaw)
+          tieredPricing = Array.isArray(parsed) ? { tiers: parsed } : parsed
+        } catch {
+          tieredPricing = undefined
+        }
       }
       const res = await adminFetch(`/api/admin/supplier-products/${item.id}/publish`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           isActive,
-          name: form.title || undefined,
+          name: form.productName || form.titleEn || form.title || undefined,
+          sku: form.productSku || form.sourceSkuId || undefined,
           price: form.sale || undefined,
           costPrice: form.cost || undefined,
+          comparePrice: form.comparePrice || undefined,
+          wholesalePrice: form.wholesalePrice || undefined,
           minOrderQty: form.moq || undefined,
+          inventory: form.inventory || undefined,
+          lowStockAlert: form.lowStockAlert || undefined,
+          weight: form.weight || undefined,
+          shortDesc: form.shortDesc || undefined,
+          description: form.description || undefined,
+          tags: form.tags || undefined,
+          compliance: form.compliance || undefined,
+          tieredPricing,
+          categoryIds: Object.keys(catChecked).filter(k => catChecked[k]),
+          isFeatured: (document.getElementById('edit-p-featured') as HTMLInputElement)?.checked,
+          isTrending: (document.getElementById('edit-p-trending') as HTMLInputElement)?.checked,
+          isNew: (document.getElementById('edit-p-new') as HTMLInputElement)?.checked,
+          isWholesale: (document.getElementById('edit-p-wholesale') as HTMLInputElement)?.checked,
         }),
       })
       const data = await res.json()
@@ -445,6 +571,226 @@ export default function SupplierProductsPage() {
               />
             </label>
 
+            {/* 英文与 SEO */}
+            <div className="mt-5 border-t border-gray-200 pt-4">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-sm font-semibold text-gray-900">英文与 SEO（自动翻译）</h3>
+                <button
+                  disabled={saving}
+                  onClick={() => translate(selected)}
+                  className="px-3 py-1.5 bg-joy-orange text-white rounded-lg text-xs disabled:opacity-50"
+                >
+                  一键翻译并填充
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm text-gray-600">英文标题</span>
+                  <input
+                    defaultValue={selected.titleEn || ''}
+                    id="edit-title-en"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-gray-600">SEO 标题</span>
+                  <input
+                    defaultValue={selected.seoTitle || ''}
+                    id="edit-seo-title"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block md:col-span-2">
+                  <span className="text-sm text-gray-600">SEO 关键词（逗号分隔）</span>
+                  <input
+                    defaultValue={selected.keywords || ''}
+                    id="edit-keywords"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block md:col-span-2">
+                  <span className="text-sm text-gray-600">英文短描述</span>
+                  <textarea
+                    defaultValue={selected.shortDescEn || ''}
+                    id="edit-short-desc-en"
+                    rows={2}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block md:col-span-2">
+                  <span className="text-sm text-gray-600">英文详情描述</span>
+                  <textarea
+                    defaultValue={selected.descriptionEn || ''}
+                    id="edit-desc-en"
+                    rows={3}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* 采集字段 */}
+            <div className="mt-5 border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">采集字段（货号 / 规格 / 价格）</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm text-gray-600">货号（供应商 SKU）</span>
+                  <input
+                    defaultValue={selected.sourceSkuId || ''}
+                    id="edit-sku-id"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-gray-600">首个规格 / 颜色</span>
+                  <input
+                    defaultValue={selected.firstSku || ''}
+                    id="edit-first-sku"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-gray-600">批发价（CNY，采集价）</span>
+                  <input
+                    defaultValue={selected.wholesalePrice ?? selected.priceMin ?? ''}
+                    id="edit-wholesale-price"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-gray-600">阶梯价（JSON）</span>
+                  <input
+                    defaultValue={selected.priceLadder || ''}
+                    id="edit-price-ladder"
+                    placeholder='[{"minQty":2,"price":1.2}]'
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+              </div>
+            </div>
+
+            {/* 商品字段（与产品添加一致） */}
+            <div className="mt-5 border-t border-gray-200 pt-4">
+              <h3 className="text-sm font-semibold text-gray-900 mb-2">商品字段（与产品添加一致）</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <label className="block">
+                  <span className="text-sm text-gray-600">商品名称（英文）</span>
+                  <input
+                    defaultValue={selected.titleEn || selected.title}
+                    id="edit-p-name"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-gray-600">SKU</span>
+                  <input
+                    defaultValue={selected.sourceSkuId || `1688-${selected.sourceId}`}
+                    id="edit-p-sku"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-gray-600">对比价（USD）</span>
+                  <input
+                    id="edit-p-compare"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-gray-600">库存</span>
+                  <input
+                    defaultValue="0"
+                    id="edit-p-inventory"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-gray-600">低库存预警</span>
+                  <input
+                    defaultValue="10"
+                    id="edit-p-lowstock"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-sm text-gray-600">重量（kg）</span>
+                  <input
+                    id="edit-p-weight"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block md:col-span-2">
+                  <span className="text-sm text-gray-600">短描述</span>
+                  <textarea
+                    defaultValue={selected.shortDescEn || ''}
+                    id="edit-p-shortdesc"
+                    rows={2}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block md:col-span-2">
+                  <span className="text-sm text-gray-600">商品详情</span>
+                  <textarea
+                    defaultValue={selected.descriptionEn || selected.description || ''}
+                    id="edit-p-description"
+                    rows={4}
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block md:col-span-2">
+                  <span className="text-sm text-gray-600">标签（逗号分隔）</span>
+                  <input
+                    defaultValue={['1688', '采集品', selected.sourceId].join(',')}
+                    id="edit-p-tags"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+                <label className="block md:col-span-2">
+                  <span className="text-sm text-gray-600">合规信息（GPSR 等）</span>
+                  <input
+                    defaultValue="待补录：欧盟责任方/制造商信息（GPSR）"
+                    id="edit-p-compliance"
+                    className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                  />
+                </label>
+              </div>
+
+              {categories.length > 0 && (
+                <details className="mt-3">
+                  <summary className="text-sm text-gray-600 cursor-pointer select-none">
+                    分类（可多选，共 {categories.length} 个）
+                  </summary>
+                  <div className="mt-2 max-h-48 overflow-y-auto border border-gray-300 rounded-lg p-3 space-y-1">
+                    {categories.map(c => (
+                      <label key={c.id} className="flex items-center gap-2 text-sm text-gray-700">
+                        <input
+                          type="checkbox"
+                          checked={!!catChecked[c.id]}
+                          onChange={e => setCatChecked({ ...catChecked, [c.id]: e.target.checked })}
+                        />
+                        {c.name}
+                      </label>
+                    ))}
+                  </div>
+                </details>
+              )}
+
+              <div className="mt-3 flex flex-wrap gap-4 text-sm text-gray-700">
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" id="edit-p-featured" /> 精选
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" id="edit-p-trending" /> 热门
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" id="edit-p-new" defaultChecked /> 新品
+                </label>
+                <label className="flex items-center gap-2">
+                  <input type="checkbox" id="edit-p-wholesale" /> 批发
+                </label>
+              </div>
+            </div>
+
             <details className="mt-4">
               <summary className="text-sm text-gray-600 cursor-pointer select-none">
                 原始数据 raw（用于排查采集字段，展开后可复制发给我）
@@ -477,15 +823,26 @@ export default function SupplierProductsPage() {
             <div className="flex gap-2 mt-6 flex-wrap">
               <button
                 disabled={saving}
-                onClick={() =>
+                onClick={() => {
+                  const f = readForm()
                   patchItem(selected.id, {
-                    title: (document.getElementById('edit-title') as HTMLInputElement)?.value,
-                    supplierName: (document.getElementById('edit-supplier') as HTMLInputElement)?.value,
-                    priceMin: (document.getElementById('edit-price') as HTMLInputElement)?.value,
-                    moq: (document.getElementById('edit-moq') as HTMLInputElement)?.value,
-                    note: (document.getElementById('edit-note') as HTMLTextAreaElement)?.value,
+                    title: f.title || undefined,
+                    supplierName: f.supplierName || undefined,
+                    priceMin: f.priceMin || undefined,
+                    moq: f.moq || undefined,
+                    note: f.note || undefined,
+                    // 新增字段（原有字段行为不变）
+                    titleEn: f.titleEn || undefined,
+                    seoTitle: f.seoTitle || undefined,
+                    keywords: f.keywords || undefined,
+                    shortDescEn: f.shortDescEn || undefined,
+                    descriptionEn: f.descriptionEn || undefined,
+                    sourceSkuId: f.sourceSkuId || undefined,
+                    firstSku: f.firstSku || undefined,
+                    wholesalePrice: f.wholesalePrice || undefined,
+                    priceLadder: f.priceLadder || undefined,
                   })
-                }
+                }}
                 className="px-4 py-2 bg-gray-800 text-white rounded-lg text-sm disabled:opacity-50"
               >
                 保存修改
