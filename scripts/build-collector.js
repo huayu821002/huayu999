@@ -29,7 +29,15 @@ const coreTagged = core.includes('__FF1688_CORE__')
 const build = (tplPath, outPath) => {
   const tpl = read(tplPath)
   if (!tpl.includes('/*__CORE__*/')) throw new Error('模板缺少 /*__CORE__*/ 占位: ' + tplPath)
-  write(outPath, tpl.replace('/*__CORE__*/', coreTagged.trim()))
+  // 面板标题里的版本号自动取模板头部的 @version，避免「装了新版还显示 v2.1」
+  const ver =
+    (tpl.match(/@version\s+([\d.]+)/) || [])[1] ||
+    (read('scripts/collector-template.user.js').match(/@version\s+([\d.]+)/) || [])[1] ||
+    '0.0.0'
+  const out = tpl
+    .replace('/*__CORE__*/', coreTagged.trim())
+    .replace(/__SCRIPT_VERSION__/g, ver)
+  write(outPath, out)
 }
 
 console.log('构建 1688 采集脚本：')

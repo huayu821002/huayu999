@@ -24,7 +24,7 @@
  */
 (function () { /* __FF1688_CORE__ */
   'use strict'
-  if (window.FF1688 && window.FF1688.__v === '3.1.0') return
+  if (window.FF1688 && window.FF1688.__v === '3.2.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -1129,7 +1129,7 @@
   }
 
   window.FF1688 = {
-    __v: '3.1.0',
+    __v: '3.2.0',
     install,
     capture,
     replayResources,
@@ -1166,6 +1166,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
+          '脚本版本: v2.6.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +

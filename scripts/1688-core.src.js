@@ -13,7 +13,7 @@
  */
 (function () {
   'use strict'
-  if (window.FF1688 && window.FF1688.__v === '3.1.0') return
+  if (window.FF1688 && window.FF1688.__v === '3.2.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -1118,7 +1118,7 @@
   }
 
   window.FF1688 = {
-    __v: '3.1.0',
+    __v: '3.2.0',
     install,
     capture,
     replayResources,
