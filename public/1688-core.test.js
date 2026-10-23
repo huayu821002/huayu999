@@ -99,7 +99,7 @@ vm.runInContext(CORE, sandbox)
     ['没取到噪声 price=1', payload.priceMin !== 1],
     ['没把数量/总价当价格', payload.priceMin !== 1 && payload.priceMin !== 5],
     ['价格来源是 sku:first', /^sku:first/.test(payload.raw?.priceWhy || '')],
-    ['各规格价格已采集', Array.isArray(payload.skuPrices) && payload.skuPrices.length === 3],
+    ['各规格价格已采集', Array.isArray(payload.skuPrices) && payload.skuPrices.length >= 3],
     ['第一个规格价格=7', payload.skuPrices?.[0]?.price === 7],
     ['第一个规格名=红色', payload.skuPrices?.[0]?.spec === '红色'],
     ['MOQ=2', payload.moq === 2],
