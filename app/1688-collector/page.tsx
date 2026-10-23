@@ -6,12 +6,20 @@ export default function CollectorInstallPage() {
   const [scriptText, setScriptText] = useState('')
   const [tmInstalled, setTmInstalled] = useState<boolean | null>(null)
   const [copied, setCopied] = useState('')
+  const [scriptVersion, setScriptVersion] = useState('')
+  const [coreVersion, setCoreVersion] = useState('')
 
   useEffect(() => {
     // 复制脚本全文，方便手动粘贴安装
     fetch('/1688-collector.user.js')
       .then(r => r.text())
-      .then(t => setScriptText(t))
+      .then(t => {
+        setScriptText(t)
+        const v = (t.match(/@version\s+([\d.]+)/) || [])[1] || ''
+        setScriptVersion(v)
+        const c = (t.match(/__v:\s*'([\d.]+)'/) || [])[1] || ''
+        setCoreVersion(c)
+      })
       .catch(() => {})
 
     // 检测 Tampermonkey / 其他脚本管理器
@@ -37,9 +45,12 @@ export default function CollectorInstallPage() {
         <div className="bg-white rounded-xl shadow-sm p-6">
           <h1 className="text-2xl font-bold text-gray-900">🧩 1688 采集器安装</h1>
           <div className="mt-3 rounded-lg bg-orange-50 border border-orange-200 px-4 py-3 text-sm text-orange-800">
-            <b>已更新到 v2.1（内核已内联）</b>：旧版本依赖外部加载内核，会被 1688 的 CSP 拦截并报
-            <code>parseDetail undefined</code>。
-            <b>请务必重新安装/更新一次</b>：点下方「一键安装（GitHub raw）」即可覆盖旧版。
+            <b>
+              当前脚本版本 v{scriptVersion || '?'}（内核 v{coreVersion || '?'}）
+            </b>
+            ：旧版本依赖外部加载内核，会被 1688 的 CSP 拦截并报 <code>parseDetail undefined</code>；
+            面板标题里写着「v2.1」或 Tampermonkey 里显示 2.1.0，说明你装的还是旧版。
+            <b>请务必重新安装/更新一次</b>：点下方「一键安装（最新版）」即可覆盖旧版。
           </div>
           <p className="text-sm text-gray-600 mt-2">
             采集器在**你自己的浏览器**里运行，用你已登录的 1688 账号抓数据，
@@ -115,12 +126,20 @@ export default function CollectorInstallPage() {
               点下面按钮安装脚本（如果浏览器仍然下载文件，说明扩展没装好，改用方案 B）：
               <div className="mt-2 flex gap-2 flex-wrap">
                 <a
-                  href="https://raw.githubusercontent.com/huayu821002/huayu999/master/scripts/1688-collector.user.js"
+                  href={`https://raw.githubusercontent.com/huayu821002/huayu999/master/scripts/1688-collector.user.js?v=${scriptVersion || '1'}`}
                   target="_blank"
                   rel="noreferrer"
                   className="px-3 py-1.5 bg-joy-orange text-white rounded-lg text-sm"
                 >
-                  一键安装（GitHub raw）
+                  一键安装（最新版 v{scriptVersion || '?'}）
+                </a>
+                <a
+                  href={`/1688-collector.user.js?v=${scriptVersion || '1'}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="px-3 py-1.5 bg-white border border-gray-300 rounded-lg text-sm"
+                >
+                  站点安装链接（fiestaflare.com）
                 </a>
                 <a
                   href="/1688-collector.user.js"
@@ -143,10 +162,27 @@ export default function CollectorInstallPage() {
             </li>
             <li>装好后，1688 页面右下角会出现「Fiestaflare 采集器」面板</li>
             <li>
-              <b>当前脚本版本 2.2.0</b>（内核 3.1.0，带货号 / 首个规格 / 批发价 / 阶梯价）。
-              面板若弹出「需要更新采集器」的橙色提示，说明你装的是旧版，
-              点上面的「一键安装」重新装一次即可；脚本已配置 <code>@updateURL</code>，
-              以后 Tampermonkey 会自动检查更新。
+              <b>
+                当前脚本版本 v{scriptVersion || '?'}（内核 v{coreVersion || '?'}）：货号 / 首个规格 /
+                批发价 / 阶梯价 / 多SKU 首规格价 / 产品主图。
+              </b>
+              <div className="mt-2 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2">
+                <b>怎么更新（旧脚本没有 @updateURL，Tampermonkey 不会自动更新）：</b>
+                <ol className="list-decimal list-inside mt-1 space-y-1">
+                  <li>
+                    点上面的「一键安装（最新版 v{scriptVersion || '?'}）」→ Tampermonkey 弹出安装页 →
+                    点「更新 / 重新安装」
+                  </li>
+                  <li>
+                    <b>如果点了没反应或提示「已安装」：</b>
+                    Tampermonkey 面板 → 找到「Fiestaflare 1688 采集器」→ <b>先删除</b> → 再点上面的安装按钮
+                  </li>
+                  <li>
+                    打开任意 1688 商品页 → 刷新 → 面板标题应显示
+                    <code>采集器 v{scriptVersion || '?'}</code>，面板内也会显示内核版本 v{coreVersion || '?'}
+                  </li>
+                </ol>
+              </div>
             </li>
           </ol>
         </div>

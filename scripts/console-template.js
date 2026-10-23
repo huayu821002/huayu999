@@ -37,6 +37,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
+          '脚本版本: v__SCRIPT_VERSION__  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
