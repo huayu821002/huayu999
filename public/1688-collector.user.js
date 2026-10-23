@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.6.0
+// @version      2.7.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -316,7 +316,12 @@
       const dom = domFallback()
       if (dom.priceMin) best = { lo: dom.priceMin, hi: dom.priceMax ?? dom.priceMin, score: 0, why: 'dom' }
     }
-    return { lo: best.lo, hi: best.hi, why: best.why }
+    // 5) 价格候选清单（诊断用：告诉用户/开发者到底有哪些 key 和值）
+    const candidates = cands
+      .map(c => ({ key: c.key, value: String(c.value).slice(0, 60), score: keyScore(c.key, K.price) }))
+      .filter(c => c.score > 0)
+      .slice(0, 40)
+    return { lo: best.lo, hi: best.hi, why: best.why, candidates }
   }
 
   /* ------------------------------------------- 各规格价格（多 SKU 时） */
@@ -951,6 +956,7 @@
         capturedCount: payloads.length,
         replayed,
         priceWhy: pr.why,
+        priceCandidates: pr.candidates,
         priceRangeOld,
         skuPrices: skuPrices.slice(0, 30),
         tierSource,
@@ -1224,9 +1230,9 @@
         #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.6.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.7.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.6.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.7.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -1234,6 +1240,7 @@
         <button id="ff-save" class="ghost">保存设置</button>
         <div style="margin-top:8px">
           <button id="ff-preview">预览解析</button>
+        <button id="ff-diag" class="ghost">复制诊断</button>
           <button id="ff-push">采集并推送</button>
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
@@ -1324,6 +1331,41 @@
       }
     }
 
+    $('#ff-diag', panel).onclick = async () => {
+      try {
+        ensureCore()
+        const payload = lastPayload || (await preview())
+        const captured = window.FF1688.capture ? window.FF1688.capture() : []
+        const diag = {
+          url: location.href,
+          priceMin: payload.priceMin,
+          priceMax: payload.priceMax,
+          wholesalePrice: payload.wholesalePrice,
+          priceWhy: payload.raw && payload.raw.priceWhy,
+          priceRangeOld: payload.raw && payload.raw.priceRangeOld,
+          priceCandidates: payload.raw && payload.raw.priceCandidates,
+          skuPrices: payload.skuPrices,
+          priceLadder: payload.priceLadder,
+          firstSku: payload.firstSku,
+          mainImage: payload.mainImage,
+          images: (payload.images || []).slice(0, 3),
+          capturedCount: captured.length,
+          captured,
+        }
+        const txt = JSON.stringify(diag, null, 2)
+        try {
+          await navigator.clipboard.writeText(txt)
+          say('✅ 诊断数据已复制，粘贴给开发者即可定位价格问题')
+        } catch (e) {
+          kv.style.display = 'block'
+          kv.textContent = txt.slice(0, 20000)
+          say('诊断数据如下（复制上面的文本）')
+        }
+      } catch (e) {
+        say('异常: ' + e.message)
+      }
+    }
+
     $('#ff-list', panel).onclick = async () => {
       try {
         ensureCore()
@@ -1352,7 +1394,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = (window.FF1688 && window.FF1688.__v) || ''
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.6.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.7.0，内核版本：', v || '未加载')
         try {
           const cv = document.getElementById('ff-corever')
           if (cv) cv.textContent = v || '未加载'
