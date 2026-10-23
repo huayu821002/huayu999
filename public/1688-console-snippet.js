@@ -249,6 +249,42 @@
     return clean(scored[0].v)
   }
 
+  /** 诊断：列出所有含价格项的容器（key / 形态 / 数量 / 首项字段），用于精确定位 1688 的价格结构 */
+  function collectPriceContainers(payloads) {
+    const out = []
+    const seen = new Set()
+    const push = (key, kind, items) => {
+      const sig = key + '|' + kind
+      if (seen.has(sig)) return
+      seen.add(sig)
+      const priced = items.filter(it => it && typeof it === 'object' && priceOfItem(it) !== null)
+      if (!priced.length) return
+      const it0 = priced[0]
+      out.push({
+        key,
+        kind,
+        n: priced.length,
+        firstKeys: Object.keys(it0).slice(0, 12),
+        price: priceOfItem(it0),
+        priceText: it0.priceText || '',
+        sample: priced.slice(0, 3).map(x => ({
+          price: priceOfItem(x),
+          priceText: x.priceText || '',
+          skuId: x.skuId || '',
+          name: specOfItem(x),
+          keys: Object.keys(x).slice(0, 12),
+        })),
+      })
+    }
+    for (const p of payloads) {
+      walk(p.data, (k, v) => {
+        if (Array.isArray(v)) push(String(k), 'array', v.filter(x => x && typeof x === 'object'))
+        else if (v && typeof v === 'object') push(String(k), 'object', Object.values(v).filter(x => x && typeof x === 'object'))
+      })
+    }
+    return out.slice(0, 25)
+  }
+
   /* ---------------------------------------------------------------- 价格 */
 
   /** 数组项里的单价（priceText 优先，其次 price/skuPrice/...） */
@@ -274,6 +310,29 @@
    */
   function collectSkuEntries(payloads) {
     const out = []
+    // 0.5) 对象映射形态：{ '红色': { price, priceText } }（key 像 sku/priceMap）
+    const objCands = collect(payloads, (k, v) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false
+      const n = Object.keys(v).length
+      return n >= 1 && n <= 120
+    })
+    for (const c of objCands) {
+      const key = String(c.key)
+      if (!/sku|model|spec|prop|price.*map|map.*price/i.test(key)) continue
+      const entries = []
+      for (const kk of Object.keys(c.value)) {
+        const it = c.value[kk]
+        if (!it || typeof it !== 'object') continue
+        const pr = priceOfItem(it)
+        if (pr === null) continue
+        const raw = String(kk)
+        const spec = specOfItem(it) || (raw.split(/[;；]/)[0].replace(/^[^:：]*[:：]/, '') || raw)
+        entries.push({ spec: String(spec).slice(0, 40), price: pr, skuId: String(it.skuId || ''), priceText: it.priceText || '' })
+      }
+      if (!entries.length) continue
+      const score = (/sku/i.test(key) ? 3 : 0) + (/spec/i.test(key) ? 2 : 0) + (/map/i.test(key) ? 1 : 0)
+      out.push({ key, score, entries })
+    }
     const arrCands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length <= 200)
     for (const c of arrCands) {
       const items = c.value.filter(it => it && typeof it === 'object' && !Array.isArray(it))
@@ -296,7 +355,8 @@
         })
       }
       if (!entries.length) continue
-      const score = (/sku/i.test(key) ? 3 : 0) + (/spec/i.test(key) ? 2 : 0) + (/price/i.test(key) ? 1 : 0) + (hasText ? 1 : 0)
+      // 数组形态优先（1688 最常见的 SKU 列表形态）
+      const score = (/sku/i.test(key) ? 3 : 0) + (/spec/i.test(key) ? 2 : 0) + (/price/i.test(key) ? 1 : 0) + (hasText ? 1 : 0) + 2
       out.push({ key, score, entries })
     }
     out.sort((a, b) => b.score - a.score)
@@ -1060,6 +1120,7 @@
         priceWhy: pr.why,
         priceCandidates: pr.candidates,
         skuCandidates: pr.skuCandidates,
+        priceContainers: collectPriceContainers(payloads),
         priceRangeOld,
         skuPrices: skuPrices.slice(0, 30),
         tierSource,
@@ -1323,7 +1384,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.9.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.10.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
