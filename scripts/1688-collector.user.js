@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.2.0
+// @version      2.3.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -806,10 +806,53 @@
     return b || 'https://fiestaflare.com'
   }
 
+  /** 本地解析 JWT 负载（不校验签名，只为看 role/exp，给出可执行的提示） */
+  function decodeJwtPayload(token) {
+    try {
+      const parts = String(token || '').split('.')
+      if (parts.length < 2) return null
+      let b64 = parts[1].replace(/-/g, '+').replace(/_/g, '/')
+      while (b64.length % 4) b64 += '='
+      const json = decodeURIComponent(
+        atob(b64)
+          .split('')
+          .map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2))
+          .join('')
+      )
+      return JSON.parse(json)
+    } catch (e) {
+      return null
+    }
+  }
+
   async function push(payload, token, api) {
     const base = normalizeBase(api)
     const body = JSON.stringify(Array.isArray(payload) ? { items: payload } : { data: payload })
     const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
+
+    // 本地先看 Token 里的角色：JWT 把 role 写死，库里改了角色旧 Token 也不会变
+    if (!token) {
+      return { status: 0, json: null, text: '没有填 Token：请到后台「采集品库」点「复制采集 Token」，粘贴到面板里。', attempts: [], url: base }
+    }
+    const claims = decodeJwtPayload(token)
+    if (claims) {
+      if (claims.role && claims.role !== 'ADMIN') {
+        return {
+          status: 0,
+          json: null,
+          text:
+            'Token 里的角色是 ' + claims.role + '，不是 ADMIN。' +
+            '（JWT 把角色写死在 Token 里，服务器改了角色，旧 Token 也不会更新）' +
+            '请退出后台重新登录，再重新复制一次采集 Token。',
+          attempts: [],
+          url: base,
+        }
+      }
+      if (claims.exp && claims.exp * 1000 < Date.now()) {
+        return { status: 0, json: null, text: 'Token 已过期，请退出后台重新登录后重新复制采集 Token。', attempts: [], url: base }
+      }
+    }
+
     const paths = ['/api/import/1688', '/api/admin/import/1688']
     const attempts = []
 
@@ -823,7 +866,14 @@
       }
     }
     const last = attempts[attempts.length - 1]
-    return { status: last ? last.status : 0, json: null, text: last ? last.text : '无响应', attempts, url: base }
+    const all = attempts.map(a => a.url + ' → ' + a.status).join('；')
+    return {
+      status: last ? last.status : 0,
+      json: null,
+      text: (last ? last.text : '无响应') + '\n尝试记录：' + all,
+      attempts,
+      url: base,
+    }
   }
 
   /** 优先用 GM_xmlhttpRequest（不受页面 CSP 限制），否则 fetch */

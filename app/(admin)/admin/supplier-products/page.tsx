@@ -285,6 +285,23 @@ export default function SupplierProductsPage() {
       setMsg('未找到登录 Token，请先登录后台')
       return
     }
+    // JWT 里写死了 role：服务器改了角色，旧 Token 不会自动更新 → 提前拦住
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/')))
+      if (payload.role !== 'ADMIN') {
+        setMsg(
+          `当前 Token 的角色是 ${payload.role || '未知'}，不是 ADMIN，推送会被服务器拒绝（403 Forbidden）。` +
+            '请退出后台重新登录，再回来复制 Token。',
+        )
+        return
+      }
+      if (payload.exp && payload.exp * 1000 < Date.now()) {
+        setMsg('当前 Token 已过期，请退出后台重新登录后再复制。')
+        return
+      }
+    } catch {
+      // 解析不了就照常复制，让服务端判断
+    }
     try {
       await navigator.clipboard.writeText(token)
       setMsg('Token 已复制到剪贴板，粘贴到油猴脚本面板即可')
