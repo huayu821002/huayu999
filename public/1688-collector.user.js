@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.4.0
+// @version      2.5.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -495,30 +495,45 @@
 
   const isAsset = u => /\.svg($|\.)/i.test(u) || /-tps-|logo|icon|placeholder|qrcode|sprite|avatar/i.test(u)
 
+  /** 从一个图片项里取出 URL */
+  function imageUrlOf(it) {
+    if (typeof it === 'string') return it
+    if (!it || typeof it !== 'object') return null
+    let u = it.url || it.imgUrl || it.imageUrl || it.path || it.src || it.img ||
+        it.originalUrl || it.bigPicUrl || it.mainPic || it.image || it.picUrl
+    if (!u && it.info && typeof it.info === 'object') {
+      u = it.info.url || it.info.imgUrl || it.info.path
+    }
+    return u || null
+  }
+
   function pickImages(payloads) {
     const found = new Map() // url -> score
+    const ordered = [] // 按接口原顺序的图片（主图通常就是第一个）
+    const addOrdered = (n, s) => {
+      if (!n) return
+      if (!ordered.includes(n)) ordered.push(n)
+      if (!found.has(n) || found.get(n) < s) found.set(n, s)
+    }
 
-    // 1) 数组型图片字段
+    // 1) 数组型图片字段（offerImgList / mainImages / imageList ...）
     const arrCands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length < 200)
+    const arrBest = []
     for (const c of arrCands) {
       const s = keyScore(c.key, K.images)
       if (s <= 0) continue
+      const urls = []
       for (const it of c.value) {
-        let u = null
-        if (typeof it === 'string') u = it
-        else if (it && typeof it === 'object') {
-          u = it.url || it.imgUrl || it.imageUrl || it.path || it.src || it.img ||
-              it.originalUrl || it.bigPicUrl || it.mainPic || it.image || it.picUrl
-          if (!u && it.info && typeof it.info === 'object') {
-            u = it.info.url || it.info.imgUrl || it.info.path
-          }
-        }
-        const n = normImage(u)
+        const n = normImage(imageUrlOf(it))
         if (!n) continue
-        const score = s + (isAsset(n) ? -8 : 3)
-        if (!found.has(n) || found.get(n) < score) found.set(n, score)
+        urls.push(n)
+        addOrdered(n, s + (isAsset(n) ? -8 : 3))
       }
+      if (urls.length) arrBest.push({ key: c.key, urls, score: s, firstReal: !isAsset(urls[0]) })
     }
+    // 主图数组：同分时优先「第一张就是真图」的数组（logo 图集不算）
+    let bestArr = arrBest.find(a => a.firstReal && a.score >= Math.max(...arrBest.map(x => x.score))) ||
+      arrBest.slice().sort((a, b) => (b.firstReal ? 1 : 0) - (a.firstReal ? 1 : 0) || b.score - a.score)[0] || null
 
     // 2) 散落的图片字符串
     const strCands = collect(payloads, (k, v) => typeof v === 'string' && /\.(jpg|jpeg|png|webp)/i.test(v) && /alicdn|1688|cbu/i.test(v))
@@ -526,24 +541,61 @@
       const n = normImage(c.value)
       if (!n) continue
       const s = keyScore(c.key, K.images) + (isAsset(n) ? -8 : 0)
-      if (!found.has(n) || found.get(n) < s) found.set(n, s)
+      addOrdered(n, s)
     }
 
-    let list = [...found.entries()]
-      .filter(([u, s]) => s > 0)
+    // 3) 单张主图字段（picUrl / mainPic / image / offer.img ...）
+    const mainCands = collect(payloads, (k, v) => {
+      if (typeof v !== 'string' || !v) return false
+      if (!/alicdn|1688|cbu|taobao/i.test(v)) return false
+      return /pic|image|img|main|cover/i.test(k)
+    })
+    const mainSingles = []
+    for (const c of mainCands) {
+      const n = normImage(c.value)
+      if (!n || isAsset(n)) continue
+      mainSingles.push({ key: c.key, url: n, score: keyScore(c.key, K.images) })
+    }
+    mainSingles.sort((a, b) => b.score - a.score)
+
+    // 4) DOM 里的主图（图集区第一张）
+    const dom = domFallback()
+    const domMain = dom.mainImage || ''
+
+    // 主图判定优先级：接口图片数组的第一张 → 单张主图字段 → DOM 图集第一张
+    let mainImage = ''
+    if (bestArr) {
+      for (const u of bestArr.urls) {
+        if (!isAsset(u)) { mainImage = u; break }
+      }
+    }
+    if (!mainImage && mainSingles.length) mainImage = mainSingles[0].url
+    if (!mainImage && domMain && !isAsset(domMain)) mainImage = domMain
+
+    // 5) 组装最终列表：主图置顶 → 其余按接口顺序 → 其他零散图
+    const rest = [...found.entries()]
+      .filter(([u, s]) => s > 0 && !isAsset(u))
       .sort((a, b) => b[1] - a[1])
       .map(([u]) => u)
+    const list = []
+    if (mainImage) list.push(mainImage)
+    for (const u of ordered) {
+      if (isAsset(u)) continue
+      if (!list.includes(u)) list.push(u)
+    }
+    for (const u of rest) if (!list.includes(u)) list.push(u)
 
-    // 3) 全是素材图时，宁可要素材图也不要空
-    if (!list.length) list = [...found.keys()]
-
-    // 4) DOM 兜底补充
-    const dom = domFallback()
+    // 6) DOM 兵底补充
     for (const u of dom.images) {
       const n = normImage(u)
       if (n && !list.includes(n) && !isAsset(n)) list.push(n)
     }
-    return list.slice(0, 20)
+    // 7) 全是素材图时，宁可要素材图也不要空
+    if (!list.length) {
+      const any = [...found.keys()]
+      if (any.length) list.push(any[0])
+    }
+    return { list: list.slice(0, 20), main: mainImage }
   }
 
   /* ------------------------------------------------------- SKU / 阶梯价 */
@@ -750,6 +802,14 @@
     }
     const cp = document.querySelector('[class*="company-name"], [class*="companyName"]')
     if (cp) out.supplierName = clean(cp.innerText || cp.textContent)
+    const gallery = document.querySelector(
+      '[class*="detail-gallery"] img, [class*="image-view"] img, [class*="main-image"] img, ' +
+      '[class*="gallery"] img, .od-pic img, [class*="offer-pic"] img, [class*="preview"] img'
+    )
+    if (gallery) {
+      const u = gallery.getAttribute('src') || gallery.getAttribute('data-src') || gallery.getAttribute('data-lazy-src') || ''
+      if (u && !isAsset(u)) out.mainImage = u
+    }
     out.images = Array.from(document.querySelectorAll('img'))
       .map(i => i.getAttribute('src') || i.getAttribute('data-src') || i.getAttribute('data-lazy-src') || '')
       .filter(u => /alicdn|1688|cbu/i.test(u))
@@ -834,7 +894,9 @@
       pr.hi = skuPrices[0].price
       pr.why = 'sku:first(' + (skuPrices[0].spec || '第一个规格') + ') ← 原:' + (priceRangeOld.why || '-')
     }
-    const images = pickImages(payloads)
+    const imgRes = pickImages(payloads)
+    const images = imgRes.list
+    const mainImage = imgRes.main
     const moq = pickMoq(payloads)
     const supplier = pickSupplier(payloads)
 
@@ -865,6 +927,7 @@
       title: title || `1688 商品 ${offerId}`,
       description: pickDescription(payloads) || dom.description || '',
       images,
+      mainImage: mainImage || undefined,
       priceMin: pr.lo,
       priceMax: pr.hi,
       moq,
@@ -954,7 +1017,7 @@
             sourceUrl: `https://detail.1688.com/offer/${v}.html`,
             title: pickTitle([p]) || `1688 商品 ${v}`,
             priceMin: pickPrices([p]).lo,
-            images: pickImages([p]).slice(0, 3),
+            images: pickImages([p]).list.slice(0, 3),
             raw: { offerId: v, from: 'api', srcUrl: p.url, collectedAt: new Date().toISOString() },
           })
         })
