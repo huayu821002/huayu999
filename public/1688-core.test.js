@@ -58,6 +58,8 @@ const sandbox = {
   parseFloat,
   parseInt,
   performance: { getEntriesByType: () => [] },
+  atob: s => Buffer.from(s, 'base64').toString('binary'),
+  decodeURIComponent,
   document: {
     getElementById: id => (id === 'ff1688-capture' ? fakeEl : null),
     createElement: () => ({ set textContent(v) {}, get textContent() { return '' } }),
@@ -70,7 +72,7 @@ const sandbox = {
 }
 sandbox.window = sandbox
 sandbox.location = { href: 'https://detail.1688.com/offer/1022060080982.html' }
-sandbox.fetch = async () => ({ ok: false })
+sandbox.fetch = async () => ({ ok: true, text: async () => JSON.stringify({ success: true, imported: 1 }) })
 
 vm.createContext(sandbox)
 vm.runInContext(CORE, sandbox)
@@ -102,6 +104,26 @@ vm.runInContext(CORE, sandbox)
     if (ok) pass++
   }
   console.log('\n通过 ' + pass + '/' + checks.length)
+
+  // 推送前 Token 角色自检（非 ADMIN 直接拦下并给出可执行提示）
+  const b64 = o => Buffer.from(JSON.stringify(o)).toString('base64url')
+  const badToken = b64({ alg: 'HS256' }) + '.' + b64({ role: 'CUSTOMER', exp: Math.floor(Date.now() / 1000) + 3600 }) + '.sig'
+  const goodToken = b64({ alg: 'HS256' }) + '.' + b64({ role: 'ADMIN', exp: Math.floor(Date.now() / 1000) + 3600 }) + '.sig'
+  const r1 = await sandbox.FF1688.push({ sourceId: '1' }, badToken, '')
+  const r2 = await sandbox.FF1688.push({ sourceId: '1' }, '', '')
+  const r3 = await sandbox.FF1688.push({ sourceId: '1' }, goodToken, '')
+  const pushChecks = [
+    ['非 ADMIN Token 被拦下', r1.status === 0 && /角色是 CUSTOMER/.test(r1.text || '')],
+    ['提示要求重新登录', /重新登录/.test(r1.text || '')],
+    ['空 Token 给出提示', r2.status === 0 && /没有填 Token/.test(r2.text || '')],
+    ['ADMIN Token 会真的发请求', r3.status !== 0 && !/角色是/.test(r3.text || '')],
+  ]
+  let p2 = 0
+  for (const [name, ok] of pushChecks) {
+    console.log((ok ? '  ✅' : '  ❌') + ' ' + name)
+    if (ok) p2++
+  }
+  console.log('\n推送自检通过 ' + p2 + '/' + pushChecks.length)
   console.log('\n解析结果：')
   console.log(JSON.stringify({
     title: payload.title,
@@ -118,5 +140,5 @@ vm.runInContext(CORE, sandbox)
     skuText: payload.skuText,
     descLen: (payload.description || '').length,
   }, null, 2))
-  process.exit(pass === checks.length ? 0 : 1)
+  process.exit(pass === checks.length && p2 === pushChecks.length ? 0 : 1)
 })()
