@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.8.0
+// @version      2.9.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -209,6 +209,7 @@
           priceWhy: payload.raw && payload.raw.priceWhy,
           priceRangeOld: payload.raw && payload.raw.priceRangeOld,
           priceCandidates: payload.raw && payload.raw.priceCandidates,
+          skuCandidates: payload.raw && payload.raw.skuCandidates,
           skuPrices: payload.skuPrices,
           priceLadder: payload.priceLadder,
           firstSku: payload.firstSku,
