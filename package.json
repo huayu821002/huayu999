@@ -12,7 +12,7 @@
     "db:seed": "node prisma/seed.js",
     "collector:build": "node scripts/build-collector.js",
     "collector:verify:privacy": "node scripts/e2e-privacy-check.js",
-    "collector:test": "node public/1688-core.test.js && node public/1688-core.noise.test.js && node public/1688-core.403.test.js && node public/1688-core.waf.test.js && node public/1688-core.privacy.test.js && node public/1688-core.image.test.js && node scripts/e2e-privacy-audit.js && node scripts/test-collector-panel.js && node scripts/test-console-snippet.js",
+    "collector:test": "node public/1688-core.test.js && node public/1688-core.noise.test.js && node public/1688-core.403.test.js && node public/1688-core.waf.test.js && node public/1688-core.privacy.test.js && node public/1688-core.image.test.js && node public/1688-core.struct.test.js && node scripts/e2e-privacy-audit.js && node scripts/test-collector-panel.js && node scripts/test-console-snippet.js",
     "postinstall": "prisma generate",
     "collector:test:push": "node scripts/test-push-gm.js",
     "collector:waf-e2e": "node scripts/e2e-waf-matrix.js",
@@ -20,7 +20,8 @@
     "collector:verify:live": "node scripts/e2e-live-final.js",
     "collector:verify:stats": "node scripts/e2e-repeat-stats.js",
     "collector:test:image": "node public/1688-core.image.test.js",
-    "collector:audit:privacy": "node scripts/e2e-privacy-audit.js"
+    "collector:audit:privacy": "node scripts/e2e-privacy-audit.js",
+    "collector:test:struct": "node public/1688-core.struct.test.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",

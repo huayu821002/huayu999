@@ -880,6 +880,48 @@
     return best.slice(0, 40000)
   }
 
+  /**
+   * 采集报文的**完整结构树**（诊断用）。
+   *
+   * 用途：描述和商品图到底藏在哪个字段，此前一直是猜的
+   * （“哪个 key 像 description 就用哪个”“第一个不像 logo 的图就是主图”）。
+   * 猜就会错 —— 实测就抓错过：评价图（-rate）、店铺装修图（/cms/upload/）、
+   * 推荐位别的商品的图。
+   *
+   * 这个函数把每条报文的叶子路径 + 类型 + 短预览原样吐出来，
+   * 粘给开发者就能直接看出 1688 把商品描述和商品图放在哪。
+   */
+  const STRUCT_KEY_RE = /(desc|detail|content|html|img|image|pic|photo|video|offer|sku|attr|prop|title|name|text|body)/i
+  const STRUCT_HIT_RE = /(desc|html|img|image|pic|photo|video|sku|attr)/i
+  const STRUCT_PRIO_RE = /(offerdetail|cupid|moduleasync|resource|detail|images|sku)/i
+
+  function dumpStructure(payloads) {
+    const all = []
+    for (const p of payloads) {
+      const api = (String(p.url || '').match(/api=([\w.]+)/) || [])[1] || p.from || 'unknown'
+      const leaves = []
+      walk(p.data, (k, v, parent, path) => {
+        const pth = (path || []).concat(String(k)).join('.')
+        const keyStr = String(k)
+        if (!STRUCT_KEY_RE.test(keyStr) && !STRUCT_KEY_RE.test(pth)) return
+        if (leaves.length > 60) return
+        let preview = ''
+        const t = typeof v
+        if (t === 'string') preview = v.slice(0, 70).replace(/\s+/g, ' ')
+        else if (t === 'number' || t === 'boolean') preview = String(v)
+        else if (Array.isArray(v)) preview = '[array n=' + v.length + ']'
+        else if (v && typeof v === 'object') preview = '{' + Object.keys(v).slice(0, 8).join(',') + '}'
+        leaves.push({ path: pth, type: t, preview: preview })
+      })
+      const hit = leaves.filter(l => STRUCT_HIT_RE.test(l.path))
+      if (!hit.length) continue
+      all.push({ api: api, url: scrubUrl(p.url), leaves: hit.slice(0, 36) })
+    }
+    // 详情类接口优先，只保留最相关的几条，避免粘贴被截断
+    all.sort((a, b) => (STRUCT_PRIO_RE.test(b.api) ? 1 : 0) - (STRUCT_PRIO_RE.test(a.api) ? 1 : 0))
+    return all.slice(0, 8)
+  }
+
   /* -------------------------------------------------------------- 图片 */
   function normImage(u) {
     if (typeof u !== 'string') return null
@@ -911,8 +953,19 @@
    */
   const isReviewImage = u => /-0?rate[._-]|-rate\.(jpg|jpeg|png|webp)|_rate\.(jpg|jpeg|png|webp)/i.test(String(u || ''))
 
+  /**
+   * 店铺装修图（banner / logo / 底图）—— 不是商品图。
+   *
+   * 真实情况（2026-10-24）：商品 1063529533354 的 images 里有
+   *   https://cbu01.alicdn.com/cms/upload/2016/790/696/2696097_1254399316.png
+   *   https://cbu01.alicdn.com/cms/upload/2015/797/334/2433797_1490276829.png
+   * —— `/cms/upload/YYYY/MM/DD/` 是 1688 店铺装修资源（店招/横幅），
+   * 与商品无关。商品图在 `/img/ibank/`、`/img/offer/` 这类路径下。
+   */
+  const isShopAsset = u => /\/cms\/(upload|icons?|banner|image)\//i.test(String(u || ''))
+
   /** 主图/图片列表一律不要评价图 */
-  const isBadImage = u => isAsset(u) || isReviewImage(u)
+  const isBadImage = u => isAsset(u) || isReviewImage(u) || isShopAsset(u)
 
   /** 从一个图片项里取出 URL */
   function imageUrlOf(it) {
@@ -1994,9 +2047,10 @@
   }
 
   window.FF1688 = {
-    __v: '3.8.0',
+    __v: '3.9.0',
     install,
     capture,
+    dumpStructure,
     replayResources,
     replayCapturedRequests,
     scanInlineData,
