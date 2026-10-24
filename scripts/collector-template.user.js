@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.16.0
+// @version      2.17.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -106,6 +106,7 @@
         <div style="margin-top:8px">
           <button id="ff-preview">预览解析</button>
         <button id="ff-diag" class="ghost">复制诊断</button>
+          <button id="ff-struct" class="ghost">复制结构</button>
           <button id="ff-push">采集并推送</button>
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
@@ -193,6 +194,25 @@
           kv.textContent = detail.join('\n')
           say('❌ 推送失败 ' + r.status + '（详情见下方）')
           console.log('[Fiestaflare] 推送失败详情：', r)
+        }
+      } catch (e) {
+        say('异常: ' + e.message)
+      }
+    }
+
+    $('#ff-struct', panel).onclick = async () => {
+      try {
+        ensureCore()
+        const captured = window.FF1688.capture ? window.FF1688.capture() : []
+        const struct = window.FF1688.dumpStructure ? window.FF1688.dumpStructure(captured) : []
+        const txt = JSON.stringify({ url: location.href, capturedCount: captured.length, structure: struct }, null, 2)
+        try {
+          await navigator.clipboard.writeText(txt)
+          say('✅ 结构数据已复制，粘贴给开发者即可定位描述/图片字段')
+        } catch (e) {
+          kv.style.display = 'block'
+          kv.textContent = txt.slice(0, 20000)
+          say('结构数据如下（复制上面的文本）')
         }
       } catch (e) {
         say('异常: ' + e.message)
