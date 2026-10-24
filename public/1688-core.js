@@ -899,6 +899,21 @@
 
   const isAsset = u => /\.svg($|\.)/i.test(u) || /-tps-|logo|icon|placeholder|qrcode|sprite|avatar/i.test(u)
 
+  /**
+   * 评价图（买家秀）/ 视频封面 —— 不是商品主图。
+   *
+   * 真实情况（2026-10-24）：商品 1050723330804 的采集结果里，
+   * 唯一拿到的图片是 `img.alicdn.com/imgextra/i4/O1CN01...-0-rate.jpg`
+   * —— `-rate` 后缀是 1688 的**买家评价晒图**，被当成了商品主图。
+   * （商品图一般在 `cbu01.alicdn.com/img/ibank/...` 这种 CDN 上。）
+   *
+   * 这类图要从主图候选里剔掉，否则会盖住真正的商品图 / DOM 兜底图。
+   */
+  const isReviewImage = u => /-0?rate[._-]|-rate\.(jpg|jpeg|png|webp)|_rate\.(jpg|jpeg|png|webp)/i.test(String(u || ''))
+
+  /** 主图/图片列表一律不要评价图 */
+  const isBadImage = u => isAsset(u) || isReviewImage(u)
+
   /** 从一个图片项里取出 URL */
   function imageUrlOf(it) {
     if (typeof it === 'string') return it
@@ -931,9 +946,9 @@
         const n = normImage(imageUrlOf(it))
         if (!n) continue
         urls.push(n)
-        addOrdered(n, s + (isAsset(n) ? -8 : 3))
+        addOrdered(n, s + (isBadImage(n) ? -8 : 3))
       }
-      if (urls.length) arrBest.push({ key: c.key, urls, score: s, firstReal: !isAsset(urls[0]) })
+      if (urls.length) arrBest.push({ key: c.key, urls, score: s, firstReal: !isBadImage(urls[0]) })
     }
     // 主图数组：同分时优先「第一张就是真图」的数组（logo 图集不算）
     let bestArr = arrBest.find(a => a.firstReal && a.score >= Math.max(...arrBest.map(x => x.score))) ||
@@ -944,7 +959,7 @@
     for (const c of strCands) {
       const n = normImage(c.value)
       if (!n) continue
-      const s = keyScore(c.key, K.images) + (isAsset(n) ? -8 : 0)
+      const s = keyScore(c.key, K.images) + (isBadImage(n) ? -8 : 0)
       addOrdered(n, s)
     }
 
@@ -957,7 +972,7 @@
     const mainSingles = []
     for (const c of mainCands) {
       const n = normImage(c.value)
-      if (!n || isAsset(n)) continue
+      if (!n || isBadImage(n)) continue
       mainSingles.push({ key: c.key, url: n, score: keyScore(c.key, K.images) })
     }
     mainSingles.sort((a, b) => b.score - a.score)
@@ -970,21 +985,21 @@
     let mainImage = ''
     if (bestArr) {
       for (const u of bestArr.urls) {
-        if (!isAsset(u)) { mainImage = u; break }
+        if (!isBadImage(u)) { mainImage = u; break }
       }
     }
     if (!mainImage && mainSingles.length) mainImage = mainSingles[0].url
-    if (!mainImage && domMain && !isAsset(domMain)) mainImage = domMain
+    if (!mainImage && domMain && !isBadImage(domMain)) mainImage = domMain
 
     // 5) 组装最终列表：主图置顶 → 其余按接口顺序 → 其他零散图
     const rest = [...found.entries()]
-      .filter(([u, s]) => s > 0 && !isAsset(u))
+      .filter(([u, s]) => s > 0 && !isBadImage(u))
       .sort((a, b) => b[1] - a[1])
       .map(([u]) => u)
     const list = []
     if (mainImage) list.push(mainImage)
     for (const u of ordered) {
-      if (isAsset(u)) continue
+      if (isBadImage(u)) continue
       if (!list.includes(u)) list.push(u)
     }
     for (const u of rest) if (!list.includes(u)) list.push(u)
@@ -992,11 +1007,13 @@
     // 6) DOM 兵底补充
     for (const u of dom.images) {
       const n = normImage(u)
-      if (n && !list.includes(n) && !isAsset(n)) list.push(n)
+      if (n && !list.includes(n) && !isBadImage(n)) list.push(n)
     }
     // 7) 全是素材图时，宁可要素材图也不要空
+    //    注意：评价图（买家秀）不算商品图，没有 DOM 兼底时宁可留空 ——
+    //    把顾客的实拍照片当成商品图展示是不对的。
     if (!list.length) {
-      const any = [...found.keys()]
+      const any = [...found.keys()].filter(u => !isReviewImage(u))
       if (any.length) list.push(any[0])
     }
     return { list: list.slice(0, 20), main: mainImage }
@@ -1967,7 +1984,7 @@
   }
 
   window.FF1688 = {
-    __v: '3.6.0',
+    __v: '3.7.0',
     install,
     capture,
     replayResources,
