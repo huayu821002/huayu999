@@ -11,7 +11,12 @@ t('不再用 `v !== MIN_CORE`', !codeLines.some(l => /v\s*!==\s*MIN_CORE/.test(l
 t('用了 cmpVer 版本比较', /cmpVer\(v, MIN_CORE\) < 0/.test(TPL))
 
 const start = TPL.indexOf('const cmpVer = (a, b) => {')
-const end = TPL.indexOf('\n        }', start) + '\n        }'.length
+const bodyStart = TPL.indexOf('{', start)
+let depth = 0, end = bodyStart
+for (let i = bodyStart; i < TPL.length; i++) {
+  if (TPL[i] === '{') depth++
+  else if (TPL[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
+}
 const cmpVer = eval('(' + TPL.slice(start + 'const cmpVer = '.length, end).trim().replace(/;$/, '') + ')')
 console.log('\n  线上真实判定：')
 for (const v of ['3.5.0', '3.9.0', '4.0.0', '3.4.0']) {
