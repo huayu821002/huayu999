@@ -37,6 +37,8 @@
     if (!/offer|detail|mtop|item|search|product|seller|company|price/.test(u)) return
     // 过滤失败/空的 mtop 响应（重放时 data 参数丢失会得到这种垃圾）
     if (isUselessPayload(data)) return
+    // 隐私：个人地址簿/账号信息类报文直接丢弃，绝不采集
+    if (isSensitivePayload({ url })) return
     // URL 不截断：mtop 的 data/sign 在 query 尾部，截断后重放就会 invalid param
     STORE.payloads.push({ url: String(url), data })
     if (STORE.payloads.length > 40) STORE.payloads.shift()
@@ -1417,7 +1419,7 @@
           return m ? m[1] : (p.from || 'unknown')
         }))).slice(0, 30),
         payloadTopKeys: payloads.slice(0, 12).map(p => ({
-          url: String(p.url || '').slice(0, 160),
+          url: scrubUrl(p.url),
           from: p.from || 'hook',
           topKeys: (p.data && typeof p.data === 'object') ? Object.keys(p.data).slice(0, 10) : [],
           dataKeys: (p.data && p.data && p.data.data && typeof p.data.data === 'object')
@@ -1432,7 +1434,7 @@
               if (out.length > 60) return
               const pth = (path || []).concat(String(k)).join('.')
               if (out.some(x => x.path === pth)) return
-              out.push({ path: pth, type: Array.isArray(v) ? 'array' : typeof v, url: String(p.url || '').slice(0, 120) })
+              out.push({ path: pth, type: Array.isArray(v) ? 'array' : typeof v, url: scrubUrl(p.url) })
             })
           }
           return out
@@ -1445,8 +1447,8 @@
         skuPrices: skuPrices.slice(0, 30),
         tierSource,
         skuCount: skuInfo.skuIds.length,
-        capturedUrls: payloads.slice(0, 25).map(p => p.url),
-        snapshot: payloads.slice(0, 5).map(p => ({ url: p.url, data: p.data })),
+        capturedUrls: scrubUrls(payloads.slice(0, 25).map(p => p.url)),
+        snapshot: payloads.slice(0, 5).map(p => ({ url: scrubUrl(p.url), data: redactPayloadNode(p.data, 0) })),
       },
     }
     return {
@@ -1547,9 +1549,11 @@
 
   async function push(payload, token, api) {
     const base = normalizeBase(api)
-    // 先消毒再发：避免 Hostinger 边缘层 WAF 因描述里的可疑片段直接 403，
-    // 那样请求根本到不了服务端。
-    const safePayload = sanitizePayload(payload)
+    // 先消毒再发：
+    //   1) 隐私脱敏 —— 抹掉姓名/手机号/地址等个人信息
+    //   2) WAF 消毒 —— 中和描述里的可疑片段
+    // 顺序很重要：先脱敏（少一层字符串包裹），再 WAF 消毒。
+    const safePayload = sanitizePayload(sanitizePayloadForPrivacy(payload))
     const body = JSON.stringify(Array.isArray(safePayload) ? { items: safePayload } : { data: safePayload })
     const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
 
@@ -1786,6 +1790,159 @@
     return node
   }
 
+  /**
+   * 隐私脱敏：把采集报文里属于「用户本人」的敏感信息抹掉。
+   *
+   * 真实情况（2026-10-24）：1688 详情页会同时请求
+   *   mtop.1688.trade.receiveaddress.queryReceiveAddresses
+   *   （当前登录用户的收货地址、姓名、手机号）
+   * 这类报文会被当成页面数据一起采集、推送并入库 ——
+   * 等于把用户的真实住址和手机号存进了我们自己的数据库。
+   * 必须在上报前抹掉。
+   *
+   * 策略：
+   *   1) 命中敏感接口（地址簿/个人信息类）→ 直接丢弃整条报文；
+   *   2) 其余报文里的敏感字段名 → 值替换成占位符；
+   *   3) 自由文本里的手机号/身份证号 → 掩码。
+   */
+  const SENSITIVE_API_RE = /(receiveaddress|addresslist|address\.query|userinfo|userprofile|memberinfo|myorder|orderlist|buyerinfo)/i
+  // 精确字段名（整段匹配才命中，避免误伤 addressCode / addressCount 这类无害字段）
+  const SENSITIVE_EXACT_KEYS = new Set([
+    'address', 'addressdetail', 'mobile', 'mobilephone', 'phone', 'phonenumber',
+    'tel', 'telephone', 'fullname', 'realname', 'idcard', 'idnumber', 'identity',
+    'bankcard', 'bankaccount', 'recipient', 'consignee', 'receiver', 'email',
+    'password', 'passwd', 'weixin', 'wechat', 'qq',
+  ])
+  // 包含即命中的字段名
+  const SENSITIVE_KEY_RE = /(mobilePhone|phoneNumber|idCard|idNumber|bankCard|bankAccount|addressDetail|userAddress|addressCodeText|postalCode|realName|fullName)/i
+  function isSensitiveKey(k) {
+    const key = String(k || '')
+    if (SENSITIVE_KEY_RE.test(key)) return true
+    return SENSITIVE_EXACT_KEYS.has(key.toLowerCase())
+  }
+
+  /** 手机号 / 座机 / 身份证 掩码 */
+  function maskPiiText(s) {
+    if (typeof s !== 'string') return s
+    return s
+      .replace(/(?<!\d)(1[3-9]\d{9})(?!\d)/g, '1**********')
+      .replace(/(?<!\d)(\d{3,4}-\d{7,8})(?!\d)/g, '***-********')
+      .replace(/(?<!\d)(\d{17}[\dXx])(?!\d)/g, '******************')
+  }
+
+  /** 判断一条采集报文是否属于「用户个人信息」类接口 */
+  function isSensitivePayload(p) {
+    const url = String((p && p.url) || '')
+    const api = (url.match(/api=([\w.]+)/) || [])[1] || ''
+    return SENSITIVE_API_RE.test(api) || SENSITIVE_API_RE.test(url)
+  }
+
+  /** 递归抹掉报文里的敏感字段值 */
+  function redactPayloadNode(node, depth) {
+    const d = depth || 0
+    if (d > 12) return node
+    if (typeof node === 'string') return maskPiiText(node)
+    if (Array.isArray(node)) return node.map(x => redactPayloadNode(x, d + 1))
+    if (node && typeof node === 'object') {
+      const out = {}
+      for (const k of Object.keys(node)) {
+        const v = node[k]
+        if (isSensitiveKey(k) && typeof v === 'string') {
+          out[k] = '[已脱敏]'
+        } else if (isSensitiveKey(k) && (Array.isArray(v) || (v && typeof v === 'object'))) {
+          out[k] = '[已脱敏]'
+        } else {
+          out[k] = redactPayloadNode(v, d + 1)
+        }
+      }
+      return out
+    }
+    return node
+  }
+
+  /**
+   * 上报前的脱敏：丢掉个人信息类报文，其余报文脱敏。
+   * 注意：这会改变 payload.raw.snapshot / capturedUrls 等诊断字段的内容，
+   * 但那些字段只用于调试定位，不参与商品数据。
+   */
+  function sanitizePayloadForPrivacy(node, depth) {
+    const d = depth || 0
+    if (d > 12) return node
+    if (typeof node === 'string') return maskPiiText(node)
+    if (Array.isArray(node)) return node.map(x => sanitizePayloadForPrivacy(x, d + 1))
+    if (node && typeof node === 'object') {
+      const out = {}
+      for (const k of Object.keys(node)) {
+        const v = node[k]
+        if (isSensitiveKey(k)) {
+          out[k] = typeof v === 'string' && !v ? '' : '[已脱敏]'
+        } else {
+          out[k] = sanitizePayloadForPrivacy(v, d + 1)
+        }
+      }
+      return out
+    }
+    return node
+  }
+
+  /**
+   * URL 脱敏（防 Hostinger 边缘层 WAF）—— 这是 403 的真正原因。
+   *
+   * 实测（2026-10-24，对线上 /api/import/1688 逐项 bisect）：
+   *   raw.capturedUrls 里放 6 个含完整 mtop 签名的 URL → 401（放行）
+   *   放 7 个 → 403；放 9 个 → 又 401；放 10 个 → 403
+   *   去掉 URL 里的 t= / sign= / timeout= 任意一个 → 立刻放行
+   *   把 host 换掉但保留签名参数 → 依然 403
+   *   → 结论：触发的是 **ModSecurity 异常分（anomaly scoring）**：
+   *     mtop 的签名参数 t=<13位时间戳> / sign=<32位十六进制> / timeout=
+   *     在整个 body 里大量重复出现，每次都加一分，总分越线才拦。
+   *   所以「按关键词消毒」永远赢不了 —— 必须把签名参数本身去掉。
+   *
+   * 做法：只保留 host + path + api 名，丢掉所有签名/业务参数。
+   * 诊断用途完全不受影响（api 名才是定位问题要看的），体积还小了很多。
+   */
+  const SIGN_PARAM_RE = /^(t|sign|timeout|appKey|jsv|data|v|type|dataType|token|auth|apiKey|secret|sessionId|sid)$/i
+
+  /** 把 mtop URL 脱敏成「host + path + api=xxx」 */
+  function scrubUrl(u) {
+    const s = String(u || '')
+    if (!s) return ''
+    try {
+      let host = '', path = ''
+      if (s.startsWith('//')) {
+        const rest = s.slice(2)
+        const i = rest.indexOf('/')
+        host = i < 0 ? rest : rest.slice(0, i)
+        path = i < 0 ? '' : rest.slice(i)
+      } else {
+        const m = s.match(/^[a-z]+:\/\/([^/]+)(\/.*)?$/i)
+        if (!m) return s.split('?')[0]
+        host = m[1]
+        path = m[2] || ''
+      }
+      const qIdx = path.indexOf('?')
+      const base = qIdx < 0 ? path : path.slice(0, qIdx)
+      const query = qIdx < 0 ? '' : path.slice(qIdx + 1)
+      // 只保留 api 名（定位问题真正需要的），其余参数全丢
+      let api = ''
+      for (const kv of query.split('&')) {
+        const k = kv.split('=')[0]
+        if (/^api$/i.test(k)) {
+          api = kv.slice(4)
+          break
+        }
+      }
+      return host + base + (api ? ' api=' + api : '')
+    } catch (e) {
+      return String(u).split('?')[0]
+    }
+  }
+
+  /** 对一组 URL 做脱敏 */
+  function scrubUrls(list) {
+    return (list || []).map(scrubUrl)
+  }
+
   function safeJson(t) {
     try { return JSON.parse(t) } catch (e) { return null }
   }
@@ -1810,7 +1967,7 @@
   }
 
   window.FF1688 = {
-    __v: '3.5.0',
+    __v: '3.6.0',
     install,
     capture,
     replayResources,

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.13.0
+// @version      2.14.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -226,10 +226,17 @@
           images: (payload.images || []).slice(0, 3),
           capturedCount: captured.length,
           // 只带前 10 条，避免粘贴被截断（URL 截到 300，数据截到 20k）
-          captured: captured.slice(0, 10).map(p => ({
-            url: String(p.url || '').slice(0, 300),
-            data: JSON.stringify(p.data || {}).slice(0, 20000),
-          })),
+          // 隐私：地址簿/个人信息类报文不包含在诊断里
+          captured: captured
+            .filter(p => !/receiveaddress|userinfo|memberinfo|myorder/i.test(String(p.url || '')))
+            .slice(0, 10)
+            .map(p => ({
+              url: String(p.url || '').replace(/([?&](?:t|sign|timeout|appKey|jsv|data)=)[^&]*/gi, '$1[已脱敏]').slice(0, 300),
+              data: JSON.stringify(p.data || {})
+                .replace(/1[3-9]\d{9}/g, '1**********')
+                .replace(/("(?:mobilePhone|fullName|address|phone|email|receiver|consignee|idCard)"\s*:\s*)"[^"]*"/gi, '$1"[已脱敏]"')
+                .slice(0, 20000),
+            })),
         }
         const txt = JSON.stringify(diag, null, 2)
         try {

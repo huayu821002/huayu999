@@ -1,4 +1,5 @@
 import { prisma } from '@/lib/prisma'
+import { scrubPIIValue, PII_API_RE } from '@/lib/pii'
 
 /**
  * 采集品（1688 等供应商商品）的数据模型与工具。
@@ -236,5 +237,54 @@ export function parseJsonField<T = any>(value: string | null): T | null {
     return JSON.parse(value) as T
   } catch {
     return null
+  }
+}
+
+/* ---------------------------------------------------------------------------
+ * 存量 PII 清洗（2026-10-24）
+ *
+ * 早期版本的采集器把 1688 详情页的「收货地址簿」报文一起采集了，
+ * 于是当前登录用户的真实姓名、手机号、收货地址被写进了 SupplierProduct.raw。
+ * 采集端与服务端入库两道防线已经补上，这里再把历史存量洗一遍。
+ *
+ * 幂等：每个进程只跑一次；且只改「确实含个人信息」的行。
+ * ------------------------------------------------------------------------- */
+let piiCleanupDone = false
+
+export async function scrubStoredRawPII(): Promise<number> {
+  if (piiCleanupDone) return 0
+  piiCleanupDone = true
+  try {
+    const rows = await prisma.supplierProduct.findMany({
+      select: { id: true, raw: true },
+    })
+    let cleaned = 0
+    for (const row of rows) {
+      const raw = row.raw
+      if (!raw || typeof raw !== 'string') continue
+      if (!/1[3-9]\d{9}|mobilePhone|fullName|receiveaddress|addressItems/.test(raw)) continue
+      let parsed: any
+      try {
+        parsed = JSON.parse(raw)
+      } catch {
+        parsed = raw
+      }
+      const next = scrubPIIValue(parsed, 0)
+      const nextText = typeof next === 'string' ? next : JSON.stringify(next)
+      if (nextText !== raw) {
+        await prisma.supplierProduct.update({
+          where: { id: row.id },
+          data: { raw: nextText },
+        })
+        cleaned++
+      }
+    }
+    if (cleaned > 0) {
+      console.log(`[supplier] 已清洗 ${cleaned} 条采集记录中的个人信息`)
+    }
+    return cleaned
+  } catch (e: any) {
+    console.error('[supplier] 存量 PII 清洗失败（不影响主流程）:', e?.message || e)
+    return 0
   }
 }
