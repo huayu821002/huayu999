@@ -24,7 +24,8 @@
  */
 (function () { /* __FF1688_CORE__ */
   'use strict'
-  if (window.FF1688 && window.FF1688.__v === '3.5.0') return
+  // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
+  if (window.FF1688 && window.FF1688.__v === '4.0.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -38,6 +39,26 @@
     return Number.isFinite(v) ? v : null
   }
   const hasCJK = s => /[一-龥]/.test(String(s || ''))
+
+  /**
+   * 清洗 1688 的商品描述 HTML。
+   *
+   * 1688 的详情区是「图片描述」——大量 <img> 懒加载占位，
+   * 里面还嵌了 <script>、懒加载属性、以及大量空白。
+   * 直接存 innerHTML 会把脚本和垃圾一起入库。
+   */
+  function cleanDescriptionHtml(html) {
+    let s = String(html || '')
+    s = s.replace(/<script[\s\S]*?<\/script>/gi, '')
+    s = s.replace(/<style[\s\S]*?<\/style>/gi, '')
+    s = s.replace(/<!--[\s\S]*?-->/g, '')
+    // 懒加载的真实图片地址
+    s = s.replace(/<img[^>]*?(?:data-lazyload|data-lazy-src|data-ks-lazyload|data-src)="([^"]+)"[^>]*>/gi,
+      (m, u) => `<img src="${u}" alt="">`)
+    s = s.replace(/\son\w+="[^"]*"/gi, '')
+    s = s.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n')
+    return s.trim().slice(0, 30000)
+  }
 
   /* ---------------------------------------------------------- 截获接口返回 */
   const STORE = { payloads: [], requests: [], installed: false }
@@ -876,17 +897,67 @@
   }
 
   /* -------------------------------------------------------------- 描述 */
+
+  /**
+   * 描述字段的**路径**判定。
+   *
+   * 真实情况（2026-10-24，用「复制结构」拿到 1688 真实报文后确认）：
+   * mtop.1688.mmga.offerdetail.service 的报文里**根本没有商品描述**。
+   * 长得像描述的字段实际是：
+   *   data.data.data.protectionInfoList.description → 「通过官方退货仓将全网售后包裹转寄1688商家…」
+   *   data.data.data.operateButtonList...            → 操作按钮
+   *   data.data.deliveryLimitTimeModel.limitTimeDesc → 「常发圆通快递」
+   *   data.data.result.offerRateInfo...              → 评价信息
+   * 之前 pickDescription 按 key 名打分（key='description' 就 +5），
+   * 于是把「退货仓说明」当成了商品描述。
+   *
+   * 商品描述的真实来源：**DOM 里的 .desc-lazyload-container**
+   * （1688 把详情 HTML 渲染在页面里，接口只给图集和属性）。
+   */
+  const DESC_PATH_REJECT_RE = new RegExp([
+    'protectioninfo', 'operatebutton', 'deliverylimit', 'limitTimeDesc',
+    'expectTimeDesc', 'rateinfo', 'commentlist', 'offerRateInfo', 'downstreamperformance',
+    'tips', 'membertip', 'commtip', 'freight', 'logistics', 'coupon', 'banner',
+    'recommend', 'related', 'shopcard', 'adinfo', 'promotion',
+  ].join('|'), 'i')
+
+  /** 描述的路径优先级 */
+  function descPathScore(fullPath) {
+    const p = String(fullPath)
+    if (DESC_PATH_REJECT_RE.test(p)) return -100
+    let s = 0
+    if (/offerdescription|offerdetail|detailhtml|deschtml/i.test(p)) s += 60
+    if (/modulecontent|detailcontent|detaildesc/i.test(p)) s += 45
+    if (/description/i.test(p)) s += 30
+    if (/(^|\.)desc$|\.desc\./i.test(p)) s += 25
+    if (/richText|richtext/i.test(p)) s += 20
+    if (/content/i.test(p)) s += 12
+    if (/html/i.test(p)) s += 10
+    return s
+  }
+
   function pickDescription(payloads) {
-    const cands = collect(payloads, (k, v) => typeof v === 'string' && v.length > 40)
+    // 1) 接口：按**路径**判定，避开那些「长得像描述但其实不是」的字段
+    //    注意：还要排掉 URL —— 老版本就是靠这条把**图片地址**当成了商品描述
+    //    （老逻辑 key 不在 neg 列表就入选，score=0 也能拿第一）
+    const cands = collect(payloads, (k, v) =>
+      typeof v === 'string' && v.length >= 20 && !/^https?:\/\//i.test(v) && !/^data:/i.test(v))
     let best = ''
     let bestScore = -99
     for (const c of cands) {
-      const s = keyScore(c.key, K.desc) + (c.value.length > 200 ? 2 : 0)
-      if (s > bestScore) { bestScore = s; best = c.value }
+      const full = (c.path || []).concat(c.key).join('.')
+      const s = descPathScore(full)
+      if (s <= 0) continue
+      const score = s + (c.value.length > 200 ? 3 : 0)
+      if (score > bestScore) { bestScore = score; best = c.value }
     }
-    if (!best) {
-      const dom = domFallback()
-      best = dom.description || ''
+
+    // 2) DOM 优先：1688 的真实商品描述在 .desc-lazyload-container 里
+    const dom = domFallback()
+    const domDesc = dom.description || ''
+    if (domDesc && domDesc.length > 20) {
+      // DOM 描述更可信，接口只做兵底
+      return domDesc.slice(0, 40000)
     }
     return best.slice(0, 40000)
   }
@@ -934,6 +1005,65 @@
   }
 
   /* -------------------------------------------------------------- 图片 */
+
+  /**
+   * 路径级的「这不是本商品的数据」判定。
+   *
+   * 真实情况（2026-10-24，用「复制结构」拿到 1688 真实报文后确认）：
+   * 同一个 key 名 `imageUrl` 会在很多不同路径上出现：
+   *   data.currentOffer.imageUrl  → **本商品**的图  ✅
+   *   data.offerList.imageUrl     → **别的商品**的图（相关推荐）❌
+   *   data.data.itemList.imageUrl → 别的商品（带 shopIconUrl = 店铺推荐）❌
+   *   data.data.result.offerRateInfo...ratePics.picUrl → 评价图 ❌
+   *   data.data.downstreamPerformance...image → “完好率”徽章 ❌
+   *
+   * 之前只按**叶子 key 名**打分（'imageUrl' 全部 +5 分），
+   * 谁先被遍历到谁赢 —— 于是把推荐位的别的商品图当成了主图。
+   * 必须按**完整路径**判断。
+   */
+  const IMG_PATH_REJECT_RE = new RegExp([
+    'itemlist', 'recommend', 'related', 'similar', 'hotsale',
+    'ratepics', 'commentlist', 'offerrateinfo', 'rateinfo', 'ratelist',
+    'shopicon', 'shopinfo', 'posteruser', 'memberidentity', 'avatar',
+    'downstreamperformance', 'operatebutton', 'protectioninfo',
+    'deliverylimit', 'logistics', 'freight', 'coupon', 'banner',
+    'cupid', 'resource', 'module', 'promotion', 'adinfo', 'shopcard',
+  ].join('|'), 'i')
+
+  /**
+   * 评价/评论类接口 —— 里面的图全是买家秀，不是商品图。
+   *
+   * 注意：不能只靠 URL 后缀判。
+   * 实测（2026-10-24）评价接口里有两种图：
+   *   data.model.images.url      → ...-0-rate.jpg      （后缀能判）
+   *   data.data.result.offerRateInfo.model.ratePics.picUrl
+   *                             → cbu01.alicdn.com/i3/O1CN01...  （**没有** -rate 后缀）
+   * 所以必须按**接口名**排掉。
+   */
+  const IMG_API_REJECT_RE = /rateservice|queryrated|dsrrate|comment|evaluate|review|rateinfo|cupid\.resource/i
+
+  /** 图片的路径优先级：越大越像「本商品的图」 */
+  function imgPathScore(fullPath) {
+    const p = String(fullPath)
+    if (IMG_PATH_REJECT_RE.test(p)) return -100
+    let s = 0
+    if (/currentoffer/i.test(p)) s += 60
+    if (/offerimglist|offerimages|mainimages|mainpics|gallery|imageList|imgList|offerImg/i.test(p)) s += 50
+    if (/skuimage|skuimg|skuimageurl/i.test(p)) s += 40
+    // offerList = 本商品的 SKU 列表（每行含 priceTypeText/priceText），保留
+    if (/offerlist/i.test(p)) s += 30
+    if (/offer\.(images|imageList|imgList)|detailimage|descimage/i.test(p)) s += 45
+    if (/imageurl|imageUrlList|mainpic|mainPic/i.test(p)) s += 20
+    if (/image|img|pic|photo/i.test(p)) s += 8
+    return s
+  }
+
+  /** 从接口 URL 里拿 api 名 */
+  function apiNameOf(url) {
+    const m = String(url || '').match(/api=([\w.]+)/)
+    return m ? m[1] : ''
+  }
+
   function normImage(u) {
     if (typeof u !== 'string') return null
     let url = u.trim()
@@ -991,93 +1121,78 @@
   }
 
   function pickImages(payloads) {
-    const found = new Map() // url -> score
-    const ordered = [] // 按接口原顺序的图片（主图通常就是第一个）
-    const addOrdered = (n, s) => {
+    // 候选：url + 完整路径（路径决定它是不是「本商品的图」）
+    const cands = []
+    const pushCand = (url, path, key, extra) => {
+      const n = normImage(url)
       if (!n) return
-      if (!ordered.includes(n)) ordered.push(n)
-      if (!found.has(n) || found.get(n) < s) found.set(n, s)
+      const full = (path || []).concat(key).join('.')
+      cands.push({ url: n, path: full, score: imgPathScore(full) + (extra || 0) })
     }
 
-    // 1) 数组型图片字段（offerImgList / mainImages / imageList ...）
-    const arrCands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length < 200)
-    const arrBest = []
-    for (const c of arrCands) {
-      const s = keyScore(c.key, K.images)
-      if (s <= 0) continue
-      const urls = []
-      for (const it of c.value) {
-        const n = normImage(imageUrlOf(it))
-        if (!n) continue
-        urls.push(n)
-        addOrdered(n, s + (isBadImage(n) ? -8 : 3))
-      }
-      if (urls.length) arrBest.push({ key: c.key, urls, score: s, firstReal: !isBadImage(urls[0]) })
-    }
-    // 主图数组：同分时优先「第一张就是真图」的数组（logo 图集不算）
-    let bestArr = arrBest.find(a => a.firstReal && a.score >= Math.max(...arrBest.map(x => x.score))) ||
-      arrBest.slice().sort((a, b) => (b.firstReal ? 1 : 0) - (a.firstReal ? 1 : 0) || b.score - a.score)[0] || null
-
-    // 2) 散落的图片字符串
-    const strCands = collect(payloads, (k, v) => typeof v === 'string' && /\.(jpg|jpeg|png|webp)/i.test(v) && /alicdn|1688|cbu/i.test(v))
-    for (const c of strCands) {
-      const n = normImage(c.value)
-      if (!n) continue
-      const s = keyScore(c.key, K.images) + (isBadImage(n) ? -8 : 0)
-      addOrdered(n, s)
+    // 遍历每条报文的叶子，拿到「值 + 完整路径」
+    for (const p of payloads) {
+      // 评价类接口的图全是买家秀，直接不参与
+      if (IMG_API_REJECT_RE.test(apiNameOf(p.url))) continue
+      walk(p.data, (k, v, parent, path) => {
+        if (typeof v === 'string') {
+          if (!/alicdn|1688|cbu|taobao/i.test(v)) return
+          if (!/\.(jpg|jpeg|png|webp)/i.test(v) && !/alicdn\.com/i.test(v)) return
+          pushCand(v, path, k)
+        } else if (v && typeof v === 'object' && !Array.isArray(v)) {
+          const u = imageUrlOf(v)
+          if (u) pushCand(u, path, k)
+        }
+      })
     }
 
-    // 3) 单张主图字段（picUrl / mainPic / image / offer.img ...）
-    const mainCands = collect(payloads, (k, v) => {
-      if (typeof v !== 'string' || !v) return false
-      if (!/alicdn|1688|cbu|taobao/i.test(v)) return false
-      return /pic|image|img|main|cover/i.test(k)
-    })
-    const mainSingles = []
-    for (const c of mainCands) {
-      const n = normImage(c.value)
-      if (!n || isBadImage(n)) continue
-      mainSingles.push({ key: c.key, url: n, score: keyScore(c.key, K.images) })
-    }
-    mainSingles.sort((a, b) => b.score - a.score)
+    // 过滤掉「不是本商品数据」的路径
+    const good = cands.filter(c => c.score > 0)
 
-    // 4) DOM 里的主图（图集区第一张）
-    const dom = domFallback()
-    const domMain = dom.mainImage || ''
-
-    // 主图判定优先级：接口图片数组的第一张 → 单张主图字段 → DOM 图集第一张
+    // 主图：currentOffer 的图 > 图集数组的第一张 > 其他高分单图
+    //      （必须跳过评价图/店铺图，否则会把买家秀当主图）
     let mainImage = ''
-    if (bestArr) {
-      for (const u of bestArr.urls) {
-        if (!isBadImage(u)) { mainImage = u; break }
-      }
+    const curOffer = good.find(c => /currentoffer/i.test(c.path) && !isBadImage(c.url))
+    if (curOffer) mainImage = curOffer.url
+    if (!mainImage) {
+      const arrFirst = good.find(c =>
+        /offerimglist|offerimages|mainimages|mainpics|gallery/i.test(c.path) && !isBadImage(c.url))
+      if (arrFirst) mainImage = arrFirst.url
     }
-    if (!mainImage && mainSingles.length) mainImage = mainSingles[0].url
-    if (!mainImage && domMain && !isBadImage(domMain)) mainImage = domMain
+    if (!mainImage) {
+      const best = good.slice().sort((a, b) => b.score - a.score).find(c => !isBadImage(c.url))
+      if (best) mainImage = best.url
+    }
 
-    // 5) 组装最终列表：主图置顶 → 其余按接口顺序 → 其他零散图
-    const rest = [...found.entries()]
-      .filter(([u, s]) => s > 0 && !isBadImage(u))
-      .sort((a, b) => b[1] - a[1])
-      .map(([u]) => u)
+    // 列表：主图置顶 → 其余按路径分数降序 → 同分按接口原顺序
+    const seen = new Set()
     const list = []
-    if (mainImage) list.push(mainImage)
-    for (const u of ordered) {
-      if (isBadImage(u)) continue
-      if (!list.includes(u)) list.push(u)
+    if (mainImage && !isBadImage(mainImage)) { list.push(mainImage); seen.add(mainImage) }
+    const rest = good
+      .filter(c => !isBadImage(c.url) && !seen.has(c.url))
+      .sort((a, b) => b.score - a.score)
+    for (const c of rest) {
+      if (list.includes(c.url)) continue
+      list.push(c.url)
+      if (list.length >= 20) break
     }
-    for (const u of rest) if (!list.includes(u)) list.push(u)
 
-    // 6) DOM 兵底补充
+    // DOM 兵底补充（图集区 → 详情区）
+    const dom = domFallback()
     for (const u of dom.images) {
       const n = normImage(u)
       if (n && !list.includes(n) && !isBadImage(n)) list.push(n)
     }
-    // 7) 全是素材图时，宁可要素材图也不要空
-    //    注意：评价图（买家秀）不算商品图，没有 DOM 兼底时宁可留空 ——
-    //    把顾客的实拍照片当成商品图展示是不对的。
+    // 详情区图片也算商品图（1688 详情区常常就是一组商品图）
+    for (const u of (dom.descImages || [])) {
+      const n = normImage(u)
+      if (n && !list.includes(n) && !isBadImage(n)) list.push(n)
+    }
+    if (!mainImage && dom.mainImage && !isBadImage(dom.mainImage)) mainImage = dom.mainImage
+
+    // 全是素材图时，宁可要素材图也不要空
     if (!list.length) {
-      const any = [...found.keys()].filter(u => !isReviewImage(u))
+      const any = cands.map(c => c.url).filter(u => !isReviewImage(u))
       if (any.length) list.push(any[0])
     }
     return { list: list.slice(0, 20), main: mainImage }
@@ -1278,7 +1393,7 @@
 
   /* ------------------------------------------------------------ DOM 兜底 */
   function domFallback() {
-    const out = { title: '', priceMin: null, priceMax: null, moq: null, images: [], supplierName: '', description: '' }
+    const out = { title: '', priceMin: null, priceMax: null, moq: null, images: [], descImages: [], supplierName: '', description: '' }
     const t = document.querySelector('h1.d-title, .title-text, .offer-title, h1')
     if (t) out.title = clean(t.innerText || t.textContent)
     // 主商品价格：限定在主价格区域，排除推荐位卡片里的别人的价格
@@ -1335,14 +1450,41 @@
     )
     if (gallery) {
       const u = gallery.getAttribute('src') || gallery.getAttribute('data-src') || gallery.getAttribute('data-lazy-src') || ''
-      if (u && !isAsset(u)) out.mainImage = u
+      if (u && !isBadImage(u)) out.mainImage = u
     }
-    out.images = Array.from(document.querySelectorAll('img'))
-      .map(i => i.getAttribute('src') || i.getAttribute('data-src') || i.getAttribute('data-lazy-src') || '')
-      .filter(u => /alicdn|1688|cbu/i.test(u))
-      .slice(0, 40)
+    // DOM 图集：**只取商品图集区**，不能扫全页 img
+    // （之前 document.querySelectorAll('img') 会把推荐位、评价图、
+    //   店招全扫进来 —— 这正是「产品图片采集不正确」的原因之一）
+    const galleryRoot = document.querySelector(
+      '[class*="detail-gallery"] img, [class*="image-view"] img, [class*="main-image"] img, ' +
+      '[class*="gallery"] img, .od-pic img, [class*="offer-pic"] img, [class*="preview"] img'
+    )
+    const galleryImgs = []
+    if (galleryRoot) {
+      const root = galleryRoot.closest(
+        '[class*="detail-gallery"], [class*="image-view"], [class*="main-image"], ' +
+        '[class*="gallery"], .od-pic, [class*="offer-pic"], [class*="preview"]'
+      ) || galleryRoot.parentElement
+      if (root) {
+        for (const i of Array.from(root.querySelectorAll('img')).slice(0, 30)) {
+          const u = i.getAttribute('src') || i.getAttribute('data-src') ||
+            i.getAttribute('data-lazy-src') || i.getAttribute('data-ks-lazyload') || ''
+          if (u && /alicdn|1688|cbu/i.test(u) && !isBadImage(u)) galleryImgs.push(u)
+        }
+      }
+    }
+    out.images = galleryImgs
+    // 商品描述：1688 渲染在 .desc-lazyload-container
     const d = document.querySelector('.desc-lazyload-container, .detail-content, #content, [class*="detail-desc"]')
-    if (d) out.description = (d.innerHTML || '').slice(0, 30000)
+    if (d) {
+      out.description = cleanDescriptionHtml(d.innerHTML || '')
+      // 详情区里的图 = 商品详情图，也是商品图（1688 详情区常常全是图）
+      out.descImages = Array.from(d.querySelectorAll('img'))
+        .map(i => i.getAttribute('src') || i.getAttribute('data-lazyload') ||
+          i.getAttribute('data-lazy-src') || i.getAttribute('data-src') || i.getAttribute('data-ks-lazyload') || '')
+        .filter(u => /alicdn|1688|cbu/i.test(u) && !isBadImage(u))
+        .slice(0, 30)
+    }
     out.skuPrices = domSkuPrices()
     return out
   }
@@ -2058,7 +2200,7 @@
   }
 
   window.FF1688 = {
-    __v: '3.9.0',
+    __v: '4.0.0',
     install,
     capture,
     dumpStructure,
@@ -2099,7 +2241,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.17.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.18.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +

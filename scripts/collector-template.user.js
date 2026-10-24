@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.17.0
+// @version      2.18.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -307,7 +307,19 @@
         } catch (e) {}
         // 内核版本自检：过旧则提示更新脚本（新版才有货号 / 首个规格 / 阶梯价）
         const MIN_CORE = '3.5.0'
-        if (v && v !== MIN_CORE) {
+        // 注意：必须做**版本号比较**，不能写 `v !== MIN_CORE`。
+        // 那样写的话，v='3.9.0' 也会被当成「过旧」——
+        // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示。
+        const cmpVer = (a, b) => {
+          const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
+          const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
+          for (let i = 0; i < 3; i++) {
+            const d = (pa[i] || 0) - (pb[i] || 0)
+            if (d) return d > 0 ? 1 : -1
+          }
+          return 0
+        }
+        if (v && cmpVer(v, MIN_CORE) < 0) {
           const msg =
             '内核版本过旧（当前 ' + v + '，需要 ' + MIN_CORE + '）。' +
             '请在 Tampermonkey 里更新或重装本脚本，否则采集不到货号、首个规格与阶梯价。'
