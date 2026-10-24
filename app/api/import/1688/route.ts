@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { upsertSupplierProduct, ensureSupplierProductTable } from '@/lib/supplier'
+import { upsertSupplierProduct, ensureSupplierProductTable, scrubStoredRawPII } from '@/lib/supplier'
 import { isAdminRequest, describeAuth } from '@/lib/chatAuth'
+import { scrubPIIItem } from '@/lib/pii'
 
 /**
  * POST /api/import/1688
@@ -65,50 +66,56 @@ export async function POST(request: NextRequest) {
     }
 
     await ensureSupplierProductTable()
+    // 一次性清洗历史存量里的个人信息（幂等，每进程只跑一次，失败不影响主流程）
+    await scrubStoredRawPII()
 
     const results: any[] = []
     const errors: any[] = []
 
     for (const item of items) {
       try {
-        const sourceId = item?.sourceId || item?.offerId || item?.id
+        // 隐私兜底：即使旧版采集器还在发带个人信息的内容，也不入库。
+        // （2026-10-24：1688 详情页会同时拉取收货地址簿接口，
+        //   里面有用户的真实姓名、手机号、收货地址。）
+        const safeItem = scrubPIIItem(item)
+        const sourceId = safeItem?.sourceId || safeItem?.offerId || safeItem?.id
         if (!sourceId) throw new Error('missing sourceId / offerId')
 
         const record = await upsertSupplierProduct({
-          source: item?.source || '1688',
+          source: safeItem?.source || '1688',
           sourceId: String(sourceId),
-          sourceUrl: item?.sourceUrl || item?.url,
-          title: item?.title || item?.name || '',
-          titleCn: item?.titleCn,
-          titleEn: item?.titleEn,
-          seoTitle: item?.seoTitle,
-          keywords: item?.keywords,
-          shortDescEn: item?.shortDescEn,
-          descriptionEn: item?.descriptionEn,
-          firstSku: item?.firstSku,
-          sourceSkuId: item?.sourceSkuId,
-          wholesalePrice: numberOrNull(item?.wholesalePrice),
-          priceLadder: item?.priceLadder,
-          skuPrices: Array.isArray(item?.skuPrices) ? JSON.stringify(item.skuPrices) : item?.skuPrices,
-          description: item?.description,
+          sourceUrl: safeItem?.sourceUrl || safeItem?.url,
+          title: safeItem?.title || safeItem?.name || '',
+          titleCn: safeItem?.titleCn,
+          titleEn: safeItem?.titleEn,
+          seoTitle: safeItem?.seoTitle,
+          keywords: safeItem?.keywords,
+          shortDescEn: safeItem?.shortDescEn,
+          descriptionEn: safeItem?.descriptionEn,
+          firstSku: safeItem?.firstSku,
+          sourceSkuId: safeItem?.sourceSkuId,
+          wholesalePrice: numberOrNull(safeItem?.wholesalePrice),
+          priceLadder: safeItem?.priceLadder,
+          skuPrices: Array.isArray(safeItem?.skuPrices) ? JSON.stringify(safeItem.skuPrices) : safeItem?.skuPrices,
+          description: safeItem?.description,
           images: (() => {
-            const imgs = Array.isArray(item?.images) ? item.images.filter(Boolean) : []
-            const main = item?.mainImage
+            const imgs = Array.isArray(safeItem?.images) ? safeItem.images.filter(Boolean) : []
+            const main = safeItem?.mainImage
             if (main && imgs.includes(main)) return [main, ...imgs.filter((u: string) => u !== main)]
             if (main) return [main, ...imgs]
             return imgs
           })(),
-          videoUrl: item?.videoUrl,
-          priceMin: numberOrNull(item?.priceMin),
-          priceMax: numberOrNull(item?.priceMax),
-          moq: numberOrNull(item?.moq),
-          unit: item?.unit,
-          skuText: item?.skuText,
-          attributes: item?.attributes,
-          supplierName: item?.supplierName,
-          supplierUrl: item?.supplierUrl,
-          shippingText: item?.shippingText,
-          raw: item?.raw || item,
+          videoUrl: safeItem?.videoUrl,
+          priceMin: numberOrNull(safeItem?.priceMin),
+          priceMax: numberOrNull(safeItem?.priceMax),
+          moq: numberOrNull(safeItem?.moq),
+          unit: safeItem?.unit,
+          skuText: safeItem?.skuText,
+          attributes: safeItem?.attributes,
+          supplierName: safeItem?.supplierName,
+          supplierUrl: safeItem?.supplierUrl,
+          shippingText: safeItem?.shippingText,
+          raw: safeItem?.raw || safeItem,
         })
         results.push({ id: record.id, sourceId: record.sourceId, status: record.status })
       } catch (e: any) {
@@ -134,3 +141,5 @@ function numberOrNull(v: any): number | null {
   const n = Number(v)
   return Number.isFinite(n) ? n : null
 }
+
+
