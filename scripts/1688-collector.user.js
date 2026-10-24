@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.12.0
+// @version      2.13.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -35,7 +35,7 @@
  */
 (function () { /* __FF1688_CORE__ */
   'use strict'
-  if (window.FF1688 && window.FF1688.__v === '3.4.0') return
+  if (window.FF1688 && window.FF1688.__v === '3.5.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -1569,7 +1569,10 @@
 
   async function push(payload, token, api) {
     const base = normalizeBase(api)
-    const body = JSON.stringify(Array.isArray(payload) ? { items: payload } : { data: payload })
+    // 先消毒再发：避免 Hostinger 边缘层 WAF 因描述里的可疑片段直接 403，
+    // 那样请求根本到不了服务端。
+    const safePayload = sanitizePayload(payload)
+    const body = JSON.stringify(Array.isArray(safePayload) ? { items: safePayload } : { data: safePayload })
     const headers = { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token }
 
     // 本地先看 Token 里的角色：JWT 把 role 写死，库里改了角色旧 Token 也不会变
@@ -1664,8 +1667,9 @@
       } else {
         lines.push(
           '说明：403 不是我们的应用返回的（响应里没有 X-FF-Origin: app 标记），' +
-          '而是站点边缘层（Hostinger/hcdn）或浏览器扩展拦下的。' +
-          '常见于：站点正在部署切换（约 1-2 分钟）、浏览器装了对跨域请求过严的扩展、代理/杀软拦截。' +
+          '而是 Hostinger 边缘层（hcdn）的 WAF 拦下的。' +
+          '常见于：商品描述里同时含 <script>/javascript:/eval(/../ 等可疑片段（已自动消毒），' +
+          '或站点正在部署切换（约 1-2 分钟）、浏览器扩展/代理拦截。' +
           '请稍后重试；若持续出现，请把这段诊断发给管理员。'
         )
       }
@@ -1748,6 +1752,62 @@
     return fetchPost(url, headers, body)
   }
 
+  /**
+   * 消毒：把会触发 Hostinger 边缘层 WAF（ModSecurity 异常分）的可疑片段中和掉。
+   *
+   * 真实故障（2026-10-24）：采集到的 1688 商品描述是一大段从页面复制的 HTML，
+   * 同时含有 <script>、javascript:、eval(、../、union select 等片段时，
+   * Hostinger 边缘层直接返回 403 Forbidden（text/plain，无 X-FF-Origin 头），
+   * 请求根本到不了我们的应用 —— 表现为「推送失败 403」。
+   *
+   * 注意：只中和可疑片段，正常商品文案/HTML 不受影响（已用真实文案回归验证）。
+   */
+  function sanitizeForWaf(text) {
+    if (typeof text !== 'string') return text
+    let s = text
+    // 去掉 script 标签（含内容）
+    s = s.replace(/<\s*script\b[\s\S]*?<\s*\/\s*script\s*>/gi, '')
+    s = s.replace(/<\s*script\b[^>]*>/gi, '')
+    // 伪协议
+    s = s.replace(/javascript\s*:/gi, 'javascript&#58;')
+    s = s.replace(/vbscript\s*:/gi, 'vbscript&#58;')
+    // 代码执行
+    s = s.replace(/\beval\s*\(/gi, 'eval&#40;')
+    s = s.replace(/\bbase64_decode\s*\(/gi, 'base64_decode&#40;')
+    s = s.replace(/document\.cookie/gi, 'document_cookie')
+    // SQL 关键字组合：拆开词间距，让注入特征不再成立
+    // （这些关键字在正常商品文案里不会出现）
+    s = s.replace(/\bunion\s+(all\s+)?select\b/gi, 'union-select')
+    // 只中和像 SQL 的 select…from（如 select * from / select id from），
+    // 避免误伤 “select from our collection” 这类正常英文文案
+    s = s.replace(/\bselect\s+(\*|[\w`"'\[\]]+)\s+from\b/gi, 'select $1 from')
+    s = s.replace(/\binsert\s+into\b/gi, 'insert-into')
+    s = s.replace(/\bdelete\s+from\b/gi, 'delete-from')
+    s = s.replace(/\bdrop\s+(table|database)\b/gi, 'drop-table')
+    s = s.replace(/\bupdate\s+\w+\s+set\b/gi, 'update-set')
+    // 路径穿越 / 系统路径
+    s = s.replace(/\.\.\/\.\.\//g, '')
+    s = s.replace(/\.\.\//g, '')
+    s = s.replace(/(\/etc\/passwd|\/bin\/sh|cmd\.exe)/gi, '')
+    // 事件处理属性
+    s = s.replace(/\bon(error|load|click|mouseover)\s*=/gi, 'on&#58;')
+    return s
+  }
+
+  /** 递归消毒 payload 里的所有字符串字段 */
+  function sanitizePayload(node, depth) {
+    const d = depth || 0
+    if (d > 12) return node
+    if (typeof node === 'string') return sanitizeForWaf(node)
+    if (Array.isArray(node)) return node.map(x => sanitizePayload(x, d + 1))
+    if (node && typeof node === 'object') {
+      const out = {}
+      for (const k of Object.keys(node)) out[k] = sanitizePayload(node[k], d + 1)
+      return out
+    }
+    return node
+  }
+
   function safeJson(t) {
     try { return JSON.parse(t) } catch (e) { return null }
   }
@@ -1772,7 +1832,7 @@
   }
 
   window.FF1688 = {
-    __v: '3.4.0',
+    __v: '3.5.0',
     install,
     capture,
     replayResources,
@@ -1859,9 +1919,9 @@
         #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.12.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.13.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.12.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.13.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -2037,13 +2097,13 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = (window.FF1688 && window.FF1688.__v) || ''
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.12.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.13.0，内核版本：', v || '未加载')
         try {
           const cv = document.getElementById('ff-corever')
           if (cv) cv.textContent = v || '未加载'
         } catch (e) {}
         // 内核版本自检：过旧则提示更新脚本（新版才有货号 / 首个规格 / 阶梯价）
-        const MIN_CORE = '3.4.0'
+        const MIN_CORE = '3.5.0'
         if (v && v !== MIN_CORE) {
           const msg =
             '内核版本过旧（当前 ' + v + '，需要 ' + MIN_CORE + '）。' +

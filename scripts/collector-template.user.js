@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.12.0
+// @version      2.13.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -279,7 +279,7 @@
           if (cv) cv.textContent = v || '未加载'
         } catch (e) {}
         // 内核版本自检：过旧则提示更新脚本（新版才有货号 / 首个规格 / 阶梯价）
-        const MIN_CORE = '3.4.0'
+        const MIN_CORE = '3.5.0'
         if (v && v !== MIN_CORE) {
           const msg =
             '内核版本过旧（当前 ' + v + '，需要 ' + MIN_CORE + '）。' +
