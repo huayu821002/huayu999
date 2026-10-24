@@ -18,6 +18,7 @@ export async function OPTIONS(request: NextRequest) {
       'Access-Control-Allow-Methods': 'POST, OPTIONS',
       'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-import-key',
       'Access-Control-Max-Age': '86400',
+      'X-FF-Origin': 'app',
     },
   })
 }
@@ -29,6 +30,10 @@ export async function POST(request: NextRequest) {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-import-key',
     'Vary': 'Origin',
+    // 标记：这个响应确实来自本应用。
+    // 采集脚本据此区分「应用层返回的 401/403」和「Hostinger 边缘层返回的 403」——
+    // 边缘层不会带这个头，诊断时一眼就能看出来。
+    'X-FF-Origin': 'app',
   }
 
   try {

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.11.0
+// @version      2.12.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -184,10 +184,13 @@
           const detail = [
             '状态码: ' + r.status,
             '请求地址: ' + (r.url || '-'),
-            '返回: ' + (r.text || '(空)').slice(0, 400),
-          ].join('\n')
+            '返回: ' + (r.text || '(空)').slice(0, 1200),
+          ]
+          if (r.attempts && r.attempts.length > 1) {
+            detail.push('尝试记录: ' + r.attempts.map(a => a.url + ' → ' + a.status).join('；'))
+          }
           kv.style.display = 'block'
-          kv.textContent = detail
+          kv.textContent = detail.join('\n')
           say('❌ 推送失败 ' + r.status + '（详情见下方）')
           console.log('[Fiestaflare] 推送失败详情：', r)
         }
@@ -276,7 +279,7 @@
           if (cv) cv.textContent = v || '未加载'
         } catch (e) {}
         // 内核版本自检：过旧则提示更新脚本（新版才有货号 / 首个规格 / 阶梯价）
-        const MIN_CORE = '3.3.0'
+        const MIN_CORE = '3.4.0'
         if (v && v !== MIN_CORE) {
           const msg =
             '内核版本过旧（当前 ' + v + '，需要 ' + MIN_CORE + '）。' +
