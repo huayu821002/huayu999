@@ -16,10 +16,16 @@ let pass = 0, fail = 0
 const t = (n, ok, extra) => { if (ok) { pass++; console.log('  ✓', n) } else { fail++; console.log('  ✗', n, extra ?? '') } }
 
 // 从模板里抽出 cmpVer 实现，保证测的就是线上那一份
+// （用括号配平来截取，不依赖缩进）
 const start = TPL.indexOf('const cmpVer = (a, b) => {')
 t('模板里存在 cmpVer', start >= 0)
 if (start < 0) { console.log(`\n通过 ${pass} / 失败 ${fail}`); process.exit(1) }
-const end = TPL.indexOf('\n        }', start) + '\n        }'.length
+const bodyStart = TPL.indexOf('{', start)
+let depth = 0, end = bodyStart
+for (let i = bodyStart; i < TPL.length; i++) {
+  if (TPL[i] === '{') depth++
+  else if (TPL[i] === '}') { depth--; if (depth === 0) { end = i + 1; break } }
+}
 const cmpVer = eval('(' + TPL.slice(start + 'const cmpVer = '.length, end).trim().replace(/;$/, '') + ')')
 
 console.log('[1] 版本比较')
@@ -63,6 +69,17 @@ const BUILD = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-colle
 t('构建脚本校验 guard 与 __v 一致', /guardVer\s*!==\s*coreVer/.test(BUILD) && /内核版本不一致/.test(BUILD))
 t('构建脚本注入 __CORE_VERSION__', /__CORE_VERSION__/.test(BUILD))
 t('模板里确实有 __CORE_VERSION__ 占位', /__CORE_VERSION__/.test(TPL))
+
+console.log('\n[5] 提示框可关闭、且热更新后会自动撤销')
+t('提示框有固定 id（避免重复弹多个）', /const NAG_ID = 'ff-core-nag'/.test(TPL))
+t('提示框可点击关闭', /addEventListener\('click'/.test(TPL))
+t('热更新后调用 refreshCoreVersion', /refreshCoreVersion\(\)/.test(TPL))
+t('版本号不再陈旧（可刷新）', /function refreshCoreVersion\(\)/.test(TPL))
+// boot() 里应调 refreshCoreVersion()，而不是自己再读一遍 __v
+const bootBody = TPL.slice(TPL.indexOf('function boot()'))
+t('boot() 调 refreshCoreVersion', /refreshCoreVersion\(\)/.test(bootBody))
+t('读 __v 的地方只有一处（refreshCoreVersion 内）',
+  (TPL.match(/window\.FF1688 && window\.FF1688\.__v/g) || []).length === 1)
 
 console.log('\n--------------------------------')
 console.log(`通过 ${pass} / 失败 ${fail}`)
