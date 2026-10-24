@@ -11,8 +11,9 @@
     "db:studio": "prisma studio",
     "db:seed": "node prisma/seed.js",
     "collector:build": "node scripts/build-collector.js",
-    "collector:test": "node public/1688-core.test.js && node scripts/test-collector-panel.js && node scripts/test-console-snippet.js",
-    "postinstall": "prisma generate"
+    "collector:test": "node public/1688-core.test.js && node public/1688-core.noise.test.js && node scripts/test-collector-panel.js && node scripts/test-console-snippet.js",
+    "postinstall": "prisma generate",
+    "collector:test:push": "node scripts/test-push-gm.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",

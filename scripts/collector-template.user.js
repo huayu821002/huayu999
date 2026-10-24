@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.10.0
+// @version      2.11.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -211,13 +211,22 @@
           priceCandidates: payload.raw && payload.raw.priceCandidates,
           skuCandidates: payload.raw && payload.raw.skuCandidates,
           priceContainers: payload.raw && payload.raw.priceContainers,
+          // 新增：数据来源 / 接口清单 / SKU 路径（直接定位真实 SKU 在哪个报文）
+          sources: payload.raw && payload.raw.sources,
+          apiList: payload.raw && payload.raw.apiList,
+          payloadTopKeys: payload.raw && payload.raw.payloadTopKeys,
+          skuLikePaths: payload.raw && payload.raw.skuLikePaths,
           skuPrices: payload.skuPrices,
           priceLadder: payload.priceLadder,
           firstSku: payload.firstSku,
           mainImage: payload.mainImage,
           images: (payload.images || []).slice(0, 3),
           capturedCount: captured.length,
-          captured,
+          // 只带前 10 条，避免粘贴被截断（URL 截到 300，数据截到 20k）
+          captured: captured.slice(0, 10).map(p => ({
+            url: String(p.url || '').slice(0, 300),
+            data: JSON.stringify(p.data || {}).slice(0, 20000),
+          })),
         }
         const txt = JSON.stringify(diag, null, 2)
         try {
@@ -267,7 +276,7 @@
           if (cv) cv.textContent = v || '未加载'
         } catch (e) {}
         // 内核版本自检：过旧则提示更新脚本（新版才有货号 / 首个规格 / 阶梯价）
-        const MIN_CORE = '3.2.0'
+        const MIN_CORE = '3.3.0'
         if (v && v !== MIN_CORE) {
           const msg =
             '内核版本过旧（当前 ' + v + '，需要 ' + MIN_CORE + '）。' +

@@ -13,7 +13,7 @@
  */
 (function () { /* __FF1688_CORE__ */
   'use strict'
-  if (window.FF1688 && window.FF1688.__v === '3.2.0') return
+  if (window.FF1688 && window.FF1688.__v === '3.3.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -29,15 +29,61 @@
   const hasCJK = s => /[一-龥]/.test(String(s || ''))
 
   /* ---------------------------------------------------------- 截获接口返回 */
-  const STORE = { payloads: [], installed: false }
+  const STORE = { payloads: [], requests: [], installed: false }
 
   function pushCapture(url, data) {
     if (!data || typeof data !== 'object') return
     const u = (url || '').toLowerCase()
     if (!/offer|detail|mtop|item|search|product|seller|company|price/.test(u)) return
-    STORE.payloads.push({ url: String(url).slice(0, 300), data })
+    // 过滤失败/空的 mtop 响应（重放时 data 参数丢失会得到这种垃圾）
+    if (isUselessPayload(data)) return
+    // URL 不截断：mtop 的 data/sign 在 query 尾部，截断后重放就会 invalid param
+    STORE.payloads.push({ url: String(url), data })
     if (STORE.payloads.length > 40) STORE.payloads.shift()
     flush()
+  }
+
+  /** mtop 失败/空响应判定：success=false、reason=invalid param、data 为空 */
+  function isUselessPayload(data) {
+    try {
+      const d = data && data.data
+      if (!d || typeof d !== 'object') return false
+      if (d.success === false) return true
+      if (typeof d.reason === 'string' && /invalid param|error|fail/i.test(d.reason)) return true
+      const inner = d.data
+      if (inner && typeof inner === 'object' && !Array.isArray(inner)) {
+        if (inner.success === false) return true
+        if (typeof inner.reason === 'string' && /invalid param|error|fail/i.test(inner.reason)) return true
+        if (!Object.keys(inner).length) return true // data: {}
+      }
+      return false
+    } catch (e) { return false }
+  }
+
+  /** 宽松解析：兼容 JSON / JSONP / 前后带杂音的文本 */
+  function parseLoose(text) {
+    if (!text) return null
+    if (typeof text === 'object') return text
+    const t = String(text)
+    try { return JSON.parse(t) } catch (e) {}
+    let i = t.indexOf('{'), j = t.lastIndexOf('}')
+    if (i >= 0 && j > i) { try { return JSON.parse(t.slice(i, j + 1)) } catch (e) {} }
+    i = t.indexOf('['); j = t.lastIndexOf(']')
+    if (i >= 0 && j > i) { try { return JSON.parse(t.slice(i, j + 1)) } catch (e) {} }
+    return null
+  }
+
+  /** 记录 mtop 请求的 method/body，供原样重放（GET 重放会丢签名参数 → invalid param） */
+  function pushRequest(url, method, body) {
+    const u = String(url || '')
+    if (!/mtop|offer|detail|sku/i.test(u)) return
+    STORE.requests.push({
+      url: u.slice(0, 2000),
+      method: String(method || 'GET').toUpperCase(),
+      body: typeof body === 'string' ? body.slice(0, 4000) : '',
+      at: Date.now(),
+    })
+    if (STORE.requests.length > 30) STORE.requests.shift()
   }
 
   function flush() {
@@ -61,16 +107,22 @@
     STORE.installed = true
 
     const origFetch = window.fetch
+    window.__FF1688_ORIG_FETCH__ = origFetch
     window.fetch = function (...args) {
       const p = origFetch.apply(this, args)
       try {
+        // 记录请求的 method/body，供原样重放（mtop 的 data 参数在 body 里，丢掉就会 invalid param）
+        const raw = args[0]
+        const init = args[1] || {}
+        const reqUrl = (raw && raw.url) || (typeof raw === 'string' ? raw : '')
+        pushRequest(reqUrl, init.method || (raw && raw.method) || 'GET', init.body)
         p.then(res => {
-          const url = (res && res.url) || (args[0] && args[0].url) || ''
+          const url = (res && res.url) || reqUrl || ''
           res.clone().text().then(txt => {
             if (!txt || txt.length > 600000) return
-            const c = txt.charCodeAt(0)
-            if (c !== 123 && c !== 91) return
-            try { pushCapture(url, JSON.parse(txt)) } catch (e) {}
+            const parsed = parseLoose(txt)
+            if (!parsed || typeof parsed !== 'object') return
+            pushCapture(url, parsed)
           }).catch(() => {})
         }).catch(() => {})
       } catch (e) {}
@@ -82,17 +134,26 @@
     const origSend = XHR.prototype.send
     XHR.prototype.open = function (method, url, ...rest) {
       this.__ffUrl = url
+      this.__ffMethod = method
       return origOpen.call(this, method, url, ...rest)
     }
     XHR.prototype.send = function (...args) {
+      try {
+        const body = typeof args[0] === 'string' ? args[0] : ''
+        pushRequest(this.__ffUrl || '', this.__ffMethod || 'GET', body)
+      } catch (e) {}
       this.addEventListener('load', function () {
         try {
           const url = this.__ffUrl || this.responseURL || ''
-          const txt = this.responseText
+          let txt = ''
+          try { txt = this.responseText } catch (e) {}
+          if (!txt && this.response && typeof this.response === 'object') {
+            try { txt = JSON.stringify(this.response) } catch (e) {}
+          }
           if (!txt || txt.length > 600000) return
-          const c = txt.charCodeAt(0)
-          if (c !== 123 && c !== 91) return
-          pushCapture(url, JSON.parse(txt))
+          const parsed = parseLoose(txt)
+          if (!parsed || typeof parsed !== 'object') return
+          pushCapture(url, parsed)
         } catch (e) {}
       })
       return origSend.apply(this, args)
@@ -112,7 +173,11 @@
     return payloads
   }
 
-  /** 页面已加载完（控制台方案）→ 用 performance 资源列表重放 1688 自己的接口请求 */
+  /**
+   * 页面已加载完（控制台方案）→ 用 performance 资源列表重放 1688 自己的接口请求。
+   * 关键：1688 的 mtop 接口是 **GET 但签名在 query**；我们用 performance 里的原始 URL 重放时，
+   * 里面已经带了 t/sign/data，所以**必须用完整 URL，不能截断**（截断会丢 data → invalid param）。
+   */
   async function replayResources(limit = 10) {
     const out = []
     let urls = []
@@ -125,47 +190,157 @@
         .filter(u => !/\.(png|jpg|jpeg|webp|svg|css|js|woff2?)(\?|$)/i.test(u))
     } catch (e) {}
     urls = Array.from(new Set(urls)).slice(-limit)
+    // 用未挂钩的原始 fetch，避免重放响应又回流进 STORE 污染采集结果
+    const rawFetch = window.__FF1688_ORIG_FETCH__ || window.fetch
     await Promise.all(
       urls.map(async u => {
         try {
-          const res = await fetch(u, { credentials: 'include' })
+          // 注意：不截断 URL，mtop 的 data/sign 在 query 里
+          const res = await rawFetch(u, { credentials: 'include' })
           if (!res.ok) return
           const txt = await res.text()
           if (!txt) return
-          const c = txt.charCodeAt(0)
-          if (c !== 123 && c !== 91) return
-          out.push({ url: String(u).slice(0, 300), data: JSON.parse(txt) })
+          const parsed = parseLoose(txt)
+          if (!parsed || typeof parsed !== 'object') return
+          if (isUselessPayload(parsed)) return
+          out.push({ url: String(u), data: parsed, from: 'replay' })
         } catch (e) {}
       })
     )
     return out
   }
 
+  /**
+   * 重放我们自己截获到的 mtop 请求（带原始 method + body）。
+   * 场景：页面已加载完、install() 晚于首屏请求 → 截获不到真实详情报文。
+   */
+  async function replayCapturedRequests(limit = 8) {
+    const out = []
+    const list = STORE.requests.filter(r => /mtop|offer|detail|sku/i.test(r.url)).slice(-limit)
+    const rawFetch = window.__FF1688_ORIG_FETCH__ || window.fetch
+    for (const r of list) {
+      try {
+        const init = { credentials: 'include', method: r.method || 'GET' }
+        if (r.body && r.method !== 'GET') {
+          init.body = r.body
+          init.headers = { 'content-type': 'application/x-www-form-urlencoded' }
+        }
+        const res = await rawFetch(r.url, init)
+        if (!res || !res.ok) continue
+        const txt = await res.text()
+        const parsed = parseLoose(txt)
+        if (!parsed || typeof parsed !== 'object') continue
+        out.push({ url: String(r.url).slice(0, 300), data: parsed, from: 'replay-body' })
+      } catch (e) {}
+    }
+    return out
+  }
+
+  /**
+   * 扫描页面内联脚本与 window 全局变量，寻找含 offerId 的真实详情 JSON。
+   * 1688 首屏详情数据常挂在 __INIT_DATA__ / __NEXT_DATA__ / offerData 等全局上。
+   */
+  function scanInlineData() {
+    const found = []
+    const seen = new Set()
+    const add = (url, obj) => {
+      if (!obj || typeof obj !== 'object') return
+      if (seen.has(obj)) return
+      seen.add(obj)
+      found.push({ url, data: obj, from: 'inline' })
+    }
+    // 1) window 全局常见命名
+    const globalKeys = [
+      '__INIT_DATA__', '__NEXT_DATA__', '__NUXT__', '__APOLLO_STATE__',
+      '__PRELOADED_STATE__', 'offerData', 'detailData', '__OFFER_DATA__',
+      '__GLOBAL_DATA__', 'window.__detailData', '__INITIAL_STATE__',
+    ]
+    for (const k of globalKeys) {
+      try { add('global:' + k, window[k]) } catch (e) {}
+    }
+    // 2) window 上所有含 offerId 的浅层全局
+    try {
+      for (const k of Object.keys(window)) {
+        if (k.length > 40) continue
+        let v
+        try { v = window[k] } catch (e) { continue }
+        if (!v || typeof v !== 'object') continue
+        if (Array.isArray(v) && v.length > 50) continue
+        const s = (() => { try { return JSON.stringify(v).slice(0, 20000) } catch (e) { return '' } })()
+        if (s && /"offerId"\s*:\s*"?\d{6,}/.test(s)) add('global-scan:' + k, v)
+      }
+    } catch (e) {}
+    // 3) 内联 <script> 里的 JSON
+    try {
+      const scripts = document.querySelectorAll('script')
+      for (const s of scripts) {
+        const t = s.textContent || ''
+        if (!t || t.length > 400000) continue
+        if (!/offerId/i.test(t)) continue
+        const m = t.match(/=\s*(\{[\s\S]*\})\s*[;\n]/)
+        if (m) {
+          const parsed = parseLoose(m[1])
+          if (parsed && typeof parsed === 'object') add('inline-script', parsed)
+        }
+      }
+    } catch (e) {}
+    return found
+  }
+
   /* ------------------------------------------------------------- 深度搜索 */
-  function walk(node, fn, depth = 0, seen = new Set()) {
+  function walk(node, fn, depth = 0, seen = new Set(), path = []) {
     if (!node || depth > 14 || typeof node !== 'object') return
     if (seen.has(node)) return
     seen.add(node)
     if (Array.isArray(node)) {
-      for (const item of node) walk(item, fn, depth + 1, seen)
+      for (const item of node) walk(item, fn, depth + 1, seen, path)
       return
     }
     for (const k of Object.keys(node)) {
-      fn(k, node[k], node)
-      walk(node[k], fn, depth + 1, seen)
+      fn(k, node[k], node, path)
+      walk(node[k], fn, depth + 1, seen, path.concat(k))
     }
   }
 
-  /** 收集候选：{ key, value, parent, url } */
+  /** 收集候选：{ key, value, parent, url, path } */
   function collect(payloads, filter) {
     const out = []
     for (const p of payloads) {
-      walk(p.data, (k, v, parent) => {
-        if (!filter(k, v)) return
-        out.push({ key: String(k), value: v, parent, url: p.url })
+      walk(p.data, (k, v, parent, path) => {
+        if (!filter(k, v, parent, path)) return
+        out.push({ key: String(k), value: v, parent, path: path || [], url: p.url })
       })
     }
     return out
+  }
+
+  /* ------------------------------------------------------- 噪声容器识别 */
+  /**
+   * 1688 详情页里有大量「推荐位 / 同店其它商品」列表：
+   *   offerList、majorRecommendOfferInfos、relationRecommendOfferInfos、itemList …
+   * 里面的价格全是**别的商品**的价格。
+   * 两种判定（任一命中即视为噪声）：
+   *   ① 路径里出现 recommend/relation/major/similar/hot/offerList/itemList 等推荐位容器名
+   *   ② 字段结构上就是「商品卡片」：带 offerId / offerUrl / isCurrentOffer / behaviorTag
+   */
+  const NOISE_KEY_RE = /(recommend|relation|major|similar|hot|shopcard|itemlist|offerlist)/i
+  const isNoiseKey = k => NOISE_KEY_RE.test(String(k || ''))
+
+  function isCardItem(obj) {
+    if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return false
+    return !!obj.offerId || !!obj.offerUrl || obj.isCurrentOffer !== undefined || !!obj.behaviorTag
+  }
+
+  function isNoisePath(path) {
+    if (!path || !path.length) return false
+    return path.some(p => isNoiseKey(p))
+  }
+
+  /** 候选是否来自噪声容器 */
+  function isNoiseCandidate(c) {
+    if (isNoisePath(c.path)) return true
+    if (c.parent && isCardItem(c.parent)) return true
+    return false
   }
 
   /* ----------------------------------------------------------- key 权重表 */
@@ -296,6 +471,12 @@
   /**
    * 找出「规格 → 价格」的数组型 SKU 列表（1688 里每个规格一条 price/priceText）
    * 返回 [{ key, score, entries: [{ spec, price, skuId, priceText }] }]
+   *
+   * 关键修正（2026-10-24）：
+   *   之前只靠 key 名（sku/model/spec/prop）或「有 priceText」判定，
+   *   导致**同店其它商品推荐列表**（offerList / majorRecommendOfferInfos / …）
+   *   被当成 SKU 列表 → 把别人家的价格当成了本商品价格。
+   *   现在增加：① 推荐容器路径排除 ② 条目级商品卡片识别 ③ 规格字段证据要求。
    */
   function collectSkuEntries(payloads) {
     const out = []
@@ -306,12 +487,14 @@
       return n >= 1 && n <= 120
     })
     for (const c of objCands) {
+      if (isNoiseCandidate(c)) continue
       const key = String(c.key)
-      if (!/sku|model|spec|prop|price.*map|map.*price/i.test(key)) continue
+      if (!/sku|model|spec|prop|price/i.test(key)) continue
       const entries = []
       for (const kk of Object.keys(c.value)) {
         const it = c.value[kk]
         if (!it || typeof it !== 'object') continue
+        if (isCardItem(it)) continue
         const pr = priceOfItem(it)
         if (pr === null) continue
         const raw = String(kk)
@@ -324,20 +507,24 @@
     }
     const arrCands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length <= 200)
     for (const c of arrCands) {
-      const items = c.value.filter(it => it && typeof it === 'object' && !Array.isArray(it))
+      if (isNoiseCandidate(c)) continue
+      let items = c.value.filter(it => it && typeof it === 'object' && !Array.isArray(it))
+      // 条目级过滤：商品卡片（带 offerId/offerUrl/behaviorTag）不是规格行
+      const cards = items.filter(isCardItem)
+      if (cards.length) items = items.filter(it => !isCardItem(it))
       if (!items.length) continue
       const key = String(c.key)
       const isSkuKey = /sku|model|spec|prop|saleprop/i.test(key)
       const hasText = items.some(it => it.priceText && /[\d.]/.test(it.priceText))
-      const hasSpec = items.some(it => it.skuId || it.skuName || it.spec || it.specName || it.propName || it.attrName)
-      if (!isSkuKey && !hasText) continue // 只有裸 price 的数组（多半是阶梯价/区间），不当 SKU
+      // 规格证据：必须有真正的规格字段（不能只靠 priceText 或标题）
+      const hasSpec = items.some(it => it.skuId || it.skuName || it.spec || it.specName || it.propName || it.attrName || it.skuAttr || it.specValue || it.propValue)
       if (!isSkuKey && !hasSpec && !hasText) continue
       const entries = []
       for (const it of items) {
         const pr = priceOfItem(it)
         if (pr === null) continue
         entries.push({
-          spec: specOfItem(it),
+          spec: skuSpecOfItem(it),
           price: pr,
           skuId: String(it.skuId || it.id || ''),
           priceText: it.priceText || '',
@@ -362,14 +549,73 @@
     return ''
   }
 
-  function pickPrices(payloads) {
-    const cands = collect(payloads, (k, v) => {
+  /**
+   * SKU 列表里的「规格名」：必须是短规格词（颜色/尺码/款式），
+   * 不能是整段商品标题（那是商品卡片，不是规格行）。
+   */
+  function skuSpecOfItem(it) {
+    if (!it || typeof it !== 'object') return ''
+    for (const k of ['skuName', 'specName', 'propName', 'attrName', 'skuAttr', 'spec', 'specValue', 'propValue']) {
+      const v = it[k]
+      if (typeof v === 'string' && v.trim()) {
+        const s = v.trim()
+        if (s.length > 24) continue // 太长 → 是商品标题不是规格
+        return s.slice(0, 40)
+      }
+    }
+    // 退化情况：只有 name/title，但很长 → 视为无规格
+    for (const k of ['name', 'title']) {
+      const v = it[k]
+      if (typeof v === 'string' && v.trim() && v.trim().length <= 24) return v.trim().slice(0, 40)
+    }
+    return ''
+  }
+
+  /**
+   * 从「同店/推荐商品列表」里找**当前商品自己**的那一条。
+   * 1688 的 offerList 里每条是另一个 offer（带 offerId/offerUrl），
+   * 其中可能有一条 isCurrentOffer=true（或 offerId 与当前页一致）——那才是本商品的价格。
+   * 返回 { price, offerId, title, priceText } 或 null。
+   */
+  function pickCurrentOfferCard(payloads, offerId) {
+    const target = String(offerId || '')
+    let found = null
+    for (const p of payloads) {
+      walk(p.data, (k, v, parent, path) => {
+        if (found) return
+        if (!Array.isArray(v)) return
+        for (const it of v) {
+          if (!it || typeof it !== 'object') continue
+          if (!isCardItem(it)) continue
+          const isCur = it.isCurrentOffer === true ||
+            it.isCurrentOffer === 'true' ||
+            (target && String(it.offerId || '') === target)
+          if (!isCur) continue
+          const pr = priceOfItem(it)
+          if (pr === null) continue
+          found = {
+            price: pr,
+            priceText: it.priceText || '',
+            offerId: String(it.offerId || ''),
+            title: String(it.title || it.name || '').slice(0, 60),
+            container: (path || []).concat(String(k)).join('.'),
+          }
+          return
+        }
+      })
+    }
+    return found
+  }
+
+  function pickPrices(payloads, opts) {
+    const currentOfferId = (opts && opts.offerId) || ''
+    const cands = collect(payloads, (k, v, parent, path) => {
       const t = typeof v === 'string' ? v : typeof v === 'number' ? String(v) : ''
       if (!t) return false
       if (/[\d.]+\s*[-~～至]\s*[\d.]+/.test(t)) return true
       const n = num(t)
       return n !== null && n > 0.01 && n < 1000000
-    })
+    }).filter(c => !isNoiseCandidate(c)) // 排除推荐位/商品卡片里的别人的价格
 
     let best = { lo: null, hi: null, score: -99, why: '' }
     const skuCandidates = []
@@ -386,16 +632,25 @@
       best = { lo: e0.price, hi: e0.price, score: 99, why: 'sku:first(' + s.key + ' → ' + (e0.spec || e0.priceText || '第一个规格') + ')' }
     }
 
+    /* ---- A2) 没有真实 SKU 列表 → 尝试「当前商品卡片」的价格 ---- */
+    if (best.lo === null) {
+      const cur = pickCurrentOfferCard(payloads, currentOfferId)
+      if (cur) {
+        best = { lo: cur.price, hi: cur.price, score: 88, why: 'current-offer(' + cur.container + ' → ' + (cur.title || cur.offerId) + ')' }
+      }
+    }
+
     /* ---- B) 阶梯价列表：第一个档位的价格（单 SKU 时的真实批发价） ---- */
     if (best.lo === null) {
       for (const c of arrCands) {
+        if (isNoiseCandidate(c)) continue
         const key = String(c.key)
-        if (!/pricetier|steprice|price.*tier|multiprice|ladder|priceRangeList|priceRanges/i.test(key)) continue
+        if (!/pricetier|steprice|price.*tier|multiprice|ladder|priceRangeList|priceRanges|priceInfoList/i.test(key)) continue
         const items = c.value.filter(it => it && typeof it === 'object')
         const priced = items.map(it => ({ it, p: priceOfItem(it) })).filter(x => x.p !== null)
         if (!priced.length) continue
         const hasQty = items.some(it => /beginAmount|begin|quantity|qty|minCount/i.test(Object.keys(it).join(',')))
-        if (!hasQty) continue
+        if (!hasQty && !/priceInfoList/i.test(key)) continue
         best = { lo: priced[0].p, hi: priced[0].p, score: 90, why: 'tier:first(' + key + ')' }
         break
       }
@@ -502,10 +757,12 @@
     // 2) key 像 sku/priceList 的数组：[{ spec/props..., price }]
     const arrCands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length <= 200)
     for (const c of arrCands) {
+      if (isNoiseCandidate(c)) continue
       if (!/sku|price.*list|list.*price|skumodel|skuprice|skuprices/i.test(c.key)) continue
       if (/tier|beginamount|quantity|阶梯/i.test(c.key)) continue // 阶梯价表不是规格价
       for (const it of c.value) {
         if (!it || typeof it !== 'object') continue
+        if (isCardItem(it)) continue // 商品卡片（别人家的货）
         if (/beginamount|quantity|moq|amount|step/i.test(Object.keys(it).join(','))) continue // 起批量类
         let price = null
         for (const kk of Object.keys(it)) {
@@ -941,12 +1198,45 @@
     const out = { title: '', priceMin: null, priceMax: null, moq: null, images: [], supplierName: '', description: '' }
     const t = document.querySelector('h1.d-title, .title-text, .offer-title, h1')
     if (t) out.title = clean(t.innerText || t.textContent)
-    const ps = Array.from(document.querySelectorAll('[class*="price"]')).map(e => e.innerText || '').filter(Boolean)
-    for (const txt of ps) {
-      const m = txt.match(/([\d.]+)\s*[-~至]\s*([\d.]+)/)
+    // 主商品价格：限定在主价格区域，排除推荐位卡片里的别人的价格
+    const RECO_RE = /recommend|similar|relative|hot|others|guess|recommends/i
+    const isRecoEl = (el) => {
+      let n = el
+      for (let i = 0; i < 6 && n; i++) {
+        const cn = String((n.className && n.className.baseVal !== undefined ? n.className.baseVal : n.className) || '')
+        const id = String(n.id || '')
+        if (RECO_RE.test(cn) || RECO_RE.test(id)) return true
+        n = n.parentElement
+      }
+      return false
+    }
+    const depthOf = (el) => {
+      let d = 0, n = el
+      while (n && n.parentElement) { d++; n = n.parentElement }
+      return d
+    }
+    const pEls = Array.from(document.querySelectorAll('[class*="price"]'))
+      .filter(e => !isRecoEl(e))
+      .map(e => ({ e, txt: String(e.innerText || e.textContent || '').trim(), depth: depthOf(e) }))
+      .filter(x => x.txt && /[\d.]/.test(x.txt))
+    // 区间优先（同一元素里）
+    for (const x of pEls) {
+      const m = x.txt.match(/([\d.]+)\s*[-~～至]\s*([\d.]+)/)
       if (m) {
-        out.priceMin = out.priceMin ?? parseFloat(m[1])
-        out.priceMax = out.priceMax ?? parseFloat(m[2])
+        const lo = parseFloat(m[1]); const hi = parseFloat(m[2])
+        if (lo > 0.01 && hi >= lo) { out.priceMin = lo; out.priceMax = hi; break }
+      }
+    }
+    // 没有区间 → 取最浅层的单值（主价格区）
+    if (out.priceMin === null) {
+      const singles = pEls
+        .map(x => ({ x, m: x.txt.match(/(?:¥|￥)\s*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*元/) }))
+        .filter(o => o.m)
+        .sort((a, b) => a.x.depth - b.x.depth)
+      if (singles.length) {
+        const g = singles[0].m
+        const v = parseFloat(g[1] || g[2])
+        if (v > 0.01) { out.priceMin = v; out.priceMax = v }
       }
     }
     const mo = document.querySelector('[class*="moq"], [class*="beginAmount"], [class*="min-order"]')
@@ -1030,15 +1320,30 @@
     const offerId = (url.match(/offer\/(\d+)/) || [])[1] || ''
     let payloads = capture()
     let replayed = 0
+    const sources = { capture: payloads.length, replay: 0, replayBody: 0, inline: 0 }
     if (payloads.length < 2) {
       const extra = await replayResources()
+      sources.replay = extra.length
       replayed = extra.length
+      payloads = payloads.concat(extra)
+    }
+    // 页面已加载完才装内核时，首屏请求没被截到 → 用截获到的原始 method/body 重放
+    if (payloads.length < 2) {
+      const extra = await replayCapturedRequests()
+      sources.replayBody = extra.length
+      replayed += extra.length
+      payloads = payloads.concat(extra)
+    }
+    // 首屏数据常挂在 window 全局或内联脚本里
+    if (payloads.length < 2) {
+      const extra = scanInlineData()
+      sources.inline = extra.length
       payloads = payloads.concat(extra)
     }
     const dom = domFallback()
 
     const title = pickTitle(payloads) || dom.title
-    const pr = pickPrices(payloads)
+    const pr = pickPrices(payloads, { offerId })
 
     // 多 SKU 时，价格取「第一个规格的价格」（1688 各规格价格不同，区间价容易错）
     const skuPrices = pickSkuPrices(payloads)
@@ -1106,6 +1411,32 @@
         collectedAt: new Date().toISOString(),
         capturedCount: payloads.length,
         replayed,
+        sources,
+        apiList: Array.from(new Set(payloads.map(p => {
+          const m = String(p.url || '').match(/api=([\w.]+)/)
+          return m ? m[1] : (p.from || 'unknown')
+        }))).slice(0, 30),
+        payloadTopKeys: payloads.slice(0, 12).map(p => ({
+          url: String(p.url || '').slice(0, 160),
+          from: p.from || 'hook',
+          topKeys: (p.data && typeof p.data === 'object') ? Object.keys(p.data).slice(0, 10) : [],
+          dataKeys: (p.data && p.data && p.data.data && typeof p.data.data === 'object')
+            ? Object.keys(p.data.data).slice(0, 12) : [],
+        })),
+        skuLikePaths: (() => {
+          // 找出所有含 sku/price 的 key 路径，直接定位真实 SKU 在哪个报文里
+          const out = []
+          for (const p of payloads) {
+            walk(p.data, (k, v, parent, path) => {
+              if (!/sku|price/i.test(String(k))) return
+              if (out.length > 60) return
+              const pth = (path || []).concat(String(k)).join('.')
+              if (out.some(x => x.path === pth)) return
+              out.push({ path: pth, type: Array.isArray(v) ? 'array' : typeof v, url: String(p.url || '').slice(0, 120) })
+            })
+          }
+          return out
+        })(),
         priceWhy: pr.why,
         priceCandidates: pr.candidates,
         skuCandidates: pr.skuCandidates,
@@ -1336,10 +1667,13 @@
   }
 
   window.FF1688 = {
-    __v: '3.2.0',
+    __v: '3.3.0',
     install,
     capture,
     replayResources,
+    replayCapturedRequests,
+    scanInlineData,
+    parseLoose,
     parseDetail,
     parseSearch,
     push,
