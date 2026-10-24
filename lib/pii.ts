@@ -19,6 +19,9 @@ const PII_EXACT_KEYS = new Set([
   'tel', 'telephone', 'fullname', 'realname', 'idcard', 'idnumber', 'identity',
   'bankcard', 'bankaccount', 'recipient', 'consignee', 'receiver', 'email',
   'password', 'passwd', 'weixin', 'wechat', 'qq',
+  // 账号信息（1688 登录态）
+  'nick', 'loginid', 'loginname', 'username', 'userid', 'membername', 'account',
+  'user', 'member', 'buyer',
 ])
 
 /** 包含即命中的字段名 */
@@ -27,7 +30,7 @@ const PII_KEY_RE =
 
 /** 个人地址簿 / 账号信息类接口 */
 export const PII_API_RE =
-  /(receiveaddress|addresslist|address\.query|userinfo|userprofile|memberinfo|myorder|orderlist|buyerinfo)/i
+  /(receiveaddress|addresslist|address\.query|userinfo|userprofile|memberinfo|myorder|orderlist|buyerinfo|getusersimple|mtop\.user\.|logincenter|usercenter|passport)/i
 
 export function isPIIKey(k: unknown): boolean {
   const key = String(k ?? '')
@@ -77,6 +80,9 @@ export function scrubPIIItem(item: any): any {
     }
     if (Array.isArray(clone.captured)) {
       clone.captured = clone.captured.filter((s: any) => !PII_API_RE.test(String(s?.url || '')))
+    }
+    if (Array.isArray(clone.capturedUrls)) {
+      clone.capturedUrls = clone.capturedUrls.filter((u: string) => !PII_API_RE.test(String(u || '')))
     }
     obj = { ...obj, raw: clone }
   }

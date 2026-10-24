@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.15.0
+// @version      2.16.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -1486,8 +1486,11 @@
         skuPrices: skuPrices.slice(0, 30),
         tierSource,
         skuCount: skuInfo.skuIds.length,
-        capturedUrls: scrubUrls(payloads.slice(0, 25).map(p => p.url)),
-        snapshot: payloads.slice(0, 5).map(p => ({ url: scrubUrl(p.url), data: redactPayloadNode(p.data, 0) })),
+        capturedUrls: scrubUrls(payloads.filter(p => !isSensitivePayload(p)).map(p => p.url)),
+        snapshot: payloads.filter(p => !isSensitivePayload(p)).slice(0, 5).map(p => ({
+          url: scrubUrl(p.url),
+          data: redactPayloadNode(p.data, 0),
+        })),
       },
     }
     return {
@@ -1844,13 +1847,16 @@
    *   2) 其余报文里的敏感字段名 → 值替换成占位符；
    *   3) 自由文本里的手机号/身份证号 → 掩码。
    */
-  const SENSITIVE_API_RE = /(receiveaddress|addresslist|address\.query|userinfo|userprofile|memberinfo|myorder|orderlist|buyerinfo)/i
+  const SENSITIVE_API_RE = /(receiveaddress|addresslist|address\.query|userinfo|userprofile|memberinfo|myorder|orderlist|buyerinfo|getusersimple|mtop\.user\.|logincenter|usercenter|passport)/i
   // 精确字段名（整段匹配才命中，避免误伤 addressCode / addressCount 这类无害字段）
   const SENSITIVE_EXACT_KEYS = new Set([
     'address', 'addressdetail', 'mobile', 'mobilephone', 'phone', 'phonenumber',
     'tel', 'telephone', 'fullname', 'realname', 'idcard', 'idnumber', 'identity',
     'bankcard', 'bankaccount', 'recipient', 'consignee', 'receiver', 'email',
     'password', 'passwd', 'weixin', 'wechat', 'qq',
+    // 账号信息（1688 登录态）
+    'nick', 'loginid', 'loginname', 'username', 'userid', 'membername', 'account',
+    'user', 'member', 'buyer',
   ])
   // 包含即命中的字段名
   const SENSITIVE_KEY_RE = /(mobilePhone|phoneNumber|idCard|idNumber|bankCard|bankAccount|addressDetail|userAddress|addressCodeText|postalCode|realName|fullName)/i
@@ -1880,7 +1886,11 @@
   function redactPayloadNode(node, depth) {
     const d = depth || 0
     if (d > 12) return node
-    if (typeof node === 'string') return maskPiiText(node)
+    if (typeof node === 'string') {
+      // 评价图（买家秀）不是商品图，不进采集品库
+      if (isReviewImage(node)) return '[评价图已剔除]'
+      return maskPiiText(node)
+    }
     if (Array.isArray(node)) return node.map(x => redactPayloadNode(x, d + 1))
     if (node && typeof node === 'object') {
       const out = {}
@@ -2006,7 +2016,7 @@
   }
 
   window.FF1688 = {
-    __v: '3.7.0',
+    __v: '3.8.0',
     install,
     capture,
     replayResources,
@@ -2093,9 +2103,9 @@
         #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.15.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.16.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.15.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.16.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -2278,7 +2288,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = (window.FF1688 && window.FF1688.__v) || ''
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.15.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.16.0，内核版本：', v || '未加载')
         try {
           const cv = document.getElementById('ff-corever')
           if (cv) cv.textContent = v || '未加载'
