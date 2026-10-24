@@ -13,7 +13,7 @@
  */
 (function () { /* __FF1688_CORE__ */
   'use strict'
-  if (window.FF1688 && window.FF1688.__v === '3.3.0') return
+  if (window.FF1688 && window.FF1688.__v === '3.4.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -1579,15 +1579,27 @@
     for (const p of paths) {
       const url = base + p
       const r = await requestOnce(url, headers, body)
-      attempts.push({ url, status: r.status, text: (r.text || '').slice(0, 300) })
+      attempts.push({
+        url,
+        status: r.status,
+        text: (r.text || '').slice(0, 300),
+        server: r.server || '',
+        via: r.via || '',
+      })
       // 成功就返回；401/403 也返回（说明已到达服务端，只是鉴权不过）
       if (r.status === 200 || r.status === 400 || r.status === 401 || r.status === 403) {
-        // 旧版脚本会打到 /api/admin/import/1688，被中间件拦成 403 Forbidden
-        if (r.status === 403 && /Forbidden/i.test(r.text || '')) {
+        // 只有当「实际失败的地址」是 /api/admin/import/1688 时，才可能是旧版脚本。
+        // 之前这里不看地址就一律改写成「旧版脚本」文案，把真实响应体盖掉了，
+        // 导致线上 403 明明打在正确的 /api/import/1688 上，却被误报成「旧版脚本」。
+        const isAdminPath = /\/api\/admin\/import\/1688\/?$/i.test(url)
+        if (r.status === 403 && isAdminPath) {
           r.text =
-            'Forbidden（403）：这通常说明你装的是旧版脚本（旧版会把请求打到 /api/admin/import/1688，被中间件拦下）。' +
-            '请更新到最新版脚本：https://fiestaflare.com/1688-collector'
+            (r.text || '') +
+            '\n提示：这次请求打到了旧版地址 ' + url +
+            '，说明你装的是旧版脚本。请更新到最新版脚本：https://fiestaflare.com/1688-collector'
         }
+        // 保留真实响应体，并附上服务器指纹，便于判断是应用层还是边缘层返回的 403
+        r.text = describeFailure(r, url, attempts)
         return { ...r, attempts, url }
       }
     }
@@ -1608,6 +1620,40 @@
     }
   }
 
+  /**
+   * 把真实响应整理成人能看懂的诊断文本。
+   * 原则：绝不覆盖服务器原文，只在其后追加说明。
+   */
+  function describeFailure(r, url, attempts) {
+    const body = (r.text || '(空)').slice(0, 600)
+    if (r.status === 200) return body
+    const lines = ['服务器原始返回：', body]
+    if (r.server || r.via) {
+      lines.push('服务器标识：' + [r.server && 'server=' + r.server, r.via && 'via=' + r.via].filter(Boolean).join('  '))
+    }
+    // 应用层会回 X-FF-Origin: app；没有这个头就说明响应不是我们的应用发出的
+    lines.push('响应来源：' + (r.appLayer ? '应用层（服务端路由）' : '非应用层（Hostinger 边缘层 / CDN / 浏览器拦截）'))
+    if (r.status === 403) {
+      if (r.appLayer) {
+        lines.push(
+          '说明：403 由服务端返回。若地址是 /api/admin/import/1688，说明你装的是旧版脚本；' +
+          '若地址是 /api/import/1688，则是服务端鉴权逻辑异常，请把这段诊断发给管理员。'
+        )
+      } else {
+        lines.push(
+          '说明：403 不是我们的应用返回的（响应里没有 X-FF-Origin: app 标记），' +
+          '而是站点边缘层（Hostinger/hcdn）或浏览器扩展拦下的。' +
+          '常见于：站点正在部署切换（约 1-2 分钟）、浏览器装了对跨域请求过严的扩展、代理/杀软拦截。' +
+          '请稍后重试；若持续出现，请把这段诊断发给管理员。'
+        )
+      }
+    }
+    if (attempts && attempts.length > 1) {
+      lines.push('尝试记录：' + attempts.map(a => a.url + ' → ' + a.status).join('；'))
+    }
+    return lines.join('\n')
+  }
+
   /** 优先用 GM_xmlhttpRequest（不受页面 CSP 限制），否则 fetch */
   const sleep = ms => new Promise(r => setTimeout(r, ms))
 
@@ -1616,7 +1662,17 @@
     try {
       const res = await fetch(url, { method: 'POST', headers, body, mode: 'cors' })
       const text = await res.text()
-      return { status: res.status, json: safeJson(text), text }
+      let server = ''
+      let via = ''
+      let appLayer = false
+      try {
+        server = res.headers.get('server') || ''
+        via = res.headers.get('x-hcdn-request-id') ? 'hcdn' : (res.headers.get('via') || '')
+        appLayer = (res.headers.get('x-ff-origin') || '') === 'app'
+      } catch (e) {
+        /* 某些环境读 header 会抛错，忽略 */
+      }
+      return { status: res.status, json: safeJson(text), text, server, via, appLayer }
     } catch (e) {
       return {
         status: 0,
@@ -1637,7 +1693,15 @@
               headers,
               data: body,
               timeout: 60000,
-              onload: r => resolve({ status: r.status, json: safeJson(r.responseText), text: r.responseText }),
+              onload: r =>
+                resolve({
+                  status: r.status,
+                  json: safeJson(r.responseText),
+                  text: r.responseText,
+                  server: parseHeader(r.responseHeaders, 'server'),
+                  via: parseHeader(r.responseHeaders, 'x-hcdn-request-id') ? 'hcdn' : parseHeader(r.responseHeaders, 'via'),
+                  appLayer: parseHeader(r.responseHeaders, 'x-ff-origin') === 'app',
+                }),
               onerror: e => resolve({ status: 0, json: null, text: 'GM 请求失败: ' + ((e && e.error) || '网络错误') }),
               ontimeout: () => resolve({ status: 0, json: null, text: 'GM 请求超时' }),
             })
@@ -1666,8 +1730,27 @@
     try { return JSON.parse(t) } catch (e) { return null }
   }
 
+  /** 从 GM 的原始响应头字符串里取某个头（大小写不敏感） */
+  function parseHeader(raw, name) {
+    if (!raw) return ''
+    const lines = String(raw).split(/\r?\n/)
+    for (const line of lines) {
+      const i = line.indexOf(':')
+      if (i < 0) continue
+      if (line.slice(0, i).trim().toLowerCase() === name.toLowerCase()) {
+        return line.slice(i + 1).trim()
+      }
+    }
+    return ''
+  }
+
+  /** 判断响应来自应用层还是边缘层（应用层会带 X-FF-Origin: app） */
+  function isAppLayer(server, via, origin) {
+    return origin === 'app' || /ff-?origin/i.test(String(origin || ''))
+  }
+
   window.FF1688 = {
-    __v: '3.3.0',
+    __v: '3.4.0',
     install,
     capture,
     replayResources,
