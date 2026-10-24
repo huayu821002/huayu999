@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.18.0
+// @version      2.19.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -2299,9 +2299,9 @@
         #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.18.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.19.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.18.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.19.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -2504,16 +2504,21 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = (window.FF1688 && window.FF1688.__v) || ''
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.18.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.19.0，内核版本：', v || '未加载')
         try {
           const cv = document.getElementById('ff-corever')
           if (cv) cv.textContent = v || '未加载'
         } catch (e) {}
-        // 内核版本自检：过旧则提示更新脚本（新版才有货号 / 首个规格 / 阶梯价）
-        const MIN_CORE = '3.5.0'
-        // 注意：必须做**版本号比较**，不能写 `v !== MIN_CORE`。
+        // 内核版本自检：加载的内核比**本脚本内联的那个**旧时，提示重装
+        //
+        // 关键：必须做**版本号比较**，不能写 `v !== MIN_CORE`。
         // 那样写的话，v='3.9.0' 也会被当成「过旧」——
-        // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示。
+        // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
+        // 用户明明装的是最新内核，却被告知内核太旧。
+        //
+        // 基准版本由构建脚本注入（4.0.0 → 内联内核的 __v），
+        // 这样脚本与内核永远配套，不会各自漂移。
+        const MIN_CORE = '4.0.0'
         const cmpVer = (a, b) => {
           const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
           const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)

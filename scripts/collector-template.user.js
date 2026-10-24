@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.18.0
+// @version      2.19.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -305,11 +305,16 @@
           const cv = document.getElementById('ff-corever')
           if (cv) cv.textContent = v || '未加载'
         } catch (e) {}
-        // 内核版本自检：过旧则提示更新脚本（新版才有货号 / 首个规格 / 阶梯价）
-        const MIN_CORE = '3.5.0'
-        // 注意：必须做**版本号比较**，不能写 `v !== MIN_CORE`。
+        // 内核版本自检：加载的内核比**本脚本内联的那个**旧时，提示重装
+        //
+        // 关键：必须做**版本号比较**，不能写 `v !== MIN_CORE`。
         // 那样写的话，v='3.9.0' 也会被当成「过旧」——
-        // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示。
+        // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
+        // 用户明明装的是最新内核，却被告知内核太旧。
+        //
+        // 基准版本由构建脚本注入（__CORE_VERSION__ → 内联内核的 __v），
+        // 这样脚本与内核永远配套，不会各自漂移。
+        const MIN_CORE = '__CORE_VERSION__'
         const cmpVer = (a, b) => {
           const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
           const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)

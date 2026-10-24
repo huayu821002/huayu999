@@ -38,12 +38,31 @@ const codeLines = TPL.split('\n').filter(l => !/^\s*(\/\/|\*|\/\*)/.test(l))
 t('没有 `v !== MIN_CORE` 这种写法', !codeLines.some(l => /v\s*!==\s*MIN_CORE/.test(l)))
 t('用了 cmpVer 判断', /cmpVer\(v, MIN_CORE\) < 0/.test(TPL))
 
+console.log('\n[2b] MIN_CORE 由构建注入，不写死')
+t('模板里是占位符', /const MIN_CORE = '__CORE_VERSION__'/.test(TPL))
+// 构建产物里必须已经被替换成真实版本号
+// （只有油猴脚本带面板版本检查；控制台脚本没有这个检查，故只测油猴脚本）
+for (const f of ['public/1688-collector.user.js']) {
+  const built = fs.readFileSync(path.join(__dirname, '..', f), 'utf8')
+  const mv = (built.match(/const MIN_CORE = '([^']*)'/) || [])[1]
+  const cv = (built.match(/__v:\s*'([\d.]+)'/) || [])[1]
+  t(`${f}：MIN_CORE 已注入且不为空`, !!mv && mv !== '__CORE_VERSION__', mv)
+  t(`${f}：MIN_CORE == 内联内核 __v`, mv === cv, `${mv} vs ${cv}`)
+  t(`${f}：不会误报（当前内核不比基准旧）`, !mv || !cv || cmpVer(cv, mv) >= 0)
+}
+
 console.log('\n[3] 内核重复注入守卫的版本号与 __v 一致')
 const CORE_SRC = fs.readFileSync(path.join(__dirname, '..', 'scripts', '1688-core.src.js'), 'utf8')
 const guard = CORE_SRC.match(/window\.FF1688\.__v === '([\d.]+)'/)
 const ver = CORE_SRC.match(/__v:\s*'([\d.]+)'/)
 t('守卫版本号存在', !!guard)
 t('守卫版本号 == __v', guard && ver && guard[1] === ver[1], guard && ver && `${guard[1]} vs ${ver[1]}`)
+
+console.log('\n[4] 构建脚本会拦住版本漂移')
+const BUILD = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'build-collector.js'), 'utf8')
+t('构建脚本校验 guard 与 __v 一致', /guardVer\s*!==\s*coreVer/.test(BUILD) && /内核版本不一致/.test(BUILD))
+t('构建脚本注入 __CORE_VERSION__', /__CORE_VERSION__/.test(BUILD))
+t('模板里确实有 __CORE_VERSION__ 占位', /__CORE_VERSION__/.test(TPL))
 
 console.log('\n--------------------------------')
 console.log(`通过 ${pass} / 失败 ${fail}`)
