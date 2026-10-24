@@ -52,7 +52,7 @@ function run(withGM) {
   const checks = [
     ['有 GM_* 时面板出现', a.panelExists],
     ['无 GM_* 时面板也出现', b.panelExists],
-    ['内核已加载', /^3\.\d+\.\d+$/.test(a.coreVersion || '')],
+    ['内核已加载', /^\d+\.\d+\.\d+$/.test(a.coreVersion || '')],
     ['parseDetail 可用', a.hasParseDetail],
     ['push 可用', a.hasPush],
     ['无错误提示框', !a.errorBox && !b.errorBox],

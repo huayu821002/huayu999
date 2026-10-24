@@ -110,6 +110,9 @@ vm.runInContext(CORE, sandbox)
     ['图片不含 logo 命名', !payload.images.some(i => /logo/i.test(i))],
     ['供应商是公司名', /义乌市然航饰品有限公司/.test(payload.supplierName || '')],
     ['描述有内容', (payload.description || '').length > 20],
+    // 老版本把**图片地址**当成了商品描述（key='url' 不在 neg 列表里，score=0 也拿第一）
+    ['描述不是 URL', !/^https?:\/\//i.test(payload.description || '')],
+    ['描述是商品正文', (payload.description || '').includes('中国结')],
     ['阶梯价有数据', !!payload.priceTiers],
     ['SKU 有数据', !!payload.skuText],
     ['阶梯价归一化', Array.isArray(JSON.parse(payload.priceLadder || '[]')) && JSON.parse(payload.priceLadder).length === 2],
