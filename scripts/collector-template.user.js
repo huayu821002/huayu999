@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.19.0
+// @version      2.20.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -69,7 +69,12 @@
       .then(r => (r.ok ? r.text() : ''))
       .then(txt => {
         if (!txt || txt.indexOf('__FF1688_CORE__') < 0) return
-        try { ;(0, eval)(txt) } catch (e) {}
+        try {
+          ;(0, eval)(txt)
+          // 热更新可能把内核换成了更新的版本 → 刷新面板上的版本号，
+          // 并撤掉「内核版本过旧」的提示（否则提示会一直赖着不走）
+          try { refreshCoreVersion() } catch (e) {}
+        } catch (e) {}
       })
       .catch(() => {})
   } catch (e) {}
@@ -294,49 +299,69 @@
     }
   }
 
+  // 内核版本自检：加载的内核比**本脚本内联的那个**旧时，提示重装
+  //
+  // 关键：必须做**版本号比较**，不能写 `v !== MIN_CORE`。
+  // 那样写的话，v='3.9.0' 也会被当成「过旧」——
+  // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
+  // 用户明明装的是最新内核，却被告知内核太旧。
+  //
+  // 基准版本由构建脚本注入（__CORE_VERSION__ → 内联内核的 __v），
+  // 这样脚本与内核永远配套，不会各自漂移。
+  const MIN_CORE = '__CORE_VERSION__'
+  const cmpVer = (a, b) => {
+    const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
+    const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
+    for (let i = 0; i < 3; i++) {
+      const d = (pa[i] || 0) - (pb[i] || 0)
+      if (d) return d > 0 ? 1 : -1
+    }
+    return 0
+  }
+  const NAG_ID = 'ff-core-nag'
+
+  // 刷新面板上的内核版本号，并按需显示/撤销「内核版本过旧」提示。
+  // 热更新内核后也要调一次：提示一旦弹出就会赖在页面上不走。
+  function refreshCoreVersion() {
+    const v = (window.FF1688 && window.FF1688.__v) || ''
+    try {
+      const cv = document.getElementById('ff-corever')
+      if (cv) cv.textContent = v || '未加载'
+    } catch (e) {}
+
+    const stale = !!(v && cmpVer(v, MIN_CORE) < 0)
+    let nag = null
+    try { nag = document.getElementById(NAG_ID) } catch (e) {}
+    if (!stale) {
+      // 不该提示了（比如刚热更新完）→ 把旧提示收掉
+      try { if (nag && nag.parentNode) nag.parentNode.removeChild(nag) } catch (e) {}
+      return v
+    }
+    if (nag) return v
+
+    const msg =
+      '内核版本过旧（当前 ' + v + '，需要 ' + MIN_CORE + '）。' +
+      '请在 Tampermonkey 里更新或重装本脚本，否则采集不到货号、首个规格与阶梯价。'
+    console.warn('[Fiestaflare]', msg)
+    try {
+      const d = document.createElement('div')
+      d.id = NAG_ID
+      d.style.cssText =
+        'position:fixed;right:8px;bottom:8px;z-index:2147483647;max-width:320px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:10px;padding:10px 12px;font:12px/1.5 sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.18);cursor:pointer'
+      d.innerHTML = '<b>需要更新采集器</b>（点此关闭）<br>' + msg.replace(/</g, '&lt;')
+      d.addEventListener('click', () => { try { d.parentNode.removeChild(d) } catch (e) {} })
+      ;(document.documentElement || document.body).appendChild(d)
+    } catch (e) {}
+    return v
+  }
+
   function boot() {
     const tryPanel = () => {
       try {
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
-        const v = (window.FF1688 && window.FF1688.__v) || ''
+        const v = refreshCoreVersion()
         console.log('[Fiestaflare] 采集器已启动，脚本版本 v__SCRIPT_VERSION__，内核版本：', v || '未加载')
-        try {
-          const cv = document.getElementById('ff-corever')
-          if (cv) cv.textContent = v || '未加载'
-        } catch (e) {}
-        // 内核版本自检：加载的内核比**本脚本内联的那个**旧时，提示重装
-        //
-        // 关键：必须做**版本号比较**，不能写 `v !== MIN_CORE`。
-        // 那样写的话，v='3.9.0' 也会被当成「过旧」——
-        // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
-        // 用户明明装的是最新内核，却被告知内核太旧。
-        //
-        // 基准版本由构建脚本注入（__CORE_VERSION__ → 内联内核的 __v），
-        // 这样脚本与内核永远配套，不会各自漂移。
-        const MIN_CORE = '__CORE_VERSION__'
-        const cmpVer = (a, b) => {
-          const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
-          const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
-          for (let i = 0; i < 3; i++) {
-            const d = (pa[i] || 0) - (pb[i] || 0)
-            if (d) return d > 0 ? 1 : -1
-          }
-          return 0
-        }
-        if (v && cmpVer(v, MIN_CORE) < 0) {
-          const msg =
-            '内核版本过旧（当前 ' + v + '，需要 ' + MIN_CORE + '）。' +
-            '请在 Tampermonkey 里更新或重装本脚本，否则采集不到货号、首个规格与阶梯价。'
-          console.warn('[Fiestaflare]', msg)
-          try {
-            const d = document.createElement('div')
-            d.style.cssText =
-              'position:fixed;right:8px;bottom:8px;z-index:2147483647;max-width:320px;background:#fff7ed;color:#9a3412;border:1px solid #fdba74;border-radius:10px;padding:10px 12px;font:12px/1.5 sans-serif;box-shadow:0 8px 24px rgba(0,0,0,.18)'
-            d.innerHTML = '<b>需要更新采集器</b><br>' + msg.replace(/</g, '&lt;')
-            ;(document.documentElement || document.body).appendChild(d)
-          } catch (e) {}
-        }
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
