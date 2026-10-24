@@ -26,6 +26,17 @@ const coreTagged = core.includes('__FF1688_CORE__')
   ? core
   : core.replace('(function () {', '(function () { /* __FF1688_CORE__ */')
 
+// 内联内核自己的版本号（面板用它做「内核是否过旧」的基准）
+const coreVer = (coreTagged.match(/__v:\s*'([\d.]+)'/) || [])[1] || '0.0.0'
+// 内核重复注入守卫里的版本号，必须与 __v 一致，否则热更新会重复注入
+const guardVer = (coreTagged.match(/window\.FF1688\.__v === '([\d.]+)'/) || [])[1]
+if (guardVer && guardVer !== coreVer) {
+  throw new Error(
+    `内核版本不一致：__v=${coreVer} 但重复注入守卫写的是 ${guardVer}。` +
+    '请同步 scripts/1688-core.src.js 里的两处版本号。'
+  )
+}
+
 const build = (tplPath, outPath) => {
   const tpl = read(tplPath)
   if (!tpl.includes('/*__CORE__*/')) throw new Error('模板缺少 /*__CORE__*/ 占位: ' + tplPath)
@@ -37,6 +48,7 @@ const build = (tplPath, outPath) => {
   const out = tpl
     .replace('/*__CORE__*/', coreTagged.trim())
     .replace(/__SCRIPT_VERSION__/g, ver)
+    .replace(/__CORE_VERSION__/g, coreVer)
   write(outPath, out)
 }
 
