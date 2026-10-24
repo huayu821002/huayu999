@@ -1464,8 +1464,11 @@
         skuPrices: skuPrices.slice(0, 30),
         tierSource,
         skuCount: skuInfo.skuIds.length,
-        capturedUrls: scrubUrls(payloads.slice(0, 25).map(p => p.url)),
-        snapshot: payloads.slice(0, 5).map(p => ({ url: scrubUrl(p.url), data: redactPayloadNode(p.data, 0) })),
+        capturedUrls: scrubUrls(payloads.filter(p => !isSensitivePayload(p)).map(p => p.url)),
+        snapshot: payloads.filter(p => !isSensitivePayload(p)).slice(0, 5).map(p => ({
+          url: scrubUrl(p.url),
+          data: redactPayloadNode(p.data, 0),
+        })),
       },
     }
     return {
@@ -1822,13 +1825,16 @@
    *   2) 其余报文里的敏感字段名 → 值替换成占位符；
    *   3) 自由文本里的手机号/身份证号 → 掩码。
    */
-  const SENSITIVE_API_RE = /(receiveaddress|addresslist|address\.query|userinfo|userprofile|memberinfo|myorder|orderlist|buyerinfo)/i
+  const SENSITIVE_API_RE = /(receiveaddress|addresslist|address\.query|userinfo|userprofile|memberinfo|myorder|orderlist|buyerinfo|getusersimple|mtop\.user\.|logincenter|usercenter|passport)/i
   // 精确字段名（整段匹配才命中，避免误伤 addressCode / addressCount 这类无害字段）
   const SENSITIVE_EXACT_KEYS = new Set([
     'address', 'addressdetail', 'mobile', 'mobilephone', 'phone', 'phonenumber',
     'tel', 'telephone', 'fullname', 'realname', 'idcard', 'idnumber', 'identity',
     'bankcard', 'bankaccount', 'recipient', 'consignee', 'receiver', 'email',
     'password', 'passwd', 'weixin', 'wechat', 'qq',
+    // 账号信息（1688 登录态）
+    'nick', 'loginid', 'loginname', 'username', 'userid', 'membername', 'account',
+    'user', 'member', 'buyer',
   ])
   // 包含即命中的字段名
   const SENSITIVE_KEY_RE = /(mobilePhone|phoneNumber|idCard|idNumber|bankCard|bankAccount|addressDetail|userAddress|addressCodeText|postalCode|realName|fullName)/i
@@ -1858,7 +1864,11 @@
   function redactPayloadNode(node, depth) {
     const d = depth || 0
     if (d > 12) return node
-    if (typeof node === 'string') return maskPiiText(node)
+    if (typeof node === 'string') {
+      // 评价图（买家秀）不是商品图，不进采集品库
+      if (isReviewImage(node)) return '[评价图已剔除]'
+      return maskPiiText(node)
+    }
     if (Array.isArray(node)) return node.map(x => redactPayloadNode(x, d + 1))
     if (node && typeof node === 'object') {
       const out = {}
@@ -1984,7 +1994,7 @@
   }
 
   window.FF1688 = {
-    __v: '3.7.0',
+    __v: '3.8.0',
     install,
     capture,
     replayResources,
