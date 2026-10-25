@@ -196,8 +196,12 @@ async function run() {
   {
     const FF = makeWin(undefined, payloadRows())
     const struct = FF.dumpVariants(FF.capture())
-    t('dumpVariants 返回数组', Array.isArray(struct))
-    t('dumpVariants 命中 sku 路径', JSON.stringify(struct).includes('offerList'), JSON.stringify(struct).slice(0, 300))
+    t('dumpVariants 返回对象', struct && typeof struct === 'object' && !Array.isArray(struct))
+    t('dumpVariants 有 contentKeyUnion', Array.isArray(struct.contentKeyUnion) && struct.contentKeyUnion.length > 0, JSON.stringify(struct.contentKeyUnion).slice(0, 300))
+    t('dumpVariants 有 allKeyUnion', Array.isArray(struct.allKeyUnion) && struct.allKeyUnion.length > 0)
+    t('dumpVariants 有 payloads 列表', Array.isArray(struct.payloads) && struct.payloads.length > 0, String(struct.payloads && struct.payloads.length))
+    t('payload 含 contentKeys', Array.isArray(struct.payloads[0] && struct.payloads[0].contentKeys))
+    t('contentKeyUnion 含 offerList', struct.contentKeyUnion.includes('offerList'), JSON.stringify(struct.contentKeyUnion).slice(0, 300))
   }
 
   console.log('--- DOM 规格价格表兜底 ---')

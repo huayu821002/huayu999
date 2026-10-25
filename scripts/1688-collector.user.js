@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.23.0
+// @version      2.24.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.1.2') return
+  if (window.FF1688 && window.FF1688.__v === '4.1.3') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -1438,61 +1438,96 @@
    *      能看到 platformProductInfoMap 下还有哪些兄弟节点）
    *   ③ 已知无需再查的（属性表 offerDecisionAttrs）不再重复输出
    */
+  /**
+   * 「复制变体结构」诊断（v4：全量 + 容器内部）。
+   *
+   * v3 实测结果（2026-05 真实报文，25 个）：
+   * - 25 个报文的 skuHits **全为空** → 真实 SKU 容器**名字里不含 "sku"**
+   * - 报文是**分片返回**的：同一个 offerdetail 接口被调多次，每次只带一部分内容字段
+   *   （有的带 platformProductInfoMap，有的带 priceInfoList …）
+   * → 必须**看完所有 25 个报文的内容层 key 并集**，才能定位真正的变体容器
+   *
+   * v4 输出：
+   *   layers  ：每个报文各层的 key（不硬编码深度）
+   *   deep    ：名字像变体/价格的容器的**内部结构**（原样 JSON 截断）
+   */
+  /**
+   * 「复制变体结构」诊断（v4：全量 + 容器内部 + key 并集）。
+   *
+   * v3 实测结果（2026-05 真实报文，25 个）：
+   * - 25 个报文的 skuHits **全为空** → 真实 SKU 容器**名字里不含 "sku"**
+   * - 报文是**分片返回**的：同一个 offerdetail 接口被调多次，每次只带一部分内容字段
+   *   （有的带 platformProductInfoMap，有的带 priceInfoList …）
+   * → 必须**看完所有报文的内容层 key 并集**，才能定位真正的变体容器
+   *
+   * v4 输出：
+   *   contentKeyUnion : 所有报文「内容层 key」的并集（一眼看全貌，最重要）
+   *   allKeyUnion     : 所有层出现过的 key 并集（含外层信封）
+   *   payloads[]      : 每个报文的 api + 内容层 key + 可疑容器的内部结构
+   */
   function dumpVariants(payloads) {
+    // 可能装变体/价格的容器名（真实报文里没有 "sku" 字样，所以要放宽）
+    const INTEREST = /(price|sku|spec|prop|model|item|sale|stock|attr|quantity|offer|template|config|map|list)/i
     const out = []
+    const contentUnion = []
+    const allUnion = []
+    const addUnion = (arr, keys) => {
+      for (const k of keys) if (!arr.includes(k)) arr.push(k)
+    }
+
     for (const p of payloads) {
       const api = (String(p.url || '').match(/api=([\w.]+)/) || [])[1] || p.from || 'unknown'
 
-      // ① 分层 key 列表：自动下钻到真正的内容层（不同版本 data 嵌套深度不一样）
-      const layers = []
-      {
-        let node = p.data
-        let guard = 0
-        while (node && typeof node === 'object' && !Array.isArray(node) && guard < 4) {
-          guard++
-          const ks = Object.keys(node)
-          layers.push({ count: ks.length, keys: ks.slice(0, 50) })
-          // 继续下钻到含 data 的子对象（真实报文 data.data.data.xxx）
-          if (node.data && typeof node.data === 'object' && !Array.isArray(node.data)) {
-            node = node.data
-            continue
+      const deep = []
+      let node = p.data
+      let pathLabel = ''
+      let contentKeys = []
+      let depth = 0
+
+      for (let guard = 0; guard < 6; guard++) {
+        if (!node || typeof node !== 'object' || Array.isArray(node)) break
+        const ks = Object.keys(node)
+        if (!ks.length) break
+        addUnion(allUnion, ks)
+        contentKeys = ks
+        depth++
+
+        // 这一层里名字可疑的容器 → 挖内部结构
+        for (const k of ks) {
+          if (!INTEREST.test(k)) continue
+          const v = node[k]
+          if (!v || typeof v !== 'object') continue
+          const isArr = Array.isArray(v)
+          const size = isArr ? v.length : Object.keys(v).length
+          if (!size) continue
+          if (deep.length >= 5) break
+          let json = ''
+          try {
+            json = JSON.stringify(isArr ? v.slice(0, 2) : v)
+          } catch (e) {
+            json = '[unserializable]'
           }
-          break
+          deep.push({
+            path: (pathLabel ? pathLabel + '.' : '') + k,
+            shape: (isArr ? 'array(' + size + ')' : 'object(' + size + ')'),
+            json: json.slice(0, 700),
+          })
         }
+
+        // 继续下钻到 .data
+        if (node.data && typeof node.data === 'object' && !Array.isArray(node.data)) {
+          pathLabel = pathLabel ? pathLabel + '.data' : 'data'
+          node = node.data
+          continue
+        }
+        break
       }
 
-      // ② SKU 容器：路径含 sku，或 key 带「维度:值」组合形态
-      const skuHits = []
-      walk(p.data, (k, v, parent, path) => {
-        const pth = (path || []).concat(String(k)).join('.')
-        if (!/sku/i.test(pth)) {
-          if (!(v && typeof v === 'object' && !Array.isArray(v))) return
-          const comboKeys = Object.keys(v).filter(kk => /[:：]/.test(kk) && /[;；]/.test(kk))
-          if (!comboKeys.length) return
-        }
-        if (!v || typeof v !== 'object') return
-        if (skuHits.length > 12) return
-        const isArr = Array.isArray(v)
-        const size = isArr ? v.length : Object.keys(v).length
-        if (!size) return
-        let json = ''
-        try {
-          json = JSON.stringify(isArr ? v.slice(0, 3) : v)
-        } catch (e) {
-          json = '[unserializable]'
-        }
-        skuHits.push({
-          path: pth,
-          shape: (isArr ? 'array(' + size + ')' : 'object(' + size + ')'),
-          json: json.slice(0, 900),
-        })
-      })
-
-      if (!skuHits.length && !layers.length) continue
-      out.push({ api: api, layers: layers, skuHits: skuHits })
+      addUnion(contentUnion, contentKeys)
+      out.push({ api: api, depth: depth, contentKeys: contentKeys, deep: deep })
     }
-    out.sort((a, b) => (b.skuHits.length ? 1 : 0) - (a.skuHits.length ? 1 : 0))
-    return out.slice(0, 8)
+
+    return { contentKeyUnion: contentUnion, allKeyUnion: allUnion, payloads: out }
   }
 
   function dumpStructure(payloads) {
@@ -2900,7 +2935,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.1.2',
+    __v: '4.1.3',
     install,
     capture,
     dumpStructure,
@@ -2994,9 +3029,9 @@
         #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.23.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.24.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.23.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.24.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -3140,7 +3175,14 @@
         ensureCore()
         const captured = window.FF1688.capture ? window.FF1688.capture() : []
         const struct = window.FF1688.dumpVariants ? window.FF1688.dumpVariants(captured) : []
-        const txt = JSON.stringify({ url: location.href, capturedCount: captured.length, variantStructure: struct }, null, 2)
+        // 紧凑输出：25 个报文用 indent:2 会大到难以粘贴
+        const txt = JSON.stringify({
+          url: location.href,
+          capturedCount: captured.length,
+          contentKeyUnion: struct.contentKeyUnion,
+          allKeyUnion: struct.allKeyUnion,
+          payloads: struct.payloads,
+        })
         try {
           await navigator.clipboard.writeText(txt)
           say('✅ 变体结构已复制，粘贴给开发者即可校准变体提取规则')
@@ -3236,9 +3278,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.1.2 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.1.3 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.1.2'
+  const MIN_CORE = '4.1.3'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -3291,7 +3333,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.23.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.24.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }

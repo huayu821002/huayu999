@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.23.0
+// @version      2.24.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -246,7 +246,14 @@
         ensureCore()
         const captured = window.FF1688.capture ? window.FF1688.capture() : []
         const struct = window.FF1688.dumpVariants ? window.FF1688.dumpVariants(captured) : []
-        const txt = JSON.stringify({ url: location.href, capturedCount: captured.length, variantStructure: struct }, null, 2)
+        // 紧凑输出：25 个报文用 indent:2 会大到难以粘贴
+        const txt = JSON.stringify({
+          url: location.href,
+          capturedCount: captured.length,
+          contentKeyUnion: struct.contentKeyUnion,
+          allKeyUnion: struct.allKeyUnion,
+          payloads: struct.payloads,
+        })
         try {
           await navigator.clipboard.writeText(txt)
           say('✅ 变体结构已复制，粘贴给开发者即可校准变体提取规则')
