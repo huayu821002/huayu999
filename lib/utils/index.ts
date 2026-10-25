@@ -52,6 +52,41 @@ export interface TierPrice {
   price: number
 }
 
+/**
+ * 安全解析 tags 字段。
+ *
+ * 踩坑（2026-10-25）：发布路由之前把 tags 存成**逗号串**（"1688,采集品,1059632648130"），
+ * 而前台 `JSON.parse(product.tags)` → 直接抛异常 → 整页
+ * "Application error: a client-side exception has occurred"。
+ * → 解析必须容错：JSON 数组 / JSON 对象 / 逗号串 都要能吃。
+ */
+export function parseTags(tags: string | null | undefined): string[] {
+  const raw = String(tags || '').trim()
+  if (!raw) return []
+  // 1) JSON 数组
+  if (raw.startsWith('[')) {
+    try {
+      const arr = JSON.parse(raw)
+      if (Array.isArray(arr)) {
+        return arr
+          .map((t: any) => (t && typeof t === 'object' ? String(t.name || t.value || '') : String(t || '')))
+          .filter(Boolean)
+      }
+    } catch {
+      /* 落到下面按逗号切 */
+    }
+  }
+  // 2) 逗号串（老数据）
+  if (raw.includes(',')) {
+    return raw
+      .split(',')
+      .map(t => t.trim())
+      .filter(Boolean)
+  }
+  // 3) 单个值
+  return [raw]
+}
+
 export function getTieredPricing(tieredPricingStr: string | null | undefined, basePrice: number): TierPrice[] {
   // Default tiers if no tiered pricing is set
   const defaultTiers: TierPrice[] = [
@@ -67,11 +102,16 @@ export function getTieredPricing(tieredPricingStr: string | null | undefined, ba
   try {
     const parsed = JSON.parse(tieredPricingStr)
     if (parsed && Array.isArray(parsed.tiers) && parsed.tiers.length > 0) {
-      return parsed.tiers.map((t: any) => ({
-        minQty: t.minQty ?? 1,
-        maxQty: t.maxQty ?? null,
-        price: t.price ?? basePrice,
-      }))
+      return parsed.tiers.map((t: any) => {
+        // 老格式（采集直接塞进来的阶梯价）：{ spec, price(CNY), skuId }
+        // 没有 minQty/maxQty，且 price 是**人民币原价** → 不能直接当 USD 显示
+        const isLegacy = t.minQty === undefined && t.maxQty === undefined && t.spec !== undefined
+        return {
+          minQty: t.minQty ?? 1,
+          maxQty: t.maxQty ?? null,
+          price: isLegacy ? basePrice : (t.price ?? basePrice),
+        }
+      })
     }
   } catch {
     // Invalid JSON, return defaults

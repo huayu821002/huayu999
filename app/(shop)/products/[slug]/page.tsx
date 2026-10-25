@@ -10,7 +10,7 @@ import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { ProductCard } from '@/components/shop/ProductCard'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { cn, formatCurrency, getPriceByTier, convertPrice, getTieredPricing, getPriceFromTieredPricing } from '@/lib/utils'
+import { cn, formatCurrency, getPriceByTier, convertPrice, getTieredPricing, getPriceFromTieredPricing, parseTags } from '@/lib/utils'
 import { useCartStore, useWishlistStore } from '@/lib/store'
 import { parseProductImages, parseImageUrl } from '@/lib/imageUtils'
 import { useLocale, useTranslation } from '@/lib/translation/client'
@@ -377,7 +377,8 @@ export default function ProductDetailPage() {
   const tiers = getTieredPricing(product.tieredPricing, displayPrice)
   const priceByQty = getPriceFromTieredPricing(tiers, quantity)
 
-  const tags = product.tags ? JSON.parse(product.tags) : []
+  // ★ 安全解析（之前 JSON.parse 遇到逗号串直接抛异常 → 整页 Application error）
+  const tags = parseTags(product.tags)
 
   return (
     <div className="min-h-screen bg-white">
@@ -830,14 +831,7 @@ export default function ProductDetailPage() {
                       <div className="flex justify-between py-3 border-b border-joy-gray-100">
                         <span className="text-joy-gray-500">Tags</span>
                         <span className="font-medium">
-                          {(() => {
-                            try {
-                              const parsed = JSON.parse(tags)
-                              return Array.isArray(parsed) ? parsed.map((t: any) => t.name || t).join(', ') : tags
-                            } catch {
-                              return tags
-                            }
-                          })()}
+                          {tags.join(', ')}
                         </span>
                       </div>
                     )}

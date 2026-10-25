@@ -48,15 +48,26 @@ export async function POST(
       item.description ||
       ''
 
-    // 价格阶梯：优先用采集到的阶梯价（priceLadder 新字段），否则回退到 raw 里的 priceTiers
+    // ── 价格阶梯（用户需求：默认只生成「第一段」，第 2/3 段自己在后台加）
+    // 采集到的阶梯价是 **CNY 且形状是 {spec,price,skuId}**（不是前台的 {minQty,maxQty,price}）
+    // → 这里统一转成标准形状 + 转成 USD，并且**只取第一段**
     const tiers = body.tieredPricing
       ? null
       : extractTiers(item.priceLadder) || extractTiers(item.raw)
+    const firstTierCny = tiers && tiers.length ? numOrNull(tiers[0]?.price) : null
+    const firstTierUsd =
+      firstTierCny !== null ? Math.round(((firstTierCny * markup) / 7.2) * 100) / 100 : null
     const tieredPricing = body.tieredPricing
       ? JSON.stringify(body.tieredPricing)
-      : tiers
-        ? JSON.stringify({ tiers })
-        : null
+      : JSON.stringify({
+          tiers: [
+            {
+              minQty: 1,
+              maxQty: null,
+              price: firstTierUsd ?? price,
+            },
+          ],
+        })
 
     // 变体：从采集品带过来（每个变体有自己的价格和图片）
     // 采集变体的价格是 CNY → 沿用商品同样的加价/汇率换算
@@ -91,7 +102,16 @@ export async function POST(
         tieredPricing,
         variants: variants.length ? JSON.stringify(variants) : null,
         variantDims: variantDims.length ? JSON.stringify(variantDims) : null,
-        tags: body.tags || ['1688', '采集品', item.sourceId, item.firstSku].filter(Boolean).join(','),
+        // ★ tags 必须是 JSON 数组字符串 —— 前台 `JSON.parse(product.tags)`，
+        //   之前这里存的是逗号串 → 前台直接抛异常 → "Application error"
+        tags: (() => {
+          if (body.tags) {
+            const raw = String(body.tags).trim()
+            if (raw.startsWith('[')) return raw
+            return JSON.stringify(raw.split(',').map(s => s.trim()).filter(Boolean))
+          }
+          return JSON.stringify(['1688', '采集品', item.sourceId, item.firstSku].filter(Boolean))
+        })(),
         compliance: body.compliance || '待补录：欧盟责任方/制造商信息（GPSR）',
         weight: numOrNull(body.weight) ?? undefined,
         isActive: body.isActive === true,

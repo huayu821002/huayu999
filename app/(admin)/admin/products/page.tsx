@@ -715,54 +715,108 @@ export default function AdminProductsPage() {
                   <Input label="Low Stock Alert" type="number" placeholder="10" value={form.lowStockAlert} onChange={(e) => setForm({...form, lowStockAlert: e.target.value})} />
                   <Input label="Weight (kg)" type="number" step="0.01" placeholder="0.5" value={form.weight || ''} onChange={(e) => setForm({...form, weight: e.target.value})} />
                 </div>
-                {/* Tiered Pricing */}
+                {/* Tiered Pricing —— 默认只 1 段（采集价），第 2/3 段自己加 */}
                 <div className="bg-joy-gray-50 rounded-xl p-4">
                   <h4 className="font-medium text-joy-gray-900 mb-3">Tiered Pricing</h4>
-                  <p className="text-xs text-joy-gray-500 mb-3">Enter base price above, then adjust tier prices as needed.</p>
+                  <p className="text-xs text-joy-gray-500 mb-3">
+                    默认只有第一段（= 基础价）。需要的话点「+ 添加一段」自己加第 2、3 段；不加就一直是一段。
+                  </p>
                   {(() => {
                     const basePrice = parseFloat(form.price) || 0
-                    // Default tiers from base price
-                    const defaultTiers = [
-                      { minQty: 1, maxQty: 10, price: basePrice },
-                      { minQty: 11, maxQty: 100, price: basePrice * 0.9 },
-                      { minQty: 101, maxQty: null, price: basePrice * 0.85 },
-                    ]
-                    // Merge with saved tieredPricing (user edits override defaults)
-                    let tiers = defaultTiers
+                    // 读已保存的段；没有就默认只给 1 段
+                    let tiers: Array<{ minQty: number; maxQty: number | null; price: number | string }> = []
                     try {
                       if (form.tieredPricing) {
                         const parsed = JSON.parse(form.tieredPricing)
-                        if (parsed && parsed.tiers && parsed.tiers.length > 0) {
-                          tiers = parsed.tiers.map((t: any, idx: number) => ({
-                            minQty: t.minQty ?? defaultTiers[idx].minQty,
-                            maxQty: t.maxQty ?? defaultTiers[idx].maxQty,
-                            price: t.price !== undefined && t.price !== null && t.price !== '' ? Number(t.price) : defaultTiers[idx].price,
+                        if (parsed && Array.isArray(parsed.tiers) && parsed.tiers.length > 0) {
+                          tiers = parsed.tiers.map((t: any) => ({
+                            minQty: Number(t.minQty) || 1,
+                            maxQty: t.maxQty === null || t.maxQty === undefined ? null : Number(t.maxQty),
+                            price: t.price !== undefined && t.price !== null && t.price !== '' ? Number(t.price) : basePrice,
                           }))
                         }
                       }
                     } catch {}
+                    if (!tiers.length) {
+                      // ★ 默认只有第一段
+                      tiers = [{ minQty: 1, maxQty: null, price: basePrice }]
+                    }
+                    const writeTiers = (next: typeof tiers) =>
+                      setForm({ ...form, tieredPricing: JSON.stringify({ tiers: next }) })
                     return (
-                      <div className="grid grid-cols-3 gap-3">
-                        {tiers.map((tier, idx) => (
-                          <div key={idx} className="bg-white rounded-lg p-3 border border-joy-gray-200">
-                            <div className="text-sm font-medium text-joy-gray-900 mb-2">
-                              {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
+                      <div>
+                        <div className="grid grid-cols-3 gap-3">
+                          {tiers.map((tier, idx) => (
+                            <div key={idx} className="bg-white rounded-lg p-3 border border-joy-gray-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-joy-gray-900">
+                                  {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
+                                </span>
+                                {tiers.length > 1 && (
+                                  <button
+                                    type="button"
+                                    onClick={() => writeTiers(tiers.filter((_, i) => i !== idx))}
+                                    className="text-xs text-red-500 hover:text-red-700"
+                                    title="删除这一段"
+                                  >
+                                    删除
+                                  </button>
+                                )}
+                              </div>
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="起始数量"
+                                value={tier.minQty}
+                                onChange={e => {
+                                  const v = parseInt(e.target.value) || 1
+                                  writeTiers(tiers.map((t, i) => (i === idx ? { ...t, minQty: v } : t)))
+                                }}
+                                className="w-full px-3 py-1.5 mb-1 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none"
+                              />
+                              <input
+                                type="number"
+                                min="1"
+                                placeholder="结束数量（留空=不限）"
+                                value={tier.maxQty ?? ''}
+                                onChange={e => {
+                                  const v = e.target.value.trim()
+                                  writeTiers(
+                                    tiers.map((t, i) => (i === idx ? { ...t, maxQty: v ? parseInt(v) : null } : t))
+                                  )
+                                }}
+                                className="w-full px-3 py-1.5 mb-1 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none"
+                              />
+                              <input
+                                type="number"
+                                step="0.01"
+                                min="0"
+                                placeholder="Price"
+                                value={tier.price ?? ''}
+                                onChange={e => {
+                                  const newTiers = tiers.map((t, i) => (i === idx ? { ...t, price: e.target.value } : t))
+                                  writeTiers(newTiers)
+                                }}
+                                className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none mb-1"
+                              />
+                              <p className="text-xs text-joy-gray-400">第 {idx + 1} 段单价</p>
                             </div>
-                            <input
-                              type="number"
-                              step="0.01"
-                              min="0"
-                              placeholder="Price"
-                              value={tier.price || ''}
-                              onChange={e => {
-                                const newTiers = tiers.map((t, i) => i === idx ? { ...t, price: e.target.value } : t)
-                                setForm({ ...form, tieredPricing: JSON.stringify({ tiers: newTiers }) })
-                              }}
-                              className="w-full px-3 py-2 border border-joy-gray-200 rounded-lg text-sm focus:border-joy-orange focus:outline-none mb-1"
-                            />
-                            <p className="text-xs text-joy-gray-400">per unit ({idx === 0 ? '100%' : idx === 1 ? '90%' : '85%'})</p>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            const last = tiers[tiers.length - 1]
+                            const nextMin = (last?.maxQty ? last.maxQty : last?.minQty || 1) + 1
+                            writeTiers([
+                              ...tiers,
+                              { minQty: nextMin, maxQty: null, price: basePrice },
+                            ])
+                          }}
+                          className="mt-3 px-3 py-1.5 bg-white border border-joy-gray-300 rounded-lg text-sm text-joy-gray-700 hover:bg-joy-gray-50"
+                        >
+                          + 添加一段
+                        </button>
                       </div>
                     )
                   })()}
