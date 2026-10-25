@@ -71,6 +71,8 @@ model Product {
   wholesalePrice Float?
   vipPrice    Float?
   tieredPricing String? // JSON: { tiers: [{ minQty, maxQty, price }, ...] }
+  variants  String? // JSON: [{ id, name, value, sku, price, inventory, image }] 变体明细
+  variantDims String? // JSON: [{ name, kind, values }] 变体维度（颜色/规格/自定义）
   categoryIds String? // JSON: ["catId1", "catId2", ...]
   sku         String      @unique
   barcode     String?

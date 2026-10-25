@@ -614,7 +614,7 @@ export default function ProductDetailPage() {
                         )}
                       >
                         {variant.value}
-                        {variant.inventory < 10 && ` (${variant.inventory} left)`}
+                        {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
                       </button>
                     ))}
                   </div>

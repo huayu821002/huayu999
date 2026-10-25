@@ -75,7 +75,8 @@ export interface ProductVariant {
   value: string
   sku?: string | null
   price?: number | null
-  inventory: number
+  /** null = 库存未知（1688 采集来的变体没有可靠库存） */
+  inventory: number | null
   image?: string | null
 }
 

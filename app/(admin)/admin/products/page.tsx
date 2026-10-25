@@ -17,7 +17,7 @@ interface Variant {
   value: string
   sku: string | null
   price: number | null
-  inventory: number
+  inventory: number | null
   image: string | null
 }
 
@@ -116,7 +116,7 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [showVariantPanel, setShowVariantPanel] = useState(false)
   const [productVariants, setProductVariants] = useState<Variant[]>([])
-  const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '0' })
+  const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '0', image: '' })
   const [isSaving, setIsSaving] = useState(false)
 
   const [form, setForm] = useState<{
@@ -287,7 +287,7 @@ export default function AdminProductsPage() {
       })
       const data = await res.json()
       if (data.success) {
-        setVariantForm({ name: '', value: '', sku: '', price: '', inventory: '0' })
+        setVariantForm({ name: '', value: '', sku: '', price: '', inventory: '0', image: '' })
         fetchVariants(editingProduct.id)
       } else {
         alert(data.error)
@@ -631,6 +631,7 @@ export default function AdminProductsPage() {
                       <Input placeholder="Variant Price" type="number" value={variantForm.price} onChange={(e) => setVariantForm({...variantForm, price: e.target.value})} />
                     </div>
                     <Input placeholder="Inventory" type="number" value={variantForm.inventory} onChange={(e) => setVariantForm({...variantForm, inventory: e.target.value})} />
+                    <Input placeholder="Image URL (optional)" value={variantForm.image} onChange={(e) => setVariantForm({...variantForm, image: e.target.value})} />
                     <Button size="sm" className="w-full" onClick={handleAddVariant} isLoading={isSaving} disabled={!variantForm.name || !variantForm.value}>Add Variant</Button>
                   </div>
 
@@ -642,7 +643,7 @@ export default function AdminProductsPage() {
                       <div key={v.id} className="bg-white rounded-lg p-3 flex items-center justify-between">
                         <div>
                           <p className="text-sm font-medium text-joy-gray-900">{v.value}</p>
-                          <p className="text-xs text-joy-gray-500">{v.name} {v.price ? `| $${v.price}` : ''} | Stock: {v.inventory}</p>
+                          <p className="text-xs text-joy-gray-500">{v.name} {v.price ? `| $${v.price}` : ''} | Stock: {v.inventory ?? '—'}</p>
                         </div>
                         <button onClick={() => handleDeleteVariant(v.id)} className="p-1 hover:bg-red-50 rounded"><Icons.Trash2 size={14} className="text-red-500" /></button>
                       </div>
