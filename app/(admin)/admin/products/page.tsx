@@ -124,6 +124,9 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [showVariantPanel, setShowVariantPanel] = useState(false)
   const [productVariants, setProductVariants] = useState<Variant[]>([])
+  // 批量选择 / 批量删除
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [isBatchDeleting, setIsBatchDeleting] = useState(false)
   const [variantDims, setVariantDims] = useState<VariantDim[]>([])
   const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '', image: '' })
   const [isSaving, setIsSaving] = useState(false)
@@ -289,11 +292,56 @@ export default function AdminProductsPage() {
     fetchWarehouseInventory(product.id)
   }
 
+  /** 单个勾选/取消 */
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+
+  /** 全选/取消全选（只针对当前筛选结果） */
+  const toggleSelectAll = () => {
+    const ids = filteredProducts.map(p => p.id)
+    const allSelected = ids.length > 0 && ids.every(id => selectedIds.includes(id))
+    setSelectedIds(allSelected ? [] : ids)
+  }
+
+  /** 批量删除 */
+  const handleBatchDelete = async () => {
+    if (!selectedIds.length) return
+    if (!confirm(`确定删除选中的 ${selectedIds.length} 个商品？\n\n此操作不可撤销。`)) return
+    setIsBatchDeleting(true)
+    try {
+      const res = await adminFetch('/api/admin/products/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds }),
+      })
+      const data = await res.json()
+      if (data.deleted > 0) {
+        setSelectedIds([])
+        fetchProducts()
+      }
+      // 失败明细要逐条告诉用户（哪些删掉了、哪些因为有订单删不掉）
+      if (data.failedCount > 0) {
+        const lines = data.failed.slice(0, 10).map((f: any) => `• ${f.name || f.id}：${f.reason}`)
+        const more = data.failed.length > 10 ? `\n… 还有 ${data.failed.length - 10} 个` : ''
+        alert(`已删除 ${data.deleted} 个，${data.failedCount} 个失败：\n${lines.join('\n')}${more}`)
+      } else {
+        alert(`✅ 已删除 ${data.deleted} 个商品`)
+      }
+    } catch (e: any) {
+      alert('批量删除失败: ' + (e?.message || e))
+    }
+    setIsBatchDeleting(false)
+  }
+
   const handleDelete = async (id: string) => {
     if (!confirm('Delete this product? This cannot be undone.')) return
     try {
       const res = await adminFetch(`/api/admin/products/${id}`, { method: 'DELETE' })
-      if (res.ok) fetchProducts()
+      if (res.ok) {
+        setSelectedIds(prev => prev.filter(x => x !== id))
+        fetchProducts()
+      }
       else alert('Failed to delete product')
     } catch { alert('Failed to delete product') }
   }
@@ -536,17 +584,48 @@ export default function AdminProductsPage() {
               <Button onClick={openAdd}><Icons.Plus size={18} className="mr-2" />Add Product</Button>
             </div>
           </div>
-          <div className="mb-6">
+          <div className="mb-4">
             <div className="relative max-w-md">
               <Icons.Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-joy-gray-400" />
               <input type="text" placeholder="Search products..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="w-full pl-10 pr-4 py-3 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none" />
             </div>
           </div>
+
+          {/* 批量操作栏 */}
+          {selectedIds.length > 0 && (
+            <div className="mb-4 flex items-center justify-between rounded-xl border border-joy-orange/40 bg-joy-orange/10 px-4 py-3">
+              <div className="flex items-center gap-3">
+                <span className="text-sm font-medium text-joy-gray-800">已选 {selectedIds.length} 个商品</span>
+                <button
+                  onClick={() => setSelectedIds([])}
+                  className="text-xs text-joy-gray-500 hover:text-joy-gray-800 underline"
+                >
+                  取消选择
+                </button>
+              </div>
+              <Button
+                onClick={handleBatchDelete}
+                isLoading={isBatchDeleting}
+                className="!bg-red-500 hover:!bg-red-600"
+              >
+                <Icons.Trash2 size={16} className="mr-2" />批量删除
+              </Button>
+            </div>
+          )}
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-joy-gray-50">
                   <tr>
+                    <th className="w-10 px-4 py-4">
+                      <input
+                        type="checkbox"
+                        aria-label="Select all"
+                        checked={filteredProducts.length > 0 && filteredProducts.every(p => selectedIds.includes(p.id))}
+                        onChange={toggleSelectAll}
+                        className="w-4 h-4 rounded border-joy-gray-300 cursor-pointer"
+                      />
+                    </th>
                     <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Product</th>
                     <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">SKU</th>
                     <th className="text-left text-xs font-medium text-joy-gray-500 uppercase tracking-wider px-6 py-4">Price</th>
@@ -556,9 +635,18 @@ export default function AdminProductsPage() {
                 </thead>
                 <tbody className="divide-y divide-joy-gray-100">
                   {filteredProducts.length === 0 ? (
-                    <tr><td colSpan={5} className="px-6 py-8 text-center text-joy-gray-500">No products found</td></tr>
+                    <tr><td colSpan={6} className="px-6 py-8 text-center text-joy-gray-500">No products found</td></tr>
                   ) : filteredProducts.map((product) => (
-                    <tr key={product.id} className="hover:bg-joy-gray-50 transition-colors">
+                    <tr key={product.id} className={`hover:bg-joy-gray-50 transition-colors ${selectedIds.includes(product.id) ? 'bg-joy-orange/5' : ''}`}>
+                      <td className="px-4 py-4">
+                        <input
+                          type="checkbox"
+                          aria-label={`Select ${product.name}`}
+                          checked={selectedIds.includes(product.id)}
+                          onChange={() => toggleSelect(product.id)}
+                          className="w-4 h-4 rounded border-joy-gray-300 cursor-pointer"
+                        />
+                      </td>
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-3">
                           <div className="w-12 h-12 rounded-lg bg-joy-gray-100 overflow-hidden flex-shrink-0">
