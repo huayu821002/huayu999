@@ -3218,6 +3218,7 @@
         <button id="ff-diag" class="ghost">复制诊断</button>
           <button id="ff-struct" class="ghost">复制结构</button>
           <button id="ff-vstruct" class="ghost">复制变体结构</button>
+          <button id="ff-spec" class="ghost">复制规格表</button>
           <button id="ff-push">采集并推送</button>
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
@@ -3326,6 +3327,25 @@
         say('异常: ' + e.message)
       }
     }
+
+    // 复制规格价格表（DOM）—— 用来确认「哪一列是价格、哪些是重量/库存」
+    document.getElementById('ff-spec')?.addEventListener('click', async () => {
+      try {
+        ensureCore()
+        const tables = window.FF1688.dumpSpecTable ? window.FF1688.dumpSpecTable() : []
+        const txt = JSON.stringify({ url: location.href, tables }, null, 1)
+        try {
+          await navigator.clipboard.writeText(txt)
+          say('✅ 规格表已复制（表头 + 前几行）')
+        } catch (e) {
+          kv.style.display = 'block'
+          kv.textContent = txt.slice(0, 20000)
+          say('规格表如下（复制上面的文本）')
+        }
+      } catch (e) {
+        say('异常: ' + e.message)
+      }
+    })
 
     $('#ff-struct', panel).onclick = async () => {
       try {
