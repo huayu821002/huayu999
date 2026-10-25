@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.24.0
+// @version      2.25.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -117,7 +117,7 @@
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
         <div class="kv" id="ff-kv" style="display:none"></div>
-        <div class="st" id="ff-st">就绪。建议先点「预览解析」确认字段再推送。</div>
+        <div class="st" id="ff-st">就绪。建议先点「预览解析」确认字段再推送。<br><b>抓变体小技巧</b>：先在页面上点一下颜色/尺码（会触发 SKU 列表接口），再点「复制变体结构」，变体才抓得全。</div>
       </div>`
     const root = document.documentElement || document.body
     if (!root) return
@@ -244,12 +244,18 @@
     $('#ff-vstruct', panel).onclick = async () => {
       try {
         ensureCore()
-        const captured = window.FF1688.capture ? window.FF1688.capture() : []
-        const struct = window.FF1688.dumpVariants ? window.FF1688.dumpVariants(captured) : []
-        // 紧凑输出：25 个报文用 indent:2 会大到难以粘贴
+        say('正在采集 + 重放接口…')
+        // collectAll：截获的 + 重放的 + 内联的（变体没抓全时会自动重放 1688 的接口）
+        const collected = window.FF1688.collectAll
+          ? await window.FF1688.collectAll()
+          : { payloads: (window.FF1688.capture ? window.FF1688.capture() : []), sources: {} }
+        const captured = collected.payloads || []
+        const struct = window.FF1688.dumpVariants ? window.FF1688.dumpVariants(captured) : {}
+        // 紧凑输出：报文多时用 indent:2 会大到难以粘贴
         const txt = JSON.stringify({
           url: location.href,
           capturedCount: captured.length,
+          sources: collected.sources || {},
           contentKeyUnion: struct.contentKeyUnion,
           allKeyUnion: struct.allKeyUnion,
           payloads: struct.payloads,

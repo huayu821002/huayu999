@@ -12,7 +12,7 @@
     "db:seed": "node prisma/seed.js",
     "collector:build": "node scripts/build-collector.js",
     "collector:verify:privacy": "node scripts/e2e-privacy-check.js",
-    "collector:test": "node public/1688-core.test.js && node public/1688-core.noise.test.js && node public/1688-core.403.test.js && node public/1688-core.waf.test.js && node public/1688-core.privacy.test.js && node public/1688-core.image.test.js && node public/1688-core.struct.test.js && node public/1688-core.realpayload.test.js && node public/1688-core.dom.test.js && node public/1688-core.version.test.js && node public/1688-core.variant.test.js && node public/1688-core.realattr.test.js && node scripts/test-variants-lib.test.js && node scripts/e2e-privacy-audit.js && node scripts/test-collector-panel.js && node scripts/test-console-snippet.js",
+    "collector:test": "node public/1688-core.test.js && node public/1688-core.noise.test.js && node public/1688-core.403.test.js && node public/1688-core.waf.test.js && node public/1688-core.privacy.test.js && node public/1688-core.image.test.js && node public/1688-core.struct.test.js && node public/1688-core.realpayload.test.js && node public/1688-core.dom.test.js && node public/1688-core.version.test.js && node public/1688-core.variant.test.js && node public/1688-core.realattr.test.js && node scripts/test-variants-lib.test.js && node scripts/e2e-privacy-audit.js && node scripts/test-collector-panel.js && node scripts/test-console-snippet.js && npm run collector:test:replay",
     "collector:test:variant": "node public/1688-core.variant.test.js",
     "collector:test:realattr": "node public/1688-core.realattr.test.js",
     "collector:test:variants": "node scripts/test-variants-lib.test.js",
@@ -30,7 +30,8 @@
     "tpanel": "node scripts/test-collector-panel.js",
     "collector:test:ver": "node public/1688-core.version.test.js",
     "livecheck": "node public/1688-core.livecheck.js",
-    "e2e:copy-translate": "node scripts/e2e-copy-translate.test.js"
+    "e2e:copy-translate": "node scripts/e2e-copy-translate.test.js",
+    "collector:test:replay": "node public/1688-core.replay.test.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.24.0
+// @version      2.25.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.1.3') return
+  if (window.FF1688 && window.FF1688.__v === '4.1.4') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -100,7 +100,8 @@
     if (isSensitivePayload({ url })) return
     // URL 不截断：mtop 的 data/sign 在 query 尾部，截断后重放就会 invalid param
     STORE.payloads.push({ url: String(url), data })
-    if (STORE.payloads.length > 40) STORE.payloads.shift()
+    // 缓冲别太小：首屏可能有几十个 mtop 请求，40 容易把「SKU 列表那条」挤掉
+    if (STORE.payloads.length > 200) STORE.payloads.shift()
     flush()
   }
 
@@ -239,7 +240,7 @@
    * 关键：1688 的 mtop 接口是 **GET 但签名在 query**；我们用 performance 里的原始 URL 重放时，
    * 里面已经带了 t/sign/data，所以**必须用完整 URL，不能截断**（截断会丢 data → invalid param）。
    */
-  async function replayResources(limit = 10) {
+  async function replayResources(limit = 40) {
     const out = []
     let urls = []
     try {
@@ -250,7 +251,13 @@
         .filter(u => /1688\.com|alicdn\.com|taobao\.com/.test(u))
         .filter(u => !/\.(png|jpg|jpeg|webp|svg|css|js|woff2?)(\?|$)/i.test(u))
     } catch (e) {}
-    urls = Array.from(new Set(urls)).slice(-limit)
+    // 去重后**按优先级**挑，而不是简单取最后 N 条：
+    // SKU 列表藏在 offerdetail / moduleasyncservice / 带 sku 字样的接口里
+    const uniq = Array.from(new Set(urls))
+    const PRIO = /offerdetail|moduleasyncservice|sku|offerlist|productdetail/i
+    const pri = uniq.filter(u => PRIO.test(u))
+    const rest = uniq.filter(u => !PRIO.test(u)).reverse()
+    urls = pri.concat(rest).slice(0, limit)
     // 用未挂钩的原始 fetch，避免重放响应又回流进 STORE 污染采集结果
     const rawFetch = window.__FF1688_ORIG_FETCH__ || window.fetch
     await Promise.all(
@@ -1005,6 +1012,78 @@
 
   /** 路径里出现这些词 = 推荐位/别人家的货，不是本商品的变体 */
   const VARIANT_PATH_REJECT_RE = /(recommend|relation|major|similar|hotsale|shopcard|itemlist|hotrecommend)/i
+
+  /** 抓到的 SKU 行里有没有「规格明细」—— 没有就说明变体没抓全 */
+  function hasSpecRows(payloads) {
+    try {
+      // 注意：pickVariants 返回的是**对象** {variants, dims, source, candidates}，不是数组
+      const out = pickVariants(payloads || [])
+      const list = Array.isArray(out) ? out : (out && out.variants) || []
+      return list.some(r => r && r.specs && r.specs.length)
+    } catch (e) {
+      return false
+    }
+  }
+
+  /** 简单字符串哈希（给报文去重用） */
+  function strHash(s) {
+    let h = 5381
+    const t = String(s || '')
+    for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0
+    return (h >>> 0).toString(36)
+  }
+
+  /** 报文去重（同一条接口被重放多次会重复） */
+  function dedupePayloads(payloads) {
+    const seen = new Set()
+    const out = []
+    for (const p of payloads || []) {
+      if (!p || !p.data) continue
+      let k
+      try {
+        k = String(p.url || '') + '|' + strHash(JSON.stringify(p.data))
+      } catch (e) {
+        k = String(p.url || '') + '|' + Math.random()
+      }
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push(p)
+    }
+    return out
+  }
+
+  /**
+   * 全量采集：截获的 + 重放的 + 内联的。
+   *
+   * 关键：**变体没抓全时必须重放**。
+   * 1688 的 SKU 列表（offerList）常常：
+   *   - 在装脚本之前的首屏请求里（没被截到）
+   *   - 或者要等用户点了颜色/尺码才懒加载
+   *   - 或者被 40 条的环形缓冲挤掉了
+   * 这三种情况都表现为「报文很多（20+）但 offerList 是空的」。
+   */
+  async function collectAll() {
+    let payloads = capture()
+    const sources = { capture: payloads.length, replay: 0, replayBody: 0, inline: 0 }
+    const need = () => payloads.length < 2 || !hasSpecRows(payloads)
+
+    if (need()) {
+      const extra = await replayResources(40)
+      sources.replay = extra.length
+      payloads = dedupePayloads(payloads.concat(extra))
+    }
+    if (need()) {
+      const extra = await replayCapturedRequests(16)
+      sources.replayBody = extra.length
+      payloads = dedupePayloads(payloads.concat(extra))
+    }
+    if (need()) {
+      const extra = scanInlineData()
+      sources.inline = extra.length
+      payloads = dedupePayloads(payloads.concat(extra))
+    }
+    return { payloads, sources }
+  }
 
   /**
    * 提取变体（SKU 维度）。
@@ -2232,24 +2311,35 @@
     let payloads = capture()
     let replayed = 0
     const sources = { capture: payloads.length, replay: 0, replayBody: 0, inline: 0 }
+    // 判据：抓到的 SKU 行里有没有「规格明细」
+    // 没有 = 变体没抓全（首屏请求没截到 / 被环形缓冲挤掉 / 要点颜色才懒加载）
+    const needMore = () => payloads.length < 2 || !hasSpecRows(payloads)
+
     if (payloads.length < 2) {
       const extra = await replayResources()
       sources.replay = extra.length
       replayed = extra.length
       payloads = payloads.concat(extra)
     }
+    // 报文够多但没有规格 → 强制重放 1688 自己的接口（原来这条永远不会触发）
+    if (needMore()) {
+      const extra = await replayResources(40)
+      sources.replay += extra.length
+      replayed += extra.length
+      payloads = dedupePayloads(payloads.concat(extra))
+    }
     // 页面已加载完才装内核时，首屏请求没被截到 → 用截获到的原始 method/body 重放
-    if (payloads.length < 2) {
-      const extra = await replayCapturedRequests()
+    if (needMore()) {
+      const extra = await replayCapturedRequests(16)
       sources.replayBody = extra.length
       replayed += extra.length
-      payloads = payloads.concat(extra)
+      payloads = dedupePayloads(payloads.concat(extra))
     }
     // 首屏数据常挂在 window 全局或内联脚本里
-    if (payloads.length < 2) {
+    if (needMore()) {
       const extra = scanInlineData()
       sources.inline = extra.length
-      payloads = payloads.concat(extra)
+      payloads = dedupePayloads(payloads.concat(extra))
     }
     const dom = domFallback()
 
@@ -2935,9 +3025,13 @@
   }
 
   window.FF1688 = {
-    __v: '4.1.3',
+    __v: '4.1.4',
     install,
     capture,
+    collectAll,
+    hasSpecRows,
+    pickVariants,
+    dedupePayloads,
     dumpStructure,
     dumpVariants,
     replayResources,
@@ -3029,9 +3123,9 @@
         #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.24.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.25.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.24.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.25.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -3046,7 +3140,7 @@
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
         <div class="kv" id="ff-kv" style="display:none"></div>
-        <div class="st" id="ff-st">就绪。建议先点「预览解析」确认字段再推送。</div>
+        <div class="st" id="ff-st">就绪。建议先点「预览解析」确认字段再推送。<br><b>抓变体小技巧</b>：先在页面上点一下颜色/尺码（会触发 SKU 列表接口），再点「复制变体结构」，变体才抓得全。</div>
       </div>`
     const root = document.documentElement || document.body
     if (!root) return
@@ -3173,12 +3267,18 @@
     $('#ff-vstruct', panel).onclick = async () => {
       try {
         ensureCore()
-        const captured = window.FF1688.capture ? window.FF1688.capture() : []
-        const struct = window.FF1688.dumpVariants ? window.FF1688.dumpVariants(captured) : []
-        // 紧凑输出：25 个报文用 indent:2 会大到难以粘贴
+        say('正在采集 + 重放接口…')
+        // collectAll：截获的 + 重放的 + 内联的（变体没抓全时会自动重放 1688 的接口）
+        const collected = window.FF1688.collectAll
+          ? await window.FF1688.collectAll()
+          : { payloads: (window.FF1688.capture ? window.FF1688.capture() : []), sources: {} }
+        const captured = collected.payloads || []
+        const struct = window.FF1688.dumpVariants ? window.FF1688.dumpVariants(captured) : {}
+        // 紧凑输出：报文多时用 indent:2 会大到难以粘贴
         const txt = JSON.stringify({
           url: location.href,
           capturedCount: captured.length,
+          sources: collected.sources || {},
           contentKeyUnion: struct.contentKeyUnion,
           allKeyUnion: struct.allKeyUnion,
           payloads: struct.payloads,
@@ -3278,9 +3378,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.1.3 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.1.4 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.1.3'
+  const MIN_CORE = '4.1.4'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -3333,7 +3433,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.24.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.25.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }

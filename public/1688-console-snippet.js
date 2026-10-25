@@ -25,7 +25,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.1.3') return
+  if (window.FF1688 && window.FF1688.__v === '4.1.4') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -89,7 +89,8 @@
     if (isSensitivePayload({ url })) return
     // URL 不截断：mtop 的 data/sign 在 query 尾部，截断后重放就会 invalid param
     STORE.payloads.push({ url: String(url), data })
-    if (STORE.payloads.length > 40) STORE.payloads.shift()
+    // 缓冲别太小：首屏可能有几十个 mtop 请求，40 容易把「SKU 列表那条」挤掉
+    if (STORE.payloads.length > 200) STORE.payloads.shift()
     flush()
   }
 
@@ -228,7 +229,7 @@
    * 关键：1688 的 mtop 接口是 **GET 但签名在 query**；我们用 performance 里的原始 URL 重放时，
    * 里面已经带了 t/sign/data，所以**必须用完整 URL，不能截断**（截断会丢 data → invalid param）。
    */
-  async function replayResources(limit = 10) {
+  async function replayResources(limit = 40) {
     const out = []
     let urls = []
     try {
@@ -239,7 +240,13 @@
         .filter(u => /1688\.com|alicdn\.com|taobao\.com/.test(u))
         .filter(u => !/\.(png|jpg|jpeg|webp|svg|css|js|woff2?)(\?|$)/i.test(u))
     } catch (e) {}
-    urls = Array.from(new Set(urls)).slice(-limit)
+    // 去重后**按优先级**挑，而不是简单取最后 N 条：
+    // SKU 列表藏在 offerdetail / moduleasyncservice / 带 sku 字样的接口里
+    const uniq = Array.from(new Set(urls))
+    const PRIO = /offerdetail|moduleasyncservice|sku|offerlist|productdetail/i
+    const pri = uniq.filter(u => PRIO.test(u))
+    const rest = uniq.filter(u => !PRIO.test(u)).reverse()
+    urls = pri.concat(rest).slice(0, limit)
     // 用未挂钩的原始 fetch，避免重放响应又回流进 STORE 污染采集结果
     const rawFetch = window.__FF1688_ORIG_FETCH__ || window.fetch
     await Promise.all(
@@ -994,6 +1001,78 @@
 
   /** 路径里出现这些词 = 推荐位/别人家的货，不是本商品的变体 */
   const VARIANT_PATH_REJECT_RE = /(recommend|relation|major|similar|hotsale|shopcard|itemlist|hotrecommend)/i
+
+  /** 抓到的 SKU 行里有没有「规格明细」—— 没有就说明变体没抓全 */
+  function hasSpecRows(payloads) {
+    try {
+      // 注意：pickVariants 返回的是**对象** {variants, dims, source, candidates}，不是数组
+      const out = pickVariants(payloads || [])
+      const list = Array.isArray(out) ? out : (out && out.variants) || []
+      return list.some(r => r && r.specs && r.specs.length)
+    } catch (e) {
+      return false
+    }
+  }
+
+  /** 简单字符串哈希（给报文去重用） */
+  function strHash(s) {
+    let h = 5381
+    const t = String(s || '')
+    for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0
+    return (h >>> 0).toString(36)
+  }
+
+  /** 报文去重（同一条接口被重放多次会重复） */
+  function dedupePayloads(payloads) {
+    const seen = new Set()
+    const out = []
+    for (const p of payloads || []) {
+      if (!p || !p.data) continue
+      let k
+      try {
+        k = String(p.url || '') + '|' + strHash(JSON.stringify(p.data))
+      } catch (e) {
+        k = String(p.url || '') + '|' + Math.random()
+      }
+      if (seen.has(k)) continue
+      seen.add(k)
+      out.push(p)
+    }
+    return out
+  }
+
+  /**
+   * 全量采集：截获的 + 重放的 + 内联的。
+   *
+   * 关键：**变体没抓全时必须重放**。
+   * 1688 的 SKU 列表（offerList）常常：
+   *   - 在装脚本之前的首屏请求里（没被截到）
+   *   - 或者要等用户点了颜色/尺码才懒加载
+   *   - 或者被 40 条的环形缓冲挤掉了
+   * 这三种情况都表现为「报文很多（20+）但 offerList 是空的」。
+   */
+  async function collectAll() {
+    let payloads = capture()
+    const sources = { capture: payloads.length, replay: 0, replayBody: 0, inline: 0 }
+    const need = () => payloads.length < 2 || !hasSpecRows(payloads)
+
+    if (need()) {
+      const extra = await replayResources(40)
+      sources.replay = extra.length
+      payloads = dedupePayloads(payloads.concat(extra))
+    }
+    if (need()) {
+      const extra = await replayCapturedRequests(16)
+      sources.replayBody = extra.length
+      payloads = dedupePayloads(payloads.concat(extra))
+    }
+    if (need()) {
+      const extra = scanInlineData()
+      sources.inline = extra.length
+      payloads = dedupePayloads(payloads.concat(extra))
+    }
+    return { payloads, sources }
+  }
 
   /**
    * 提取变体（SKU 维度）。
@@ -2221,24 +2300,35 @@
     let payloads = capture()
     let replayed = 0
     const sources = { capture: payloads.length, replay: 0, replayBody: 0, inline: 0 }
+    // 判据：抓到的 SKU 行里有没有「规格明细」
+    // 没有 = 变体没抓全（首屏请求没截到 / 被环形缓冲挤掉 / 要点颜色才懒加载）
+    const needMore = () => payloads.length < 2 || !hasSpecRows(payloads)
+
     if (payloads.length < 2) {
       const extra = await replayResources()
       sources.replay = extra.length
       replayed = extra.length
       payloads = payloads.concat(extra)
     }
+    // 报文够多但没有规格 → 强制重放 1688 自己的接口（原来这条永远不会触发）
+    if (needMore()) {
+      const extra = await replayResources(40)
+      sources.replay += extra.length
+      replayed += extra.length
+      payloads = dedupePayloads(payloads.concat(extra))
+    }
     // 页面已加载完才装内核时，首屏请求没被截到 → 用截获到的原始 method/body 重放
-    if (payloads.length < 2) {
-      const extra = await replayCapturedRequests()
+    if (needMore()) {
+      const extra = await replayCapturedRequests(16)
       sources.replayBody = extra.length
       replayed += extra.length
-      payloads = payloads.concat(extra)
+      payloads = dedupePayloads(payloads.concat(extra))
     }
     // 首屏数据常挂在 window 全局或内联脚本里
-    if (payloads.length < 2) {
+    if (needMore()) {
       const extra = scanInlineData()
       sources.inline = extra.length
-      payloads = payloads.concat(extra)
+      payloads = dedupePayloads(payloads.concat(extra))
     }
     const dom = domFallback()
 
@@ -2924,9 +3014,13 @@
   }
 
   window.FF1688 = {
-    __v: '4.1.3',
+    __v: '4.1.4',
     install,
     capture,
+    collectAll,
+    hasSpecRows,
+    pickVariants,
+    dedupePayloads,
     dumpStructure,
     dumpVariants,
     replayResources,
@@ -2966,7 +3060,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.24.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.25.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
