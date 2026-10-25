@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureSupplierProductTable, parseImagesField, parseJsonField } from '@/lib/supplier'
 import { proxyImageList } from '@/lib/imgProxy'
+import { unproxyImagesField } from '@/lib/imgProxy'
 
 // GET /api/admin/supplier-products/[id]
 export async function GET(
@@ -49,7 +50,7 @@ export async function PATCH(
       shippingText: body.shippingText,
       status: body.status,
       note: body.note,
-      images: body.images ? JSON.stringify(body.images) : undefined,
+      images: body.images ? JSON.stringify(unproxyImagesField(body.images)) : undefined,
       // 英文 / SEO
       titleEn: body.titleEn,
       seoTitle: body.seoTitle,

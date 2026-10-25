@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminOrDev } from '@/lib/chatAuth'
+import { withProxiedVariantImages } from '@/lib/imgProxy'
 
 /**
  * DELETE /api/admin/products/[productId]/variants/[variantId]
@@ -34,7 +35,7 @@ export async function DELETE(
     }
     await prisma.product.update({
       where: { id: params.productId },
-      data: { variants: JSON.stringify(next) },
+      data: { variants: JSON.stringify(withProxiedVariantImages(next)) },
     })
     return NextResponse.json({ success: true, data: next })
   } catch (error) {

@@ -22,7 +22,8 @@ function loadTs(file, mocks = {}) {
 
 console.log('\n[图片代理 proxyImage]')
 {
-  const { proxyImage, proxyImagesField, withProxiedImages, withProxiedVariantImages } = loadTs(
+  const { proxyImage, proxyImagesField, withProxiedImages, withProxiedVariantImages,
+          unproxyImage, unproxyImagesField, unproxyVariantImages } = loadTs(
     '/home/admin/Fiestaflare/lib/imgProxy.ts'
   )
 
@@ -63,6 +64,37 @@ console.log('\n[图片代理 proxyImage]')
   t('变体图走代理', vs[0].image.startsWith('/api/img?u='))
   t('变体空图保持空', vs[1].image === '')
   t('变体其它字段保留', vs[0].id === 'v1')
+}
+
+console.log('\n[反向还原 unproxy —— DB 只存原始 URL]')
+{
+  const { proxyImage, unproxyImage, unproxyImagesField, unproxyVariantImages } = loadTs(
+    '/home/admin/Fiestaflare/lib/imgProxy.ts'
+  )
+  const CDN = 'https://cbu01.alicdn.com/img/ibank/O1CN01hmBSSK2GvmdFHSmjf_!!2222432059078-0-cib.jpg'
+  const proxied = proxyImage(CDN)
+
+  t('unproxy 还原回原始 URL', unproxyImage(proxied) === CDN, unproxyImage(proxied))
+  t('unproxy 对原始 URL 无影响', unproxyImage(CDN) === CDN)
+  t('unproxy 对站内图无影响', unproxyImage('/uploads/a.jpg') === '/uploads/a.jpg')
+  t('unproxy 空值', unproxyImage('') === '')
+
+  // 往返一致
+  t('proxy → unproxy 往返一致', unproxyImage(proxyImage(CDN)) === CDN)
+
+  // images 字段（JSON 字符串）
+  const j = unproxyImagesField(JSON.stringify([proxied, '/uploads/x.jpg']))
+  t('unproxy images JSON 字符串', typeof j === 'string' && j.includes(CDN) && j.includes('/uploads/x.jpg'), j)
+  t('unproxy 后不再有 /api/img', !String(j).includes('/api/img'))
+
+  // 数组
+  const arr = unproxyImagesField([proxied])
+  t('unproxy images 数组', Array.isArray(arr) && arr[0] === CDN)
+
+  // 变体
+  const vs = unproxyVariantImages([{ id: 'v1', image: proxied }])
+  t('unproxy 变体图', vs[0].image === CDN)
+  t('unproxy 变体其它字段保留', vs[0].id === 'v1')
 }
 
 console.log('\n[图片代理路由白名单]')

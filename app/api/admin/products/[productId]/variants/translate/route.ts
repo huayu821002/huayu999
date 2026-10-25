@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireAdminOrDev } from '@/lib/chatAuth'
 import { translateToEnglish } from '@/lib/cn2en'
 import { translateSpecs, translateDimName, translateDimValue } from '@/lib/variantI18n'
+import { withProxiedVariantImages } from '@/lib/imgProxy'
+import { unproxyVariantImages } from '@/lib/imgProxy'
 
 /**
  * POST /api/admin/products/[productId]/variants/translate
@@ -121,12 +123,13 @@ export async function POST(
     await prisma.product.update({
       where: { id: params.productId },
       data: {
-        variants: JSON.stringify(out),
+        // 写入前还原代理 URL（DB 只存原始 CDN URL）
+        variants: JSON.stringify(unproxyVariantImages(out)),
         ...(newDims.length ? { variantDims: JSON.stringify(newDims) } : {}),
       },
     })
 
-    return NextResponse.json({ success: true, data: out, dims: newDims })
+    return NextResponse.json({ success: true, data: withProxiedVariantImages(out), dims: newDims })
   } catch (error: any) {
     console.error('translate variants error:', error)
     return NextResponse.json({ success: false, error: error?.message || 'Failed to translate variants' }, { status: 500 })

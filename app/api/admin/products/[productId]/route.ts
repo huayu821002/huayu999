@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withProxiedImages } from '@/lib/imgProxy'
+import { unproxyImagesField } from '@/lib/imgProxy'
 
 export async function GET(request: Request, { params }: { params: { productId: string } }) {
   try {
@@ -37,7 +38,11 @@ export async function PUT(request: Request, { params }: { params: { productId: s
         wholesalePrice: wholesalePrice ? parseFloat(wholesalePrice) : null,
         vipPrice: vipPrice ? parseFloat(vipPrice) : null,
         weight: weight ? parseFloat(weight) : null,
-        images: Array.isArray(images) ? JSON.stringify(images) : images,
+        // 写入前还原代理 URL（DB 只存原始 CDN URL）
+        images: (() => {
+          const un = unproxyImagesField(images)
+          return Array.isArray(un) ? JSON.stringify(un) : String(un ?? '')
+        })(),
         sku, barcode,
         inventory: parseInt(inventory) || 0,
         categoryIds: categoryIds ? JSON.stringify(categoryIds) : null,

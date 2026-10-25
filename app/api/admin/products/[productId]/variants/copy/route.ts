@@ -3,6 +3,8 @@ import { prisma } from '@/lib/prisma'
 import { requireAdminOrDev } from '@/lib/chatAuth'
 import { ensureSupplierProductTable, parseJsonField } from '@/lib/supplier'
 import { toProductVariants, inferVariantDims } from '@/lib/variants'
+import { withProxiedVariantImages } from '@/lib/imgProxy'
+import { unproxyVariantImages } from '@/lib/imgProxy'
 
 /**
  * POST /api/admin/products/[productId]/variants/copy
@@ -89,14 +91,15 @@ export async function POST(
     await prisma.product.update({
       where: { id: params.productId },
       data: {
-        variants: JSON.stringify(merged),
+        // 写入前还原代理 URL（DB 只存原始 CDN URL）
+        variants: JSON.stringify(unproxyVariantImages(merged)),
         variantDims: JSON.stringify(dims),
       },
     })
 
     return NextResponse.json({
       success: true,
-      data: merged,
+      data: withProxiedVariantImages(merged),
       dims,
       copied: converted.length,
       source: {

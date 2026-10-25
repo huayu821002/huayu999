@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withProxiedImages } from '@/lib/imgProxy'
+import { unproxyImagesField } from '@/lib/imgProxy'
 
 export async function GET(request: Request) {
   try {
@@ -90,7 +91,11 @@ export async function POST(request: Request) {
         minOrderQty: parseInt(minOrderQty) || 1,
         weight: weight ? parseFloat(weight) : null,
         dimensions,
-        images: typeof images === 'string' ? images : JSON.stringify(images),
+        // 写入前还原代理 URL（DB 只存原始 CDN URL）
+        images: (() => {
+          const un = unproxyImagesField(images)
+          return typeof un === 'string' ? un : JSON.stringify(un)
+        })(),
         modelImage,
         sizeChart,
         sku,

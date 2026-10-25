@@ -135,6 +135,61 @@ export function proxyImagesField(images: unknown): unknown {
 }
 
 /**
+ * ★ 反向：把代理 URL 还原成原始 CDN URL。
+ *
+ * 背景：后台编辑页加载到的是代理 URL（`/api/img?u=...`），
+ * 保存时如果原样写回 DB，DB 里就存了代理 URL —— 以后再代理就套不上、
+ * 换域名也全都失效。
+ * → **DB 只存原始 URL，代理只发生在读取时。**
+ * 所以所有写入路径都要先 unproxy。
+ */
+export function unproxyImage(url: string | null | undefined): string {
+  const u = String(url || '').trim()
+  if (!u) return ''
+  if (!u.startsWith('/api/img')) return u
+  const m = u.match(/[?&]u=([^&]+)/)
+  if (!m) return u
+  try {
+    return decodeURIComponent(m[1])
+  } catch {
+    return u
+  }
+}
+
+/** 反向处理 images 字段（JSON 字符串 / 数组 / 逗号分隔） */
+export function unproxyImagesField(images: unknown): any {
+  if (images === null || images === undefined) return images
+  if (Array.isArray(images)) return images.map((x: any) => unproxyImage(String(x || '')))
+  const s = String(images).trim()
+  if (!s) return images
+  if (s.startsWith('[')) {
+    try {
+      const arr = JSON.parse(s)
+      if (Array.isArray(arr)) return JSON.stringify(arr.map((x: any) => unproxyImage(String(x || ''))))
+      return images
+    } catch {
+      return images
+    }
+  }
+  if (s.includes(',')) {
+    return s.split(',').map(x => unproxyImage(x.trim())).filter(Boolean).join(',')
+  }
+  return unproxyImage(s)
+}
+
+/** 反向处理变体数组里的 image */
+export function unproxyVariantImages<T extends Record<string, any>>(variants: T[]): T[] {
+  if (!Array.isArray(variants)) return variants
+  return variants.map(v => {
+    if (!v || typeof v !== 'object') return v
+    const out: any = { ...v }
+    if ('image' in out) out.image = out.image ? unproxyImage(out.image) : out.image
+    if (Array.isArray(out.images)) out.images = out.images.map((x: any) => unproxyImage(String(x || '')))
+    return out as T
+  })
+}
+
+/**
  * 把产品对象上的所有图片字段（images / modelImage / sizeChart）换成代理 URL。
  * 浅拷贝，不改原对象。
  */

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminOrDev } from '@/lib/chatAuth'
 import { withProxiedVariantImages } from '@/lib/imgProxy'
+import { unproxyVariantImages } from '@/lib/imgProxy'
 
 /**
  * /api/admin/products/[productId]/variants
@@ -113,9 +114,10 @@ export async function POST(request: NextRequest, { params }: { params: { product
     list.push(normalizeVariant(body, list.length))
     await prisma.product.update({
       where: { id: params.productId },
-      data: { variants: JSON.stringify(list) },
+      // 写入前还原代理 URL（DB 只存原始 CDN URL）
+      data: { variants: JSON.stringify(unproxyVariantImages(list)) },
     })
-    return NextResponse.json({ success: true, data: list })
+    return NextResponse.json({ success: true, data: withProxiedVariantImages(list) })
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to add variant' }, { status: 500 })
   }
@@ -133,11 +135,11 @@ export async function PUT(request: NextRequest, { params }: { params: { productI
     await prisma.product.update({
       where: { id: params.productId },
       data: {
-        variants: JSON.stringify(list),
+        variants: JSON.stringify(unproxyVariantImages(list)),
         ...(dims ? { variantDims: JSON.stringify(dims) } : {}),
       },
     })
-    return NextResponse.json({ success: true, data: list })
+    return NextResponse.json({ success: true, data: withProxiedVariantImages(list) })
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to replace variants' }, { status: 500 })
   }
@@ -160,7 +162,7 @@ export async function DELETE(request: NextRequest, { params }: { params: { produ
       where: { id: params.productId },
       data: { variants: JSON.stringify(next) },
     })
-    return NextResponse.json({ success: true, data: next })
+    return NextResponse.json({ success: true, data: withProxiedVariantImages(next) })
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to delete variant' }, { status: 500 })
   }
