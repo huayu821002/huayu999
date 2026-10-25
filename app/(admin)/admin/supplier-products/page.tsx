@@ -58,6 +58,10 @@ export default function SupplierProductsPage() {
   const [selected, setSelected] = useState<SupplierItem | null>(null)
   const [saving, setSaving] = useState(false)
   const [msg, setMsg] = useState('')
+  // 批量删除：选中的采集品 id 集合
+  const [selIds, setSelIds] = useState<string[]>([])
+  const [batchMsg, setBatchMsg] = useState('')
+  const [batchOpen, setBatchOpen] = useState(false)
   const [categories, setCategories] = useState<{ id: string; name: string }[]>([])
   const [catChecked, setCatChecked] = useState<Record<string, boolean>>({})
 
@@ -108,6 +112,60 @@ export default function SupplierProductsPage() {
   useEffect(() => {
     load()
   }, [load])
+
+  /** 勾选/取消勾选一个采集品 */
+  const toggleSel = useCallback((id: string) => {
+    setSelIds(prev => (prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]))
+  }, [])
+
+  /** 全选/取消全选（当前列表） */
+  const toggleSelAll = useCallback(() => {
+    setSelIds(prev => {
+      const all = items.map(i => i.id)
+      const allSelected = all.length > 0 && all.every(id => prev.includes(id))
+      return allSelected ? [] : all
+    })
+  }, [items])
+
+  const clearSel = useCallback(() => {
+    setSelIds([])
+    setBatchMsg('')
+    setBatchOpen(false)
+  }, [])
+
+  /** 批量删除采集品 */
+  const batchDelete = useCallback(async () => {
+    if (!selIds.length) return
+    const n = selIds.length
+    if (!window.confirm(`确定要删除选中的 ${n} 个采集品吗？\n此操作不可撤销。`)) return
+    setSaving(true)
+    setBatchOpen(false)
+    try {
+      const res = await adminFetch('/api/admin/supplier-products/batch-delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selIds }),
+      })
+      const data = await res.json()
+      const ok = data.deleted ?? 0
+      const bad = data.failedCount ?? 0
+      if (bad > 0) {
+        setBatchMsg(
+          `已删除 ${ok} 个，${bad} 个失败：` +
+            (data.failed || []).slice(0, 5).map((f: any) => `${f.title || f.id}（${f.reason}）`).join('；') +
+            (bad > 5 ? ` …等 ${bad} 个` : '')
+        )
+      } else {
+        setBatchMsg(`已删除 ${ok} 个采集品`)
+      }
+      setSelIds([])
+      load()
+    } catch (e: any) {
+      setBatchMsg(`批量删除失败：${e?.message || e}`)
+    } finally {
+      setSaving(false)
+    }
+  }, [selIds, load])
 
   const patchItem = async (id: string, body: any) => {
     setSaving(true)
@@ -443,6 +501,48 @@ export default function SupplierProductsPage() {
           </button>
         </div>
 
+        {/* 批量操作栏 */}
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          <button
+            onClick={toggleSelAll}
+            className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+          >
+            {items.length > 0 && selIds.length === items.length ? '取消全选' : `全选（${items.length}）`}
+          </button>
+          {selIds.length > 0 && (
+            <>
+              <span className="text-sm text-gray-700">
+                已选 <b>{selIds.length}</b> 个采集品
+              </span>
+              <button
+                onClick={clearSel}
+                className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-sm text-gray-600 hover:bg-gray-50"
+              >
+                取消选择
+              </button>
+              <button
+                onClick={batchDelete}
+                disabled={saving}
+                className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+              >
+                {saving ? '删除中…' : `🗑 批量删除（${selIds.length}）`}
+              </button>
+            </>
+          )}
+        </div>
+
+        {batchMsg && (
+          <div
+            className={`mb-4 px-4 py-3 rounded-lg text-sm ${
+              batchMsg.includes('失败')
+                ? 'bg-red-50 text-red-700 border border-red-200'
+                : 'bg-green-50 text-green-700 border border-green-200'
+            }`}
+          >
+            {batchMsg}
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-12 text-gray-400">加载中…</div>
         ) : items.length === 0 ? (
@@ -452,7 +552,21 @@ export default function SupplierProductsPage() {
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {items.map(item => (
-              <div key={item.id} className="bg-white rounded-xl shadow-sm p-4 flex gap-3">
+              <div
+                key={item.id}
+                className={`bg-white rounded-xl shadow-sm p-4 flex gap-3 ${
+                  selIds.includes(item.id) ? 'ring-2 ring-joy-orange' : ''
+                }`}
+              >
+                <div className="flex items-start pt-1">
+                  <input
+                    type="checkbox"
+                    checked={selIds.includes(item.id)}
+                    onChange={() => toggleSel(item.id)}
+                    className="w-4 h-4 cursor-pointer accent-joy-orange"
+                    title="选择此采集品"
+                  />
+                </div>
                 <div className="w-20 h-20 bg-gray-100 rounded-lg overflow-hidden shrink-0">
                   {item.images?.[0] ? (
                     // eslint-disable-next-line @next/next/no-img-element

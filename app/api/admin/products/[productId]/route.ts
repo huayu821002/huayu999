@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withProxiedImages } from '@/lib/imgProxy'
 
 export async function GET(request: Request, { params }: { params: { productId: string } }) {
   try {

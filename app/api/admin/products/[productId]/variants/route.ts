@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminOrDev } from '@/lib/chatAuth'
+import { withProxiedVariantImages } from '@/lib/imgProxy'
 
 /**
  * /api/admin/products/[productId]/variants
@@ -82,7 +83,7 @@ export async function GET(request: NextRequest, { params }: { params: { productI
     if (!product) return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
     return NextResponse.json({
       success: true,
-      data: parseVariants(product.variants),
+      data: withProxiedVariantImages(parseVariants(product.variants)),
       dims: (() => {
         try {
           const d = product.variantDims ? JSON.parse(product.variantDims) : []

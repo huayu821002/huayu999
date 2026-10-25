@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withProxiedImages, withProxiedVariantImages } from '@/lib/imgProxy'
 
 export async function GET(
   request: Request,
@@ -67,7 +68,12 @@ export async function GET(
 
     return NextResponse.json({
       success: true,
-      data: { ...rest, categories, soldCount: soldCount._sum.quantity || 0, variants }
+      data: {
+        ...withProxiedImages(rest),
+        categories,
+        soldCount: soldCount._sum.quantity || 0,
+        variants: withProxiedVariantImages(variants),
+      }
     })
   } catch (error) {
     console.error('Product API error:', error)

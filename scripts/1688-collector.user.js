@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.1.4') return
+  if (window.FF1688 && window.FF1688.__v === '4.1.5') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2243,8 +2243,23 @@
    * 这是**接口拿不到 SKU 容器时的兵底**（2026-05 实采发现 offerdetail 报文里
    * 可能压根没有 SKU 容器，页面上反而渲染得清清楚楚）。
    */
-  function domVariants() {
+  function domVariants(guard) {
     const out = []
+    // 已知价格区间（CNY）→ 用来排除「重量 132g / 库存 132」这类非价格数字
+    const gLo = guard && Number.isFinite(guard.lo) ? guard.lo : null
+    const gHi = guard && Number.isFinite(guard.hi) ? guard.hi : null
+    // 候选价格必须落在区间内（放宽：低 1/5，高 5 倍）
+    const priceOK = p => {
+      if (p === null || p === undefined || !(p > 0.01) || p > 1000000) return false
+      if (gLo !== null && gHi !== null && gHi > 0) {
+        const lo = Math.min(gLo, gHi) * 0.2
+        const hi = Math.max(gLo, gHi) * 5
+        if (p < lo || p > hi) return false
+      }
+      return true
+    }
+    // 明显不是「价格」的列（1688 规格表里常有 重量/库存/销量 列）
+    const NON_PRICE_COL_RE = /数量|库存|重量|克重|尺寸|重量|销量|已售|件数|起订|起批|阶梯|购买|优惠|折扣|返现|运费|包装|备注|评论|浏览|排名|编号|\bid\b|重量/i
     try {
       for (const table of Array.from(document.querySelectorAll('table')).slice(0, 10)) {
         const rows = Array.from(table.querySelectorAll('tr'))
@@ -2268,18 +2283,39 @@
           const cells = Array.from(rows[r].querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || ''))
           if (cells.length < 2) continue
           // 找这一行的价格
+          // 规则（2026-10-25 修）：
+          //   ① 表头有「价格/金额/单价」→ 用该列
+          //   ② 表头没有 → 从右往左找，但**跳过 重量/库存/数量 等列**，
+          //      且候选值必须通过区间校验（guard）
+          //   ③ 都不行 → **留空**（宁可没价格，也不要猜成重量/库存）
           let price = null
           let priceCol = priceIdx
-          if (priceCol < 0 || !cells[priceCol]) {
-            for (let i = cells.length - 1; i >= 0; i--) {
-              const m = String(cells[i] || '').replace(/[,¥￥\s]/g, '').match(/^\d+(\.\d+)?$/)
-              if (m) { price = parseFloat(m[0]); priceCol = i; break }
+          const cellPrice = i => {
+            const txt = String(cells[i] || '').replace(/[,¥￥\s]/g, '')
+            if (!txt) return null
+            let m = txt.match(/^\d+(\.\d+)?$/)
+            if (m) return priceOK(parseFloat(m[0])) ? parseFloat(m[0]) : null
+            // 区间价 "13.2-15.5" → 取下界
+            m = txt.match(/^\d+(\.\d+)?[-~至]\d+(\.\d+)?$/)
+            if (m) {
+              const lo = parseFloat(m[0])
+              return priceOK(lo) ? lo : null
             }
-          } else {
-            const m = String(cells[priceCol] || '').replace(/[,¥￥\s]/g, '').match(/^\d+(\.\d+)?$/)
-            if (m) price = parseFloat(m[0])
+            return null
           }
-          if (price === null || !(price > 0.01) || price > 1000000) continue
+          if (priceCol >= 0 && !NON_PRICE_COL_RE.test(headCells[priceCol] || '')) {
+            price = cellPrice(priceCol)
+            if (price === null) priceCol = -1
+          }
+          if (price === null) {
+            for (let i = cells.length - 1; i >= 0; i--) {
+              if (NON_PRICE_COL_RE.test(headCells[i] || '')) continue
+              const v = cellPrice(i)
+              if (v !== null) { price = v; priceCol = i; break }
+            }
+          }
+          // 没有可信价格 → 不丢弃这一行，price 留空（后面用商品价兜底）
+          if (price === null) priceCol = -1
 
           const specs = []
           for (const i of dimIdx) {
@@ -2297,7 +2333,12 @@
               if (u && /alicdn|1688|cbu/i.test(u) && !isBadImage(u)) { image = u; break }
             }
           } catch (e) {}
-          out.push({ specs, price, image, priceText: String(cells[priceCol] || '') })
+          out.push({
+            specs,
+            price,
+            image,
+            priceText: priceCol >= 0 ? String(cells[priceCol] || '') : '',
+          })
         }
       }
     } catch (e) {}
@@ -2369,7 +2410,7 @@
     // （2026-05 实采发现：offerdetail 报文里可能压根没有 SKU 容器，
     //   而页面上渲染的规格表反而清清楚楚）
     if (!variants.length) {
-      const domVars = domVariants()
+      const domVars = domVariants({ lo: pr.lo, hi: pr.hi })
       if (domVars.length) {
         const dimMap = new Map()
         for (const v of domVars) {
@@ -2392,7 +2433,8 @@
             color,
             size,
             specText: v.specs.map(s => s.value).join(' / '),
-            price: v.price,
+            // 规格表里没解析出可信价格 → 用商品价兜底（总比留空强）
+            price: v.price !== null && v.price !== undefined ? v.price : (pr.lo ?? pr.hi ?? null),
             priceText: v.priceText,
             image: v.image || '',
           }
@@ -3025,12 +3067,13 @@
   }
 
   window.FF1688 = {
-    __v: '4.1.4',
+    __v: '4.1.5',
     install,
     capture,
     collectAll,
     hasSpecRows,
     pickVariants,
+    domVariants,
     dedupePayloads,
     dumpStructure,
     dumpVariants,
@@ -3378,9 +3421,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.1.4 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.1.5 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.1.4'
+  const MIN_CORE = '4.1.5'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)

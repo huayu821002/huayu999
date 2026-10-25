@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureSupplierProductTable, parseImagesField, parseJsonField } from '@/lib/supplier'
+import { proxyImageList } from '@/lib/imgProxy'
 
 // GET /api/admin/supplier-products?status=pending&search=xxx&page=1&limit=30
 export async function GET(request: NextRequest) {
@@ -41,7 +42,7 @@ export async function GET(request: NextRequest) {
       data: items.map((i: any) => ({
         ...i,
         raw: i.raw ? i.raw.slice(0, 20000) : null,
-        images: parseImagesField(i.images),
+        images: proxyImageList(parseImagesField(i.images)),
         attributes: parseJsonField(i.attributes),
         skuText: parseJsonField(i.skuText),
       })),

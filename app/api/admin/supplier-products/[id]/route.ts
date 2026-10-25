@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureSupplierProductTable, parseImagesField, parseJsonField } from '@/lib/supplier'
+import { proxyImageList } from '@/lib/imgProxy'
 
 // GET /api/admin/supplier-products/[id]
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
       success: true,
       data: {
         ...item,
-        images: parseImagesField(item.images),
+        images: proxyImageList(parseImagesField(item.images)),
         attributes: parseJsonField(item.attributes),
         skuText: parseJsonField(item.skuText),
       },

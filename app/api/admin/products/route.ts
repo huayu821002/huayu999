@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { withProxiedImages } from '@/lib/imgProxy'
 
 export async function GET(request: Request) {
   try {
@@ -39,7 +40,7 @@ export async function GET(request: Request) {
     const productsWithCategory = products.map((p: any) => {
       const catIds = p.categoryIds ? JSON.parse(p.categoryIds) : []
       const cats = catIds.map((id: string) => categoryMap.get(id)).filter(Boolean)
-      return { ...p, categories: cats }
+      return withProxiedImages({ ...p, categories: cats })
     })
 
     return NextResponse.json({ success: true, data: productsWithCategory, count: products.length })
