@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.21.0
+// @version      2.22.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.1.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.1.1') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -1240,8 +1240,9 @@
       let hits = 0
       const tmp = {}
       for (const it of items) {
-        const name = firstStrOf(it, ['propName', 'name', 'attrName', 'propertyName', 'key', 'label'])
-        const value = firstStrOf(it, ['propValue', 'value', 'attrValue', 'val', 'text', 'valueName'])
+        // 真实 1688 结构是 { property, value }（2026-05 用户实采确认）
+        const name = firstStrOf(it, ['property', 'propName', 'name', 'attrName', 'propertyName', 'key', 'label'])
+        const value = firstStrOf(it, ['value', 'propValue', 'attrValue', 'val', 'text', 'valueName'])
         if (!name || !value) continue
         if (isJunkSpec(name) || isJunkSpec(value)) continue
         if (!tmp[name]) tmp[name] = value
@@ -1249,9 +1250,9 @@
       }
       if (hits < 2) continue
       const score = keyScore(c.key, {
-        strong: ['offerProps', 'baseProps', 'productProps', 'productAttributes', 'offerAttributes', 'propertyList', 'attributeList'],
-        weak: ['props', 'attributes', 'attrList', 'params'],
-        neg: ['recommend', 'relation', 'shop', 'member', 'logistics', 'freight', 'comment', 'rate'],
+        strong: ['offerDecisionAttrs', 'offerProps', 'baseProps', 'productProps', 'productAttributes', 'offerAttributes', 'propertyList', 'attributeList'],
+        weak: ['paramList', 'props', 'attributes', 'attrList', 'params'],
+        neg: ['recommend', 'relation', 'shop', 'member', 'logistics', 'freight', 'comment', 'rate', 'endorsement', 'trackinfo', 'delivery'],
       })
       if (score <= 0) continue
       arrGroups.push({ key: c.key, path: pth, score, data: tmp })
@@ -1274,9 +1275,9 @@
       if (ATTR_REJECT_RE.test(c.key)) continue
       if (ATTR_REJECT_RE.test(pth)) continue
       const score = keyScore(c.key, {
-        strong: ['offerProps', 'baseProps', 'productProps', 'productAttributes', 'propertyList'],
-        weak: ['props', 'attributes', 'attr', 'params'],
-        neg: ['recommend', 'relation', 'shop', 'member', 'comment', 'rate', 'freight'],
+        strong: ['offerDecisionAttrs', 'offerProps', 'baseProps', 'productProps', 'productAttributes', 'propertyList'],
+        weak: ['paramList', 'props', 'attributes', 'attr', 'params'],
+        neg: ['recommend', 'relation', 'shop', 'member', 'comment', 'rate', 'freight', 'endorsement', 'trackinfo', 'delivery'],
       })
       if (score <= 0) continue
       for (const k of Object.keys(c.value).slice(0, 60)) {
@@ -1424,59 +1425,74 @@
   const STRUCT_PRIO_RE = /(offerdetail|cupid|moduleasync|resource|detail|images|sku)/i
 
   /** 变体相关键名（诊断用） */
-  const VSK_KEY_RE = /(sku|spec|prop|attr|variation|saleProp|model|combination|option)/i
+  const VSK_KEY_RE = /(sku|spec|prop|attr|variation|saleProp|model|combination|option|param)/i
 
   /**
-   * 「复制变体结构」诊断。
+   * 「复制变体结构」诊断（v3：精准模式）。
    *
-   * 背景：1688 的变体报文结构在不同接口/版本/类目里差异很大，
-   * 靠记忆硬编码已经连续错过三次（见 10-24 记录）。
-   * 所以这里不去猜，而是把**所有看起来像变体的原始结构**原样吐出来，
-   * 由真实报文来定最终提取规则。
-   *
-   * 输出刻意保留原始 key/value 形状（只截断长字符串），
-   * 以便判断到底是 skuMap / offerList / skuModel 还是别的形态。
+   * v1 只吐叶子 → 被 property/value 刷屏，真 SKU 容器被 24 条上限挤掉。
+   * v2 只吐容器 → 噪声仍多（model/param 全是假命中）。
+   * v3（当前）：
+   *   ① 优先：路径里含「sku」的容器，直接吐原始 JSON（这是要的关键信息）
+   *   ② 附：每个报文 data.data 的**顶层 key 列表**（廉价、高信噪比，
+   *      能看到 platformProductInfoMap 下还有哪些兄弟节点）
+   *   ③ 已知无需再查的（属性表 offerDecisionAttrs）不再重复输出
    */
   function dumpVariants(payloads) {
     const out = []
     for (const p of payloads) {
       const api = (String(p.url || '').match(/api=([\w.]+)/) || [])[1] || p.from || 'unknown'
-      const hits = []
+
+      // ① 分层 key 列表：自动下钻到真正的内容层（不同版本 data 嵌套深度不一样）
+      const layers = []
+      {
+        let node = p.data
+        let guard = 0
+        while (node && typeof node === 'object' && !Array.isArray(node) && guard < 4) {
+          guard++
+          const ks = Object.keys(node)
+          layers.push({ count: ks.length, keys: ks.slice(0, 50) })
+          // 继续下钻到含 data 的子对象（真实报文 data.data.data.xxx）
+          if (node.data && typeof node.data === 'object' && !Array.isArray(node.data)) {
+            node = node.data
+            continue
+          }
+          break
+        }
+      }
+
+      // ② SKU 容器：路径含 sku，或 key 带「维度:值」组合形态
+      const skuHits = []
       walk(p.data, (k, v, parent, path) => {
         const pth = (path || []).concat(String(k)).join('.')
-        if (!VSK_KEY_RE.test(String(k)) && !VSK_KEY_RE.test(pth)) return
-        if (hits.length > 40) return
-        let shape = ''
-        let preview = ''
-        if (Array.isArray(v)) {
-          shape = 'array(' + v.length + ')'
-          const first = v.find(x => x && typeof x === 'object')
-          if (first) {
-            preview = '{' + Object.keys(first).slice(0, 14).join(',') + '}'
-          } else {
-            preview = '[' + v.slice(0, 4).map(x => JSON.stringify(x)).join(',') + ']'
-          }
-        } else if (v && typeof v === 'object') {
-          const ks = Object.keys(v)
-          shape = 'object(' + ks.length + ')'
-          preview = ks.slice(0, 8).map(kk => {
-            const vv = v[kk]
-            let sv
-            if (vv && typeof vv === 'object') sv = Array.isArray(vv) ? '[a' + vv.length + ']' : '{' + Object.keys(vv).slice(0, 6).join(',') + '}'
-            else sv = JSON.stringify(vv)
-            return kk + ':' + String(sv).slice(0, 60)
-          }).join(' | ')
-        } else {
-          shape = typeof v
-          preview = String(v).slice(0, 90)
+        if (!/sku/i.test(pth)) {
+          if (!(v && typeof v === 'object' && !Array.isArray(v))) return
+          const comboKeys = Object.keys(v).filter(kk => /[:：]/.test(kk) && /[;；]/.test(kk))
+          if (!comboKeys.length) return
         }
-        hits.push({ path: pth, shape: shape, preview: preview })
+        if (!v || typeof v !== 'object') return
+        if (skuHits.length > 12) return
+        const isArr = Array.isArray(v)
+        const size = isArr ? v.length : Object.keys(v).length
+        if (!size) return
+        let json = ''
+        try {
+          json = JSON.stringify(isArr ? v.slice(0, 3) : v)
+        } catch (e) {
+          json = '[unserializable]'
+        }
+        skuHits.push({
+          path: pth,
+          shape: (isArr ? 'array(' + size + ')' : 'object(' + size + ')'),
+          json: json.slice(0, 900),
+        })
       })
-      if (!hits.length) continue
-      out.push({ api: api, url: scrubUrl(p.url), hits: hits.slice(0, 24) })
+
+      if (!skuHits.length && !layers.length) continue
+      out.push({ api: api, layers: layers, skuHits: skuHits })
     }
-    out.sort((a, b) => (STRUCT_PRIO_RE.test(b.api) ? 1 : 0) - (STRUCT_PRIO_RE.test(a.api) ? 1 : 0))
-    return out.slice(0, 6)
+    out.sort((a, b) => (b.skuHits.length ? 1 : 0) - (a.skuHits.length ? 1 : 0))
+    return out.slice(0, 8)
   }
 
   function dumpStructure(payloads) {
@@ -2775,7 +2791,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.1.0',
+    __v: '4.1.1',
     install,
     capture,
     dumpStructure,
@@ -2869,9 +2885,9 @@
         #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.21.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.22.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.21.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.22.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -3111,9 +3127,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.1.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.1.1 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.1.0'
+  const MIN_CORE = '4.1.1'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -3166,7 +3182,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.21.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.22.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
