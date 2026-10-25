@@ -22,6 +22,7 @@
     "e2e:imgproxy": "node scripts/e2e-imgproxy-batchdelete.test.js",
     "test:writepath": "node scripts/test-writepath-purity.test.js",
     "test:tags-tier": "node scripts/test-tags-tier.test.js",
+    "test:render-sim": "node scripts/simulate-render.test.js",
     "collector:waf-e2e": "node scripts/e2e-waf-matrix.js",
     "collector:verify:proof": "node scripts/e2e-fix-proof.js",
     "collector:verify:live": "node scripts/e2e-live-final.js",
