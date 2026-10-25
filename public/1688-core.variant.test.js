@@ -200,6 +200,69 @@ async function run() {
     t('dumpVariants 命中 sku 路径', JSON.stringify(struct).includes('offerList'), JSON.stringify(struct).slice(0, 300))
   }
 
+  console.log('--- DOM 规格价格表兜底 ---')
+  {
+    // 模拟 1688 页面上渲染的规格价格表（接口没给 SKU 容器的情况）
+    function makeEl(tag, attrs = {}) {
+      return {
+        tagName: tag, className: attrs.className || '', id: attrs.id || '',
+        innerHTML: attrs.innerHTML || '', innerText: attrs.innerText || '', textContent: attrs.textContent || '',
+        attrs,
+        getAttribute: k => (attrs[k] !== undefined ? attrs[k] : null),
+        querySelectorAll: sel => (attrs._qsa && attrs._qsa[sel]) || [],
+        querySelector: sel => (attrs._qs && attrs._qs[sel]) || null,
+        closest: sel => (attrs._closest && attrs._closest[sel]) || null,
+        parentElement: attrs.parentElement || null,
+        children: attrs.children || [],
+      }
+    }
+    const cell = txt => makeEl('td', { innerText: txt })
+    const headCell = txt => makeEl('th', { innerText: txt })
+    const headRow = makeEl('tr', {})
+    headRow.querySelectorAll = sel => (sel === 'td,th' ? [headCell('颜色'), headCell('尺码'), headCell('价格')] : [])
+    const row1 = makeEl('tr', {})
+    row1.querySelectorAll = sel => (sel === 'td,th' ? [cell('红色'), cell('M'), cell('12.50')] : [])
+    const row2 = makeEl('tr', {})
+    row2.querySelectorAll = sel => (sel === 'td,th' ? [cell('蓝色'), cell('L'), cell('13.00')] : [])
+    const table = makeEl('table', {})
+    table.querySelectorAll = sel => (sel === 'tr' ? [headRow, row1, row2] : [])
+    const tierHead = makeEl('tr', {})
+    tierHead.querySelectorAll = sel => (sel === 'td,th' ? [headCell('起订数量'), headCell('价格')] : [])
+    const tierRow = makeEl('tr', {})
+    tierRow.querySelectorAll = sel => (sel === 'td,th' ? [cell('2'), cell('1.20')] : [])
+    const tierTable = makeEl('table', {})
+    tierTable.querySelectorAll = sel => (sel === 'tr' ? [tierHead, tierRow] : [])
+
+    const win = {
+      addEventListener() {},
+      document: {
+        getElementById: id => (id === 'ff1688-capture' ? { textContent: '[]' } : null),
+        querySelector: () => null,
+        querySelectorAll: sel => (sel === 'table' ? [table, tierTable] : []),
+        documentElement: { appendChild() {} }, body: { appendChild() {} },
+        createElement: () => ({ style: {}, setAttribute() {}, appendChild() {} }), addEventListener() {},
+      },
+      location: { href: 'https://detail.1688.com/offer/1081258035891.html' },
+      navigator: { clipboard: { writeText: async () => {} } },
+      setTimeout, clearTimeout, setInterval, clearInterval,
+      fetch: async () => ({ json: async () => ({}), text: async () => '' }),
+      console,
+      localStorage: { getItem: () => null, setItem() {}, removeItem() {} },
+    }
+    win.window = win; win.self = win; win.globalThis = win
+    const sandbox = vm.createContext(win)
+    vm.runInContext(code, sandbox, { filename: '1688-core.js' })
+    const FF = win.FF1688
+    const { payload } = await FF.parseDetail()
+    const vs = payload.variants || []
+    t('DOM 兜底提取到 2 个变体', vs.length === 2, JSON.stringify(vs))
+    t('颜色维度 kind=color', (payload.variantDims || []).some(d => d.name === '颜色' && d.kind === 'color'), JSON.stringify(payload.variantDims))
+    t('尺码维度 kind=size', (payload.variantDims || []).some(d => d.name === '尺码' && d.kind === 'size'))
+    t('红色/M 变体价格 12.5', vs.some(v => v.color === '红色' && v.size === 'M' && Math.abs(v.price - 12.5) < 1e-6), JSON.stringify(vs))
+    t('蓝色/L 变体价格 13', vs.some(v => v.color === '蓝色' && v.size === 'L' && Math.abs(v.price - 13) < 1e-6))
+    t('阶梯价表不被当变体', !vs.some(v => v.specText === '2'), JSON.stringify(vs))
+  }
+
   console.log('--- 主图准确性（硬保障）---')
   {
     // 场景：页面上同时有本商品主图、SKU 图、评价图、店铺装修图、别家货源图

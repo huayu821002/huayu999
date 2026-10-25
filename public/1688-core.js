@@ -14,7 +14,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.1.1') return
+  if (window.FF1688 && window.FF1688.__v === '4.1.2') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2095,6 +2095,79 @@
     return out
   }
 
+  /**
+   * 从 DOM 抽「规格价格表」→ 结构化变体。
+   *
+   * 1688 的规格价格表长这样：
+   *   | 颜色 | 尺码 | 价格 |
+   *   | 红色 | M    | 12.5 |
+   *   | 蓝色 | L    | 13.0 |
+   * 表头就是维度名，数据行就是变体。
+   *
+   * 这是**接口拿不到 SKU 容器时的兵底**（2026-05 实采发现 offerdetail 报文里
+   * 可能压根没有 SKU 容器，页面上反而渲染得清清楚楚）。
+   */
+  function domVariants() {
+    const out = []
+    try {
+      for (const table of Array.from(document.querySelectorAll('table')).slice(0, 10)) {
+        const rows = Array.from(table.querySelectorAll('tr'))
+        if (rows.length < 2) continue
+        const headCells = Array.from(rows[0].querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || ''))
+        if (headCells.length < 2) continue
+        // 表头里必须有维度词，且有价格列
+        const DIM_RE = /(颜色|色|尺码|尺寸|大小|规格|款式|型号|材质|包装|套餐|版本|style|color|size|spec)/i
+        const dimIdx = []
+        for (let i = 0; i < headCells.length; i++) {
+          if (DIM_RE.test(headCells[i])) dimIdx.push(i)
+        }
+        if (!dimIdx.length) continue
+        // 价格列：表头含“价”，或数据行里带 ¥ 且是数字
+        let priceIdx = headCells.findIndex(h => /价|price|金额|单价/i.test(h))
+        if (priceIdx < 0) priceIdx = -1
+        const isTierTable = /起订|起批|数量|件数/.test(headCells.join(' '))
+        if (isTierTable) continue // 阶梯价表不是变体表
+
+        for (let r = 1; r < rows.length; r++) {
+          const cells = Array.from(rows[r].querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || ''))
+          if (cells.length < 2) continue
+          // 找这一行的价格
+          let price = null
+          let priceCol = priceIdx
+          if (priceCol < 0 || !cells[priceCol]) {
+            for (let i = cells.length - 1; i >= 0; i--) {
+              const m = String(cells[i] || '').replace(/[,¥￥\s]/g, '').match(/^\d+(\.\d+)?$/)
+              if (m) { price = parseFloat(m[0]); priceCol = i; break }
+            }
+          } else {
+            const m = String(cells[priceCol] || '').replace(/[,¥￥\s]/g, '').match(/^\d+(\.\d+)?$/)
+            if (m) price = parseFloat(m[0])
+          }
+          if (price === null || !(price > 0.01) || price > 1000000) continue
+
+          const specs = []
+          for (const i of dimIdx) {
+            const v = cells[i]
+            if (!v || isJunkSpec(v)) continue
+            specs.push({ name: headCells[i].slice(0, 30), value: v.slice(0, 60) })
+          }
+          if (!specs.length) continue
+          // 行首可能是颜色图（img）而不是文字
+          let image = ''
+          try {
+            const imgs = Array.from(rows[r].querySelectorAll('img'))
+            for (const im of imgs) {
+              const u = im.getAttribute('src') || im.getAttribute('data-src') || im.getAttribute('data-lazy-src') || ''
+              if (u && /alicdn|1688|cbu/i.test(u) && !isBadImage(u)) { image = u; break }
+            }
+          } catch (e) {}
+          out.push({ specs, price, image, priceText: String(cells[priceCol] || '') })
+        }
+      }
+    } catch (e) {}
+    return out
+  }
+
   /* --------------------------------------------------------------- 解析 */
   async function parseDetail() {
     const url = location.href
@@ -2142,8 +2215,44 @@
 
     // 变体（颜色 / 规格 / 自定义维度），每个变体带自己的价格和图
     const variantRes = pickVariants(payloads)
-    const variants = variantRes.variants
-    const variantDims = variantRes.dims
+    let variants = variantRes.variants
+    let variantDims = variantRes.dims
+
+    // 接口没给出变体时 → 用 DOM 的规格价格表兜底
+    // （2026-05 实采发现：offerdetail 报文里可能压根没有 SKU 容器，
+    //   而页面上渲染的规格表反而清清楚楚）
+    if (!variants.length) {
+      const domVars = domVariants()
+      if (domVars.length) {
+        const dimMap = new Map()
+        for (const v of domVars) {
+          for (const s of v.specs) {
+            if (!dimMap.has(s.name)) dimMap.set(s.name, { name: s.name, kind: dimKind(s.name), values: [] })
+            const d = dimMap.get(s.name)
+            if (!d.values.includes(s.value)) d.values.push(s.value)
+          }
+        }
+        variants = domVars.map((v, i) => {
+          let color = '', size = ''
+          for (const s of v.specs) {
+            const k = dimKind(s.name)
+            if (k === 'color' && !color) color = s.value
+            if (k === 'size' && !size) size = s.value
+          }
+          return {
+            skuId: '',
+            specs: v.specs,
+            color,
+            size,
+            specText: v.specs.map(s => s.value).join(' / '),
+            price: v.price,
+            priceText: v.priceText,
+            image: v.image || '',
+          }
+        })
+        variantDims = Array.from(dimMap.values())
+      }
+    }
 
     // 描述 = 商品基本属性表（不是详情页那段图片 HTML）
     const attributes = pickAttributeTable(payloads) || dom.attributes || undefined
@@ -2769,7 +2878,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.1.1',
+    __v: '4.1.2',
     install,
     capture,
     dumpStructure,
