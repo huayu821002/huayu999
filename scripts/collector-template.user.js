@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.20.0
+// @version      2.21.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -112,6 +112,7 @@
           <button id="ff-preview">预览解析</button>
         <button id="ff-diag" class="ghost">复制诊断</button>
           <button id="ff-struct" class="ghost">复制结构</button>
+          <button id="ff-vstruct" class="ghost">复制变体结构</button>
           <button id="ff-push">采集并推送</button>
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
@@ -160,12 +161,28 @@
         `价格: ${payload.priceMin ?? '?'} ~ ${payload.priceMax ?? '?'}`,
         `起订: ${payload.moq ?? '?'}`,
         `图片: ${payload.images.length} 张`,
+        `主图: ${payload.mainImage ? '✓ 已锁定' : '❌ 缺失'}`,
+        `变体: ${payload.variants ? payload.variants.length + ' 个' : '0 个'}`,
+        `维度: ${payload.variantDims ? payload.variantDims.map(d => d.name + '(' + d.values.length + ')').join(' / ') : '-'}`,
         `供应商: ${payload.supplierName || '?'}`,
         `描述: ${payload.description ? payload.description.length + ' 字' : '无'}`,
         `截获接口: ${debug.captured} 条（重放 ${debug.replayed || 0}）`,
         `价格依据: ${(payload.raw && payload.raw.priceWhy) || '-'}`,
         `offerId: ${payload.sourceId}`,
       ]
+      // 变体明细（带每个颜色的价格）
+      if (payload.variants && payload.variants.length) {
+        lines.push('--- 变体 ---')
+        for (const v of payload.variants.slice(0, 20)) {
+          const dims = (v.specs || []).map(s => s.name + ':' + s.value).join(' | ')
+          lines.push(`  ${dims || v.specText} → ${v.price}${v.image ? ' [图]' : ''}`)
+        }
+      }
+      // 属性（描述来源）
+      if (payload.attributes && Object.keys(payload.attributes).length) {
+        const ak = Object.keys(payload.attributes)
+        lines.push('--- 属性(' + ak.length + ') --- ' + ak.slice(0, 8).join('/'))
+      }
       kv.style.display = 'block'
       kv.textContent = lines.join('\n')
       console.log('[Fiestaflare] 解析结果：', payload)
@@ -218,6 +235,25 @@
           kv.style.display = 'block'
           kv.textContent = txt.slice(0, 20000)
           say('结构数据如下（复制上面的文本）')
+        }
+      } catch (e) {
+        say('异常: ' + e.message)
+      }
+    }
+
+    $('#ff-vstruct', panel).onclick = async () => {
+      try {
+        ensureCore()
+        const captured = window.FF1688.capture ? window.FF1688.capture() : []
+        const struct = window.FF1688.dumpVariants ? window.FF1688.dumpVariants(captured) : []
+        const txt = JSON.stringify({ url: location.href, capturedCount: captured.length, variantStructure: struct }, null, 2)
+        try {
+          await navigator.clipboard.writeText(txt)
+          say('✅ 变体结构已复制，粘贴给开发者即可校准变体提取规则')
+        } catch (e) {
+          kv.style.display = 'block'
+          kv.textContent = txt.slice(0, 20000)
+          say('变体结构如下（复制上面的文本）')
         }
       } catch (e) {
         say('异常: ' + e.message)

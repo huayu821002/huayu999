@@ -356,6 +356,8 @@ model SupplierProduct {
   wholesalePrice Float?  // 批发价（CNY）
   priceLadder  String?   // 阶梯价 JSON
   skuPrices    String?   // 各规格价格 JSON（多SKU时取第一个作为采集价）
+  variants     String?   // 变体明细 JSON（含每个变体的价格/图片）
+  variantDims  String?   // 变体维度定义 JSON（颜色/规格/自定义）
   description  String?
   images       String?
   videoUrl     String?

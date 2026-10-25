@@ -112,6 +112,8 @@ export async function POST(request: NextRequest) {
           unit: safeItem?.unit,
           skuText: safeItem?.skuText,
           attributes: safeItem?.attributes,
+          variants: sanitizeVariants(safeItem?.variants),
+          variantDims: sanitizeVariantDims(safeItem?.variantDims),
           supplierName: safeItem?.supplierName,
           supplierUrl: safeItem?.supplierUrl,
           shippingText: safeItem?.shippingText,
@@ -140,6 +142,57 @@ function numberOrNull(v: any): number | null {
   if (v === undefined || v === null || v === '') return null
   const n = Number(v)
   return Number.isFinite(n) ? n : null
+}
+
+/**
+ * 清洗变体明细。
+ *
+ * 只保留后台真正用得到的字段，避免把采集端的调试残留写进库：
+ *   skuId / specs / color / size / specText / price / priceText / image
+ * 并且限长（200 个变体足够），防止异常报文把库撑爆。
+ */
+function sanitizeVariants(input: any): any[] | undefined {
+  if (!Array.isArray(input) || !input.length) return undefined
+  const out: any[] = []
+  for (const v of input.slice(0, 200)) {
+    if (!v || typeof v !== 'object') continue
+    const specs = Array.isArray(v.specs)
+      ? v.specs
+          .filter((s: any) => s && typeof s === 'object' && s.name && s.value)
+          .slice(0, 6)
+          .map((s: any) => ({ name: String(s.name).slice(0, 30), value: String(s.value).slice(0, 60) }))
+      : []
+    const price = numberOrNull(v.price)
+    if (price === null && !specs.length) continue
+    out.push({
+      skuId: v.skuId ? String(v.skuId).slice(0, 64) : '',
+      specs,
+      color: v.color ? String(v.color).slice(0, 40) : '',
+      size: v.size ? String(v.size).slice(0, 40) : '',
+      specText: v.specText ? String(v.specText).slice(0, 120) : specs.map((s: any) => s.value).join(' / '),
+      price,
+      priceText: v.priceText ? String(v.priceText).slice(0, 40) : '',
+      image: v.image ? String(v.image).slice(0, 500) : '',
+    })
+  }
+  return out.length ? out : undefined
+}
+
+/** 清洗变体维度定义 */
+function sanitizeVariantDims(input: any): any[] | undefined {
+  if (!Array.isArray(input) || !input.length) return undefined
+  const out: any[] = []
+  for (const d of input.slice(0, 10)) {
+    if (!d || typeof d !== 'object') continue
+    const name = d.name ? String(d.name).slice(0, 30) : ''
+    if (!name) continue
+    const values = Array.isArray(d.values)
+      ? d.values.map((x: any) => String(x).slice(0, 60)).slice(0, 100)
+      : []
+    const kind = d.kind === 'color' || d.kind === 'size' ? d.kind : 'custom'
+    out.push({ name, kind, values })
+  }
+  return out.length ? out : undefined
 }
 
 

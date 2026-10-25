@@ -14,7 +14,7 @@
 (function () {
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.0.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.1.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -47,6 +47,22 @@
     s = s.replace(/\son\w+="[^"]*"/gi, '')
     s = s.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n')
     return s.trim().slice(0, 30000)
+  }
+
+  /**
+   * 把 HTML 描述转成纯文本（后台摘要用）。
+   * 详情描述大多是图片，HTML 存进库既占地方又没法用。
+   */
+  function stripDescriptionHtml(html) {
+    let s = String(html || '')
+    s = s.replace(/<script[\s\S]*?<\/script>/gi, '')
+    s = s.replace(/<style[\s\S]*?<\/style>/gi, '')
+    s = s.replace(/<br\s*\/?>/gi, '\n')
+    s = s.replace(/<\/(p|div|li|tr|h[1-6])>/gi, '\n')
+    s = s.replace(/<[^>]+>/g, ' ')
+    s = s.replace(/&nbsp;/g, ' ').replace(/&amp;/g, '&')
+    s = s.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n')
+    return s.trim().slice(0, 4000)
   }
 
   /* ---------------------------------------------------------- 截获接口返回 */
@@ -848,6 +864,425 @@
     return out
   }
 
+  /* ------------------------------------------------- 变体（颜色 / 规格） */
+  /**
+   * 变体维度名归一：
+   *   颜色类 → color（颜色 / 色 / 颜色分类 / color）
+   *   尺码类 → size（尺码 / 尺寸 / 大小 / 规格 / size）
+   *   其它   → custom（款式 / 材质 / 型号 … 原名保留）
+   *
+   * 注意：用户要的是「颜色和规格或自定义」，所以维度名必须能自由扩展，
+   * 不能写死成只有颜色和尺码两种。
+   */
+  const COLOR_DIM_RE = /(颜色|色别|色系|colour|color)/i
+  const SIZE_DIM_RE = /(尺码|尺寸|大小|规格|尺寸码|size)/i
+
+  function dimKind(name) {
+    const n = String(name || '').trim()
+    if (!n) return 'custom'
+    if (COLOR_DIM_RE.test(n)) return 'color'
+    if (SIZE_DIM_RE.test(n)) return 'size'
+    return 'custom'
+  }
+
+  /** 解析「颜色:红色;尺码:M」这种组合键 */
+  function parseComboKey(key) {
+    const out = []
+    for (const seg of String(key || '').split(/[;；]/)) {
+      const s = seg.trim()
+      if (!s) continue
+      const i = s.search(/[:：]/)
+      if (i < 0) { out.push({ name: '', value: s }); continue }
+      const name = s.slice(0, i).trim()
+      const value = s.slice(i + 1).trim()
+      if (!value) continue
+      out.push({ name, value })
+    }
+    return out
+  }
+
+  const SKU_ID_KEYS = ['skuId', 'skuID', 'skuIdStr', 'sku_id', 'outerId', 'outerid', 'skuCode']
+  const SPEC_ARR_KEYS = ['specAttrs', 'skuAttrs', 'skuAttr', 'props', 'attributes', 'attrList', 'saleProp', 'skuProps', 'specList', 'propList']
+
+  function skuIdOf(it) {
+    for (const k of SKU_ID_KEYS) {
+      const v = it[k]
+      if (v !== undefined && v !== null && String(v).trim()) return String(v).trim()
+    }
+    return ''
+  }
+
+  /** SKU 行里的价格：优先数字字段，priceText 必须是「纯数字」才采 */
+  function priceOfSkuItem(it) {
+    const PRI = ['skuPrice', 'salePrice', 'tradePrice', 'priceValue', 'priceAmount', 'discountPrice', 'price', 'minPrice', 'lowestPrice']
+    for (const k of PRI) {
+      const n = num(it[k])
+      if (n !== null && n > 0.01 && n < 1000000) return { price: n, priceText: it.priceText || '' }
+    }
+    const pt = String(it.priceText || '').trim()
+    // "2件起批" 不是价格 —— 含数量单位的一律不算
+    if (pt && !/[件起批个双份¥￥元\s]/.test(pt)) {
+      const n = num(pt)
+      if (n !== null && n > 0.01 && n < 1000000) return { price: n, priceText: pt }
+    }
+    return null
+  }
+
+  /** SKU 行里的规格维度（数组型 + 扁平型两种） */
+  function specsOfSkuItem(it) {
+    const out = []
+    const firstStr = o => {
+      for (const k of ['name', 'propName', 'attrName', 'key', 'label', 'propertyName', 'specName']) {
+        const v = o[k]
+        if (typeof v === 'string' && v.trim()) return v.trim()
+      }
+      return ''
+    }
+    const firstVal = o => {
+      for (const k of ['value', 'propValue', 'attrValue', 'val', 'text', 'valueName', 'specValue', 'label']) {
+        const v = o[k]
+        if (typeof v === 'string' && v.trim()) return v.trim()
+        if (typeof v === 'number') return String(v)
+      }
+      return ''
+    }
+    // 1) 数组型：[{name,value}] / [{propName,propValue}]
+    for (const k of SPEC_ARR_KEYS) {
+      const arr = it[k]
+      if (!Array.isArray(arr) || !arr.length) continue
+      for (const o of arr) {
+        if (!o || typeof o !== 'object') continue
+        const name = firstStr(o)
+        const value = firstVal(o)
+        if (!name || !value) continue
+        if (isJunkSpec(value) || isJunkSpec(name)) continue
+        out.push({ name: name.slice(0, 30), value: value.slice(0, 60) })
+      }
+      if (out.length) return out
+    }
+    // 2) 扁平型：colorName / sizeName / 规格 …
+    const FLAT_DIM_RE = /(颜色|色|尺码|尺寸|大小|规格|款式|型号|材质|style|color|size|spec|material)/i
+    for (const k of Object.keys(it)) {
+      if (!FLAT_DIM_RE.test(k)) continue
+      if (/id$/i.test(k)) continue
+      const v = it[k]
+      if (typeof v !== 'string' && typeof v !== 'number') continue
+      const s = String(v).trim()
+      if (!s || s.length > 40 || isJunkSpec(s)) continue
+      const dim = k.replace(/(name|value|val|text|label)$/i, '').trim() || k
+      out.push({ name: dim.slice(0, 30), value: s })
+    }
+    if (out.length) return out
+    // 3) 退化：只有 skuName（"红色 M" 这种组合文案）
+    const sn = it.skuName || it.specName || it.saleProp
+    if (typeof sn === 'string' && sn.trim() && sn.trim().length <= 40 && !isJunkSpec(sn)) {
+      out.push({ name: '规格', value: sn.trim() })
+    }
+    return out
+  }
+
+  /** 路径里出现这些词 = 推荐位/别人家的货，不是本商品的变体 */
+  const VARIANT_PATH_REJECT_RE = /(recommend|relation|major|similar|hotsale|shopcard|itemlist|hotrecommend)/i
+
+  /**
+   * 提取变体（SKU 维度）。
+   *
+   * 1688 的变体数据在不同接口/版本里有好几种形态，所以多路并行提取再合并：
+   *   A. 自带规格的 SKU 行数组（最准）：[{skuId, specAttrs:[{name,value}], price, imageUrl}]
+   *   B. 「组合键 → skuId」映射：{ "颜色:红色;尺码:M": "500000" }
+   *   C. skuMap 值是对象：{ "红色": {skuId, price, imageUrl} }
+   *
+   * 返回 { variants, dims, source, candidates }
+   *   variants: [{ skuId, specs:[{name,value}], color, size, specText, price, priceText, image }]
+   *   dims:     [{ name, kind:'color'|'size'|'custom', values:[...] }]  ← 维度定义，够后台渲染选择器
+   */
+  function pickVariants(payloads) {
+    const rows = []
+    const seenRow = new Set()
+
+    // ---- A. 自带规格的 SKU 行
+    for (const p of payloads) {
+      if (IMG_API_REJECT_RE.test(apiNameOf(p.url))) continue
+      walk(p.data, (k, v, parent, path) => {
+        if (!Array.isArray(v) || !v.length || v.length > 200) return
+        const pth = (path || []).concat(String(k)).join('.')
+        if (VARIANT_PATH_REJECT_RE.test(pth)) return
+        for (const it of v) {
+          if (!it || typeof it !== 'object' || Array.isArray(it)) continue
+          if (it.behaviorTag !== undefined) continue // 推荐位卡片
+          const pr = priceOfSkuItem(it)
+          if (!pr) continue
+          const specs = specsOfSkuItem(it)
+          const id = skuIdOf(it)
+          if (!specs.length && !id) continue
+          const key = id + '|' + pr.price + '|' + specs.map(s => s.name + '=' + s.value).join(';')
+          if (seenRow.has(key)) continue
+          seenRow.add(key)
+          rows.push({
+            skuId: id,
+            specs,
+            price: pr.price,
+            priceText: String(pr.priceText || ''),
+            image: (() => { const u = normImage(imageUrlOf(it)); return u && !isBadImage(u) ? u : '' })(),
+            path: pth,
+          })
+        }
+      })
+    }
+
+    // ---- B/C. 组合键映射
+    const comboGroups = []
+
+    // B-0. 「skuId → 价格」的价格表（独立对象，与 skuMap 平行）
+    //     例：{ "6001": 8.8, "6002": 9.9 }  或  { "6001": {price: 8.8} }
+    const priceBySku = new Map()
+    const priceMapCands = collect(payloads, (k, v) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false
+      const n = Object.keys(v).length
+      return n >= 1 && n <= 200 && /price/i.test(String(k))
+    })
+    for (const c of priceMapCands) {
+      const pth = (c.path || []).join('.')
+      if (VARIANT_PATH_REJECT_RE.test(pth)) continue
+      for (const kk of Object.keys(c.value)) {
+        const vv = c.value[kk]
+        let p = null
+        if (typeof vv === 'number' && Number.isFinite(vv) && vv > 0.01) p = vv
+        else if (typeof vv === 'string' && /^\d+(\.\d+)?$/.test(vv)) p = Number(vv)
+        else if (vv && typeof vv === 'object') {
+          const pr = priceOfSkuItem(vv)
+          if (pr) p = pr.price
+        }
+        if (p !== null && !priceBySku.has(kk)) priceBySku.set(kk, p)
+      }
+    }
+
+    const objCands = collect(payloads, (k, v) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false
+      const n = Object.keys(v).length
+      return n >= 1 && n <= 200
+    })
+    for (const c of objCands) {
+      const pth = (c.path || []).join('.')
+      if (VARIANT_PATH_REJECT_RE.test(pth)) continue
+      const combos = []
+      for (const kk of Object.keys(c.value)) {
+        const parts = parseComboKey(kk).filter(p => p.name && p.value)
+        if (!parts.length) continue
+        const val = c.value[kk]
+        let id = ''
+        let extra = null
+        if (typeof val === 'string' || typeof val === 'number') {
+          id = String(val)
+        } else if (val && typeof val === 'object') {
+          id = skuIdOf(val)
+          const pr = priceOfSkuItem(val)
+          extra = {
+            price: pr ? pr.price : null,
+            priceText: pr ? String(pr.priceText || '') : '',
+            image: normImage(imageUrlOf(val)) || '',
+          }
+        }
+        combos.push({ specs: parts, skuId: id, extra })
+      }
+      if (!combos.length) continue
+      const score = (/skumap/i.test(c.key) ? 4 : 0) + (/sku/i.test(c.key) ? 2 : 0) +
+        (/map/i.test(c.key) ? 1 : 0) + (/model/i.test(c.key) ? 1 : 0)
+      comboGroups.push({ key: c.key, path: pth, combos, score })
+    }
+    comboGroups.sort((a, b) => b.score - a.score)
+
+    // ---- 合并
+    const bySku = new Map()
+    for (const r of rows) {
+      if (!r.skuId) continue
+      if (!bySku.has(r.skuId)) bySku.set(r.skuId, r)
+    }
+
+    const variants = []
+    const usedKeys = new Set()
+    const pushVariant = (v) => {
+      const key = v.specs.map(s => s.name + '=' + s.value).join(';') + '|' + v.price
+      if (usedKeys.has(key)) return
+      usedKeys.add(key)
+      variants.push(v)
+    }
+
+    // A 优先（自带规格 + 价格）
+    for (const r of rows) {
+      if (!r.specs.length) continue
+      pushVariant({
+        skuId: r.skuId,
+        specs: r.specs,
+        color: '',
+        size: '',
+        specText: r.specs.map(s => s.value).join(' / '),
+        price: r.price,
+        priceText: r.priceText,
+        image: r.image,
+      })
+    }
+
+    // B/C 补齐（组合键有维度但没在 A 里出现过）
+    for (const g of comboGroups) {
+      for (const cb of g.combos) {
+        const matched = rows.find(r => r.skuId && cb.skuId && r.skuId === cb.skuId)
+        const key = cb.specs.map(s => s.name + '=' + s.value).join(';')
+        if (usedKeys.has(key + '|' + (matched ? matched.price : (cb.extra && cb.extra.price)))) continue
+        const price = matched ? matched.price : (cb.extra ? cb.extra.price : null)
+        // 价格可能来自平行的「skuId → 价格」表（如 skuPriceMap）
+        const finalPrice = (price === null || price === undefined) && cb.skuId
+          ? (priceBySku.get(cb.skuId) ?? null)
+          : price
+        if (finalPrice === null || finalPrice === undefined) continue
+        pushVariant({
+          skuId: cb.skuId || (matched ? matched.skuId : ''),
+          specs: cb.specs,
+          color: '',
+          size: '',
+          specText: cb.specs.map(s => s.value).join(' / '),
+          price: finalPrice,
+          priceText: matched ? matched.priceText : (cb.extra ? cb.extra.priceText : ''),
+          image: (matched && matched.image) || (cb.extra ? cb.extra.image : ''),
+        })
+      }
+    }
+
+    // ---- 维度定义
+    const dimMap = new Map()
+    for (const v of variants) {
+      for (const s of v.specs) {
+        if (!dimMap.has(s.name)) dimMap.set(s.name, { name: s.name, kind: dimKind(s.name), values: [] })
+        const d = dimMap.get(s.name)
+        if (!d.values.includes(s.value)) d.values.push(s.value)
+      }
+    }
+    const dims = Array.from(dimMap.values())
+
+    // ---- 填 color / size
+    for (const v of variants) {
+      for (const s of v.specs) {
+        const k = dimKind(s.name)
+        if (k === 'color' && !v.color) v.color = s.value
+        if (k === 'size' && !v.size) v.size = s.value
+      }
+    }
+
+    const source = variants.length
+      ? (rows.filter(r => r.specs.length).length ? 'sku-rows' : 'combo-map')
+      : ''
+
+    return {
+      variants,
+      dims,
+      source,
+      candidates: {
+        skuRows: rows.length,
+        comboGroups: comboGroups.length,
+        comboGroupPaths: comboGroups.slice(0, 6).map(g => g.key + ' @ ' + g.path),
+        sampleRow: rows[0] || null,
+        sampleCombo: comboGroups[0] ? { key: comboGroups[0].key, path: comboGroups[0].path, first: comboGroups[0].combos[0] } : null,
+      },
+    }
+  }
+
+  /* ------------------------------------------------------- 属性（基本描述） */
+  const firstStrOf = (o, keys) => {
+    for (const k of keys) {
+      const v = o[k]
+      if (typeof v === 'string' && v.trim()) return v.trim()
+    }
+    return ''
+  }
+
+  /**
+   * 商品基本属性表（1688 的「产品属性」）。
+   * 用户要的「描述」就是这份属性表 —— 不是详情页那段图片 HTML。
+   */
+  function pickAttributeTable(payloads) {
+    const flat = {}
+    // SKU 维度容器（skuProps / skuMap / specAttrs …）是「规格」不是「属性」，
+    // 混进属性表会把描述写成「颜色: 红色 / 尺码: M」这种无意义内容。
+    const ATTR_REJECT_RE = /(sku|spec|saleprop|sale_prop|variation|option|model|price|stock|quantity|mount|delivery|freight|shipping|trade|order|coupon|company|seller|shop|member|service)/i
+    // 1) 数组型：[{propName, value}] / [{name, value}]
+    const arrCands = collect(payloads, (k, v) => Array.isArray(v) && v.length && v.length <= 80)
+    const arrGroups = []
+    for (const c of arrCands) {
+      if (isNoiseCandidate(c)) continue
+      const pth = (c.path || []).join('.')
+      if (VARIANT_PATH_REJECT_RE.test(pth)) continue
+      if (ATTR_REJECT_RE.test(c.key)) continue
+      if (ATTR_REJECT_RE.test(pth)) continue
+      const items = c.value.filter(it => it && typeof it === 'object' && !Array.isArray(it))
+      if (!items.length) continue
+      let hits = 0
+      const tmp = {}
+      for (const it of items) {
+        const name = firstStrOf(it, ['propName', 'name', 'attrName', 'propertyName', 'key', 'label'])
+        const value = firstStrOf(it, ['propValue', 'value', 'attrValue', 'val', 'text', 'valueName'])
+        if (!name || !value) continue
+        if (isJunkSpec(name) || isJunkSpec(value)) continue
+        if (!tmp[name]) tmp[name] = value
+        hits++
+      }
+      if (hits < 2) continue
+      const score = keyScore(c.key, {
+        strong: ['offerProps', 'baseProps', 'productProps', 'productAttributes', 'offerAttributes', 'propertyList', 'attributeList'],
+        weak: ['props', 'attributes', 'attrList', 'params'],
+        neg: ['recommend', 'relation', 'shop', 'member', 'logistics', 'freight', 'comment', 'rate'],
+      })
+      if (score <= 0) continue
+      arrGroups.push({ key: c.key, path: pth, score, data: tmp })
+    }
+    arrGroups.sort((a, b) => b.score - a.score)
+    for (const g of arrGroups) {
+      for (const k of Object.keys(g.data)) if (!flat[k]) flat[k] = g.data[k]
+    }
+
+    // 2) 对象型：{ "品牌": "xx", "材质": "xx" }
+    const objCands = collect(payloads, (k, v) => {
+      if (!v || typeof v !== 'object' || Array.isArray(v)) return false
+      const n = Object.keys(v).length
+      return n >= 2 && n < 80
+    })
+    for (const c of objCands) {
+      if (isNoiseCandidate(c)) continue
+      const pth = (c.path || []).join('.')
+      if (VARIANT_PATH_REJECT_RE.test(pth)) continue
+      if (ATTR_REJECT_RE.test(c.key)) continue
+      if (ATTR_REJECT_RE.test(pth)) continue
+      const score = keyScore(c.key, {
+        strong: ['offerProps', 'baseProps', 'productProps', 'productAttributes', 'propertyList'],
+        weak: ['props', 'attributes', 'attr', 'params'],
+        neg: ['recommend', 'relation', 'shop', 'member', 'comment', 'rate', 'freight'],
+      })
+      if (score <= 0) continue
+      for (const k of Object.keys(c.value).slice(0, 60)) {
+        const v = c.value[k]
+        if (typeof v === 'string' && v.trim() && !flat[k] && !isJunkSpec(k)) flat[k] = v.trim()
+        else if (typeof v === 'number' && !flat[k]) flat[k] = String(v)
+      }
+    }
+
+    if (!Object.keys(flat).length) return undefined
+    // 属性值太长的不是「基本属性」，是描述正文
+    const out = {}
+    for (const k of Object.keys(flat)) {
+      const v = String(flat[k])
+      if (v.length > 120) continue
+      out[k.slice(0, 40)] = v
+    }
+    return Object.keys(out).length ? out : undefined
+  }
+
+  /** 把属性表转成描述文本（后台/前台都能直接显示） */
+  function attributeTableToText(attrs) {
+    if (!attrs || typeof attrs !== 'object') return ''
+    return Object.keys(attrs)
+      .map(k => k + ': ' + attrs[k])
+      .join('\n')
+  }
+
   /* ---------------------------------------------------------------- MOQ */
   function pickMoq(payloads) {
     const cands = collect(payloads, (k, v) => {
@@ -965,6 +1400,62 @@
   const STRUCT_KEY_RE = /(desc|detail|content|html|img|image|pic|photo|video|offer|sku|attr|prop|title|name|text|body)/i
   const STRUCT_HIT_RE = /(desc|html|img|image|pic|photo|video|sku|attr)/i
   const STRUCT_PRIO_RE = /(offerdetail|cupid|moduleasync|resource|detail|images|sku)/i
+
+  /** 变体相关键名（诊断用） */
+  const VSK_KEY_RE = /(sku|spec|prop|attr|variation|saleProp|model|combination|option)/i
+
+  /**
+   * 「复制变体结构」诊断。
+   *
+   * 背景：1688 的变体报文结构在不同接口/版本/类目里差异很大，
+   * 靠记忆硬编码已经连续错过三次（见 10-24 记录）。
+   * 所以这里不去猜，而是把**所有看起来像变体的原始结构**原样吐出来，
+   * 由真实报文来定最终提取规则。
+   *
+   * 输出刻意保留原始 key/value 形状（只截断长字符串），
+   * 以便判断到底是 skuMap / offerList / skuModel 还是别的形态。
+   */
+  function dumpVariants(payloads) {
+    const out = []
+    for (const p of payloads) {
+      const api = (String(p.url || '').match(/api=([\w.]+)/) || [])[1] || p.from || 'unknown'
+      const hits = []
+      walk(p.data, (k, v, parent, path) => {
+        const pth = (path || []).concat(String(k)).join('.')
+        if (!VSK_KEY_RE.test(String(k)) && !VSK_KEY_RE.test(pth)) return
+        if (hits.length > 40) return
+        let shape = ''
+        let preview = ''
+        if (Array.isArray(v)) {
+          shape = 'array(' + v.length + ')'
+          const first = v.find(x => x && typeof x === 'object')
+          if (first) {
+            preview = '{' + Object.keys(first).slice(0, 14).join(',') + '}'
+          } else {
+            preview = '[' + v.slice(0, 4).map(x => JSON.stringify(x)).join(',') + ']'
+          }
+        } else if (v && typeof v === 'object') {
+          const ks = Object.keys(v)
+          shape = 'object(' + ks.length + ')'
+          preview = ks.slice(0, 8).map(kk => {
+            const vv = v[kk]
+            let sv
+            if (vv && typeof vv === 'object') sv = Array.isArray(vv) ? '[a' + vv.length + ']' : '{' + Object.keys(vv).slice(0, 6).join(',') + '}'
+            else sv = JSON.stringify(vv)
+            return kk + ':' + String(sv).slice(0, 60)
+          }).join(' | ')
+        } else {
+          shape = typeof v
+          preview = String(v).slice(0, 90)
+        }
+        hits.push({ path: pth, shape: shape, preview: preview })
+      })
+      if (!hits.length) continue
+      out.push({ api: api, url: scrubUrl(p.url), hits: hits.slice(0, 24) })
+    }
+    out.sort((a, b) => (STRUCT_PRIO_RE.test(b.api) ? 1 : 0) - (STRUCT_PRIO_RE.test(a.api) ? 1 : 0))
+    return out.slice(0, 6)
+  }
 
   function dumpStructure(payloads) {
     const all = []
@@ -1141,16 +1632,17 @@
     // 主图：currentOffer 的图 > 图集数组的第一张 > 其他高分单图
     //      （必须跳过评价图/店铺图，否则会把买家秀当主图）
     let mainImage = ''
+    let mainImageWhy = ''
     const curOffer = good.find(c => /currentoffer/i.test(c.path) && !isBadImage(c.url))
-    if (curOffer) mainImage = curOffer.url
+    if (curOffer) { mainImage = curOffer.url; mainImageWhy = 'currentOffer' }
     if (!mainImage) {
       const arrFirst = good.find(c =>
         /offerimglist|offerimages|mainimages|mainpics|gallery/i.test(c.path) && !isBadImage(c.url))
-      if (arrFirst) mainImage = arrFirst.url
+      if (arrFirst) { mainImage = arrFirst.url; mainImageWhy = 'gallery' }
     }
     if (!mainImage) {
       const best = good.slice().sort((a, b) => b.score - a.score).find(c => !isBadImage(c.url))
-      if (best) mainImage = best.url
+      if (best) { mainImage = best.url; mainImageWhy = 'score:' + best.path }
     }
 
     // 列表：主图置顶 → 其余按路径分数降序 → 同分按接口原顺序
@@ -1177,14 +1669,20 @@
       const n = normImage(u)
       if (n && !list.includes(n) && !isBadImage(n)) list.push(n)
     }
-    if (!mainImage && dom.mainImage && !isBadImage(dom.mainImage)) mainImage = dom.mainImage
+    if (!mainImage && dom.mainImage && !isBadImage(dom.mainImage)) {
+      mainImage = dom.mainImage
+      mainImageWhy = 'dom'
+      // DOM 兵底的主图必须在列表首位（否则 images[0] 不是主图）
+      const n = normImage(mainImage)
+      if (n && !list.includes(n)) list.unshift(n)
+    }
 
     // 全是素材图时，宁可要素材图也不要空
     if (!list.length) {
       const any = cands.map(c => c.url).filter(u => !isReviewImage(u))
       if (any.length) list.push(any[0])
     }
-    return { list: list.slice(0, 20), main: mainImage }
+    return { list: list.slice(0, 20), main: mainImage, mainWhy: mainImageWhy }
   }
 
   /* ------------------------------------------------------- SKU / 阶梯价 */
@@ -1382,7 +1880,7 @@
 
   /* ------------------------------------------------------------ DOM 兜底 */
   function domFallback() {
-    const out = { title: '', priceMin: null, priceMax: null, moq: null, images: [], descImages: [], supplierName: '', description: '' }
+    const out = { title: '', priceMin: null, priceMax: null, moq: null, images: [], descImages: [], supplierName: '', description: '', attributes: undefined }
     const t = document.querySelector('h1.d-title, .title-text, .offer-title, h1')
     if (t) out.title = clean(t.innerText || t.textContent)
     // 主商品价格：限定在主价格区域，排除推荐位卡片里的别人的价格
@@ -1475,7 +1973,60 @@
         .slice(0, 30)
     }
     out.skuPrices = domSkuPrices()
+    out.attributes = domAttributes()
     return out
+  }
+
+  /**
+   * 从 DOM 抽「商品属性」表（1688 的「产品属性」区块）。
+   *
+   * 页面结构：<ul class="offer-attr"><li><span class="offer-attr-name">品牌</span>
+   *          <span class="offer-attr-value">XX</span></li></ul>
+   * 也有 <table> 形式：两列（属性名 / 属性值）。
+   * 接口不一定给属性表，所以 DOM 是重要的兵底。
+   */
+  function domAttributes() {
+    const out = {}
+    const put = (k, v) => {
+      const kk = clean(String(k || '')).replace(/[:：]\s*$/, '').slice(0, 40)
+      const vv = clean(String(v || '')).slice(0, 120)
+      if (!kk || !vv) return
+      if (isJunkSpec(kk) || isJunkSpec(vv)) return
+      if (out[kk]) return
+      out[kk] = vv
+    }
+    try {
+      // 1) li 列表：名字 + 值（两个 span）
+      const lists = Array.from(document.querySelectorAll(
+        '[class*="offer-attr"], [class*="product-attr"], [class*="detail-attr"], ' +
+        '[class*="attributes"], [class*="props"], [class*="attr-list"]'
+      ))
+      for (const ul of lists.slice(0, 8)) {
+        for (const li of Array.from(ul.querySelectorAll('li')).slice(0, 40)) {
+          const spans = Array.from(li.querySelectorAll('span, td, th, div, dd, dt'))
+            .map(s => clean(s.innerText || s.textContent || ''))
+            .filter(Boolean)
+          if (spans.length >= 2) put(spans[0], spans.slice(1).join(' '))
+        }
+      }
+      // 2) dl/dt/dd 形式
+      for (const dl of Array.from(document.querySelectorAll('dl')).slice(0, 8)) {
+        const dts = Array.from(dl.querySelectorAll('dt'))
+        const dds = Array.from(dl.querySelectorAll('dd'))
+        for (let i = 0; i < Math.min(dts.length, dds.length); i++) {
+          put(clean(dts[i].innerText || dts[i].textContent || ''), clean(dds[i].innerText || dds[i].textContent || ''))
+        }
+      }
+      // 3) 两列表格
+      for (const table of Array.from(document.querySelectorAll('table')).slice(0, 6)) {
+        const rows = Array.from(table.querySelectorAll('tr')).slice(0, 30)
+        for (const tr of rows) {
+          const cells = Array.from(tr.querySelectorAll('td, th')).map(c => clean(c.innerText || c.textContent || ''))
+          if (cells.length === 2) put(cells[0], cells[1])
+        }
+      }
+    } catch (e) {}
+    return Object.keys(out).length ? out : undefined
   }
 
   /** 从 DOM 里找「规格 → 价格」（优先规格价格表，而不是起批量阶梯价表） */
@@ -1573,6 +2124,15 @@
     const moq = pickMoq(payloads)
     const supplier = pickSupplier(payloads)
 
+    // 变体（颜色 / 规格 / 自定义维度），每个变体带自己的价格和图
+    const variantRes = pickVariants(payloads)
+    const variants = variantRes.variants
+    const variantDims = variantRes.dims
+
+    // 描述 = 商品基本属性表（不是详情页那段图片 HTML）
+    const attributes = pickAttributeTable(payloads) || dom.attributes || undefined
+    const descFromAttrs = attributeTableToText(attributes)
+
     // 货号 / 首个规格 / 阶梯价 / 批发价（新增字段，不影响原有字段）
     const skuMap = pickSkuMap(payloads)
     const skuInfo = parseSkuMap(skuMap)
@@ -1600,15 +2160,19 @@
       sourceId: offerId,
       sourceUrl: url.split('?')[0],
       title: title || `1688 商品 ${offerId}`,
-      description: pickDescription(payloads) || dom.description || '',
+      // 描述：优先「基本属性表」（用户要的）；没有属性表才回退详情页描述
+      description: descFromAttrs || pickDescription(payloads) || dom.description || '',
       images,
       mainImage: mainImage || undefined,
+      // ↓ 变体：颜色 / 规格 / 自定义维度 + 每个变体的价格与图片
+      variants: variants.length ? variants : undefined,
+      variantDims: variantDims.length ? variantDims : undefined,
       priceMin: pr.lo,
       priceMax: pr.hi,
       moq,
       unit: '件',
       skuText: pickJsonField(payloads, ['skuMap', 'skuProps', 'skuList', 'skuModel', 'saleProp', 'skuPropsList']),
-      attributes: pickAttributes(payloads),
+      attributes,
       supplierName: supplier || dom.supplierName || undefined,
       shippingText: '以 1688 页面实际为准',
       priceTiers: pickTiers(payloads),
@@ -2189,10 +2753,11 @@
   }
 
   window.FF1688 = {
-    __v: '4.0.0',
+    __v: '4.1.0',
     install,
     capture,
     dumpStructure,
+    dumpVariants,
     replayResources,
     replayCapturedRequests,
     scanInlineData,

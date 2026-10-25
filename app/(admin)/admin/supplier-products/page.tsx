@@ -23,6 +23,8 @@ interface SupplierItem {
   wholesalePrice?: number | null
   priceLadder?: string | null
   skuPrices?: string | null
+  variants?: string | null
+  variantDims?: string | null
   priceMin: number | null
   priceMax: number | null
   moq: number | null
@@ -707,6 +709,74 @@ export default function SupplierProductsPage() {
                 } catch {
                   return null
                 }
+              })()}
+
+              {/* 变体（颜色 / 规格 / 自定义维度），每个变体带价格和图片 */}
+              {(() => {
+                let vs: any[] = []
+                let dims: any[] = []
+                try { vs = JSON.parse(selected.variants || '[]') } catch { vs = [] }
+                try { dims = JSON.parse(selected.variantDims || '[]') } catch { dims = [] }
+                if (!Array.isArray(vs) || !vs.length) return null
+                return (
+                  <div className="mt-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-gray-600">
+                        变体（{vs.length} 个）
+                        {dims.length > 0 && (
+                          <span className="ml-2 text-xs text-gray-400">
+                            维度：{dims.map((d: any) => `${d.name}(${(d.values || []).length})`).join(' / ')}
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    <div className="mt-1 max-h-64 overflow-auto rounded-lg border border-gray-200 divide-y">
+                      {vs.map((v: any, i: number) => (
+                        <div key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
+                          {v.image ? (
+                            <img src={v.image} alt="" className="w-9 h-9 rounded object-cover border border-gray-200 shrink-0" />
+                          ) : (
+                            <div className="w-9 h-9 rounded bg-gray-100 border border-gray-200 shrink-0" />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <div className="text-gray-800 truncate">
+                              {(v.specs || []).length
+                                ? v.specs.map((s: any) => `${s.name}: ${s.value}`).join(' | ')
+                                : v.specText || '变体 ' + (i + 1)}
+                            </div>
+                            {v.skuId && <div className="text-xs text-gray-400 truncate">SKU {v.skuId}</div>}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <div className="font-medium">¥{v.price ?? '-'}</div>
+                            {v.priceText && v.priceText !== String(v.price) && (
+                              <div className="text-xs text-gray-400">{v.priceText}</div>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* 基本属性（描述来源） */}
+              {(() => {
+                let attrs: any = null
+                try { attrs = JSON.parse(selected.attributes || 'null') } catch { attrs = null }
+                if (!attrs || typeof attrs !== 'object' || !Object.keys(attrs).length) return null
+                return (
+                  <div className="mt-3">
+                    <span className="text-sm text-gray-600">基本属性（{Object.keys(attrs).length} 项）</span>
+                    <div className="mt-1 max-h-40 overflow-auto rounded-lg border border-gray-200 divide-y">
+                      {Object.keys(attrs).map((k) => (
+                        <div key={k} className="flex items-start gap-3 px-3 py-1 text-sm">
+                          <span className="text-gray-500 w-28 shrink-0 truncate">{k}</span>
+                          <span className="text-gray-800 break-all">{String(attrs[k])}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )
               })()}
             </div>
 

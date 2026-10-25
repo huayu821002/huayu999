@@ -37,6 +37,8 @@ CREATE TABLE IF NOT EXISTS "SupplierProduct" (
   "unit" TEXT,
   "skuText" TEXT,
   "attributes" TEXT,
+  "variants" TEXT,
+  "variantDims" TEXT,
   "supplierName" TEXT,
   "supplierUrl" TEXT,
   "shippingText" TEXT,
@@ -68,6 +70,8 @@ const ADD_COLUMNS = [
   ['wholesalePrice', 'DOUBLE PRECISION'],
   ['priceLadder', 'TEXT'],
   ['skuPrices', 'TEXT'],
+  ['variants', 'TEXT'],
+  ['variantDims', 'TEXT'],
 ]
 
 /**
@@ -144,6 +148,10 @@ export interface SupplierProductInput {
   unit?: string
   skuText?: string
   attributes?: Record<string, any>
+  /** 变体明细：[{ skuId, specs:[{name,value}], color, size, price, priceText, image }] */
+  variants?: any[]
+  /** 变体维度定义：[{ name, kind:'color'|'size'|'custom', values:[...] }] */
+  variantDims?: any[]
   supplierName?: string
   supplierUrl?: string
   shippingText?: string
@@ -193,6 +201,8 @@ export async function upsertSupplierProduct(input: SupplierProductInput) {
     unit: input.unit,
     skuText: input.skuText !== undefined ? toJson(input.skuText) : undefined,
     attributes: input.attributes !== undefined ? toJson(input.attributes) : undefined,
+    variants: input.variants !== undefined ? toJson(input.variants) : undefined,
+    variantDims: input.variantDims !== undefined ? toJson(input.variantDims) : undefined,
     supplierName: input.supplierName,
     supplierUrl: input.supplierUrl,
     shippingText: input.shippingText,
