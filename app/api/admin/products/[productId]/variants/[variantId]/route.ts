@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminOrDev } from '@/lib/chatAuth'
-import { withProxiedVariantImages } from '@/lib/imgProxy'
+import { withProxiedVariantImages, unproxyVariantImages } from '@/lib/imgProxy'
 
 /**
  * DELETE /api/admin/products/[productId]/variants/[variantId]
@@ -35,9 +35,10 @@ export async function DELETE(
     }
     await prisma.product.update({
       where: { id: params.productId },
-      data: { variants: JSON.stringify(withProxiedVariantImages(next)) },
+      // 写入前还原代理 URL（DB 只存原始 CDN URL）
+      data: { variants: JSON.stringify(unproxyVariantImages(next)) },
     })
-    return NextResponse.json({ success: true, data: next })
+    return NextResponse.json({ success: true, data: withProxiedVariantImages(next) })
   } catch (error) {
     return NextResponse.json({ success: false, error: 'Failed to delete variant' }, { status: 500 })
   }
