@@ -51,7 +51,7 @@ const t = (n, ok, extra) => { if (ok) { pass++; console.log('  ✓', n) } else {
       return {
         id: `${String(v.skuId || 'v')}-${i}`, name: (dimNames.join(' / ') || '选项').slice(0, 40),
         value: (displayValue || `变体 ${i + 1}`).slice(0, 80), sku: v.skuId ? String(v.skuId).slice(0, 80) : null,
-        price: usdV, inventory: 0, image: v.image ? String(v.image).slice(0, 500) : null,
+        price: usdV, inventory: null, image: v.image ? String(v.image).slice(0, 500) : null,
       }
     })
     const variantPrices = variants.map(v => v.price).filter(p => typeof p === 'number')
@@ -92,9 +92,11 @@ const t = (n, ok, extra) => { if (ok) { pass++; console.log('  ✓', n) } else {
     const apiVariants = raw.filter(v => v && typeof v === 'object').map((v, i) => ({
       id: String(v.id || `v-${i}`), name: String(v.name || ''), value: String(v.value || ''),
       sku: v.sku ?? null, price: typeof v.price === 'number' ? v.price : null,
-      inventory: Number.isFinite(Number(v.inventory)) ? Number(v.inventory) : 0, image: v.image ?? null,
+      inventory: v.inventory === null || v.inventory === undefined ? null : (Number.isFinite(Number(v.inventory)) ? Number(v.inventory) : null),
+      image: v.image ?? null,
     }))
     t('API 返回 3 个变体', apiVariants.length === 3)
+    t('库存 null 不被转成 0', apiVariants[0].inventory === null, String(apiVariants[0].inventory))
     t('API 变体有 id/name/value', !!apiVariants[0].id && apiVariants[0].name === '颜色' && !!apiVariants[0].value)
     t('API 变体带 price', typeof apiVariants[0].price === 'number')
     t('前台按钮文案 = 颜色值', apiVariants.map(v => v.value).join(' / ') === '焦糖布丁-磨毛单裤 / 红苹果小狗-磨毛单裤 / 深蓝波点猫-磨毛单裤', apiVariants.map(v => v.value).join(' / '))

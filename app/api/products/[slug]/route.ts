@@ -44,7 +44,12 @@ export async function GET(
             value: String(v.value || ''),
             sku: v.sku ?? null,
             price: typeof v.price === 'number' ? v.price : null,
-            inventory: Number.isFinite(Number(v.inventory)) ? Number(v.inventory) : null,
+            inventory:
+              v.inventory === null || v.inventory === undefined
+                ? null
+                : Number.isFinite(Number(v.inventory))
+                  ? Number(v.inventory)
+                  : null,
             image: v.image ?? null,
           }))
       }
