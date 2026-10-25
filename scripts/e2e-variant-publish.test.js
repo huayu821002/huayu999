@@ -4,6 +4,15 @@
  */
 const fs = require('fs')
 const { PrismaClient } = require('/home/admin/Fiestaflare/node_modules/@prisma/client')
+const ts = require('/home/admin/Fiestaflare/node_modules/typescript')
+const fsx = require('fs')
+const vsrc = fsx.readFileSync('/home/admin/Fiestaflare/lib/variants.ts', 'utf8')
+const vjs = ts.transpileModule(vsrc, {
+  compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2020 },
+}).outputText
+const vmod = { exports: {} }
+new Function('module', 'exports', 'require', vjs)(vmod, vmod.exports, require)
+const { toProductVariants } = vmod.exports
 const url = fs.readFileSync('/home/admin/.openclaw/workspace/dburl_pool.txt', 'utf8').trim()
 const prisma = new PrismaClient({ datasources: { db: { url } } })
 
@@ -37,23 +46,10 @@ const t = (n, ok, extra) => { if (ok) { pass++; console.log('  ✓', n) } else {
     })
     console.log('① 采集品已建:', sp.id)
 
-    // 2) 复刻发布路由的变体转换逻辑（与 route.ts 同源）
-    const markup = 3
-    const numOrNull = (v) => { if (v === undefined || v === null || v === '') return null; const n = Number(v); return Number.isFinite(n) ? n : null }
+    // 2) 用**公共函数**（与发布路由同一份代码，不重复实现）
     const supplierVariants = JSON.parse(sp.variants || '[]')
     const variantDims = JSON.parse(sp.variantDims || '[]')
-    const variants = supplierVariants.map((v, i) => {
-      const specs = (v.specs || []).map(s => ({ name: String(s.name || ''), value: String(s.value || '') }))
-      const dimNames = specs.length ? Array.from(new Set(specs.map(s => s.name).filter(Boolean))) : (variantDims || []).map(d => String(d?.name || '')).filter(Boolean)
-      const displayValue = specs.length ? specs.map(s => s.value).filter(Boolean).join(' / ') : String(v.color || v.size || v.specText || '').trim()
-      const cnyV = numOrNull(v.price)
-      const usdV = cnyV === null ? null : Math.round(((cnyV * markup) / 7.2) * 100) / 100
-      return {
-        id: `${String(v.skuId || 'v')}-${i}`, name: (dimNames.join(' / ') || '选项').slice(0, 40),
-        value: (displayValue || `变体 ${i + 1}`).slice(0, 80), sku: v.skuId ? String(v.skuId).slice(0, 80) : null,
-        price: usdV, inventory: null, image: v.image ? String(v.image).slice(0, 500) : null,
-      }
-    })
+    const variants = toProductVariants(supplierVariants, variantDims, { markup: 3, rate: 7.2 })
     const variantPrices = variants.map(v => v.price).filter(p => typeof p === 'number')
     const finalPrice = variantPrices.length ? Math.min(...variantPrices) : 0
 

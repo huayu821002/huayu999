@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureSupplierProductTable, parseImagesField, parseJsonField } from '@/lib/supplier'
+import { toProductVariants } from '@/lib/variants'
 
 /**
  * POST /api/admin/supplier-products/[id]/publish
@@ -61,40 +62,7 @@ export async function POST(
     // 采集变体的价格是 CNY → 沿用商品同样的加价/汇率换算
     const supplierVariants = parseJsonField<any[]>(item.variants) || []
     const variantDims = parseJsonField<any[]>(item.variantDims) || []
-    const cny2usd = (cny: number | null) =>
-      cny === null ? null : Math.round(((cny * markup) / 7.2) * 100) / 100
-
-    const variants = supplierVariants
-      .filter(v => v && typeof v === 'object')
-      .map((v, i) => {
-        const specs: Array<{ name: string; value: string }> = Array.isArray(v.specs)
-          ? v.specs
-              .filter((s: any) => s && (s.name || s.value))
-              .map((s: any) => ({ name: String(s.name || ''), value: String(s.value || '') }))
-          : []
-        // 维度名：有 specs 用 specs 的，否则用采集的维度定义
-        const dimNames = specs.length
-          ? Array.from(new Set(specs.map(s => s.name).filter(Boolean)))
-          : (variantDims || []).map((d: any) => String(d?.name || '')).filter(Boolean)
-        // 展示值：单维度直接是值；多维度用 “ / ” 连接
-        const displayValue = specs.length
-          ? specs.map(s => s.value).filter(Boolean).join(' / ')
-          : String(v.color || v.size || v.specText || '').trim()
-
-        const cnyV = numOrNull(v.price)
-        const usdV = cny2usd(cnyV)
-        return {
-          id: `${String(v.skuId || 'v')}-${i}-${i === 0 ? '' : Date.now().toString(36).slice(-3)}`,
-          name: (dimNames.join(' / ') || '选项').slice(0, 40),
-          value: (displayValue || `变体 ${i + 1}`).slice(0, 80),
-          sku: v.skuId ? String(v.skuId).slice(0, 80) : null,
-          price: usdV,
-          // 库存未知（1688 不给可靠库存）→ null，前台不显示 “N left”
-          inventory: null,
-          image: v.image ? String(v.image).slice(0, 500) : null,
-        }
-      })
-      .filter(v => v.value)
+    const variants = toProductVariants(supplierVariants, variantDims, { markup, rate: 7.2 })
 
     // 商品价：有变体时取最低变体价（前台显示的起价）
     const variantPrices = variants.map(v => v.price).filter((p): p is number => typeof p === 'number')

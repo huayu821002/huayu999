@@ -51,6 +51,12 @@ export async function GET(
                   ? Number(v.inventory)
                   : null,
             image: v.image ?? null,
+            // 维度取值明细：前台多维度选择器要靠它拆行
+            specs: Array.isArray(v.specs)
+              ? v.specs
+                  .filter((s: any) => s && s.name && s.value)
+                  .map((s: any) => ({ name: String(s.name), value: String(s.value) }))
+              : [],
           }))
       }
     } catch {

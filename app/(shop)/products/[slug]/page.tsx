@@ -16,6 +16,7 @@ import { parseProductImages, parseImageUrl } from '@/lib/imageUtils'
 import { useLocale, useTranslation } from '@/lib/translation/client'
 import { useProductTranslation } from '@/lib/translation/useProductTranslation'
 import { sanitizeHTML } from '@/lib/sanitize'
+import { buildVariantRows, matchVariant } from '@/lib/variants'
 
 interface ProductVariant {
   id: string
@@ -23,8 +24,10 @@ interface ProductVariant {
   value: string
   sku: string | null
   price: number | null
-  inventory: number
+  inventory: number | null
   image: string | null
+  /** 维度取值明细（多维度选择器用） */
+  specs: Array<{ name: string; value: string }>
 }
 
 interface Product {
@@ -70,6 +73,8 @@ export default function ProductDetailPage() {
   const [error, setError] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null)
+  // 多维度选择：{ '颜色': '红色', '尺码': 'M' }
+  const [variantSelection, setVariantSelection] = useState<Record<string, string>>({})
   const [quantity, setQuantity] = useState(3)
   const [isAdding, setIsAdding] = useState(false)
   const [activeTab, setActiveTab] = useState<'description' | 'specs' | 'reviews'>('description')
@@ -138,6 +143,36 @@ export default function ProductDetailPage() {
     fetchProduct()
   }, [params.slug])
 
+  // 变体维度行（如「颜色」「尺码」各一行）
+  const variantRows = product?.variants?.length ? buildVariantRows(product.variants) : []
+
+  /**
+   * 当前选中的变体。
+   * 多维度：按各维度选中值匹配；单维度/旧数据：回退到 selectedVariant id
+   */
+  const resolveCurrentVariant = (): ProductVariant | null => {
+    if (!product?.variants?.length) return null
+    if (variantRows.length > 1) {
+      const m = matchVariant(product.variants, variantSelection)
+      if (m) return m
+    }
+    if (selectedVariant) {
+      const byId = product.variants.find(v => v.id === selectedVariant)
+      if (byId) return byId
+    }
+    return matchVariant(product.variants, variantSelection) || product.variants[0]
+  }
+
+  // 选中变体时把主图切到该变体的图
+  useEffect(() => {
+    const img = resolveCurrentVariant()?.image
+    if (!img) return
+    const imgs = parseProductImages(product?.images)
+    const idx = imgs.findIndex(u => u === img)
+    if (idx >= 0) setSelectedImage(idx)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id, variantSelection, selectedVariant])
+
   const fetchProduct = async () => {
     try {
       setIsLoading(true)
@@ -148,6 +183,11 @@ export default function ProductDetailPage() {
         // Set default variant if exists
         if (data.data.variants?.length > 0) {
           setSelectedVariant(data.data.variants[0].id)
+          // 初始化多维度选择：每个维度取第一个可用值
+          const rows = buildVariantRows(data.data.variants)
+          const init: Record<string, string> = {}
+          for (const r of rows) if (r.values.length) init[r.name] = r.values[0]
+          setVariantSelection(init)
         }
         // Fetch related products (same category)
         if (data.data.categories?.[0]?.slug) {
@@ -271,7 +311,7 @@ export default function ProductDetailPage() {
   const handleAddToCart = async () => {
     if (!product) return
     setIsAdding(true)
-    const currentVariant = product.variants?.find(v => v.id === selectedVariant)
+    const currentVariant = resolveCurrentVariant()
     // Get selected warehouse info
     const selectedWarehouse = warehouseInventories.find(i => i.warehouseId === selectedWarehouseId)?.warehouse
     // Convert API product to cart-compatible format
@@ -332,7 +372,7 @@ export default function ProductDetailPage() {
   }
 
   const images = parseProductImages(product.images)
-  const currentVariant = product.variants?.find(v => v.id === selectedVariant)
+  const currentVariant = resolveCurrentVariant()
   const displayPrice = currentVariant?.price || product.price
   const tiers = getTieredPricing(product.tieredPricing, displayPrice)
   const priceByQty = getPriceFromTieredPricing(tiers, quantity)
@@ -382,7 +422,7 @@ export default function ProductDetailPage() {
             <div>
               <div className="relative aspect-square rounded-2xl overflow-hidden bg-joy-gray-100 mb-4">
                 <img
-                  src={images[selectedImage] || '/placeholder.png'}
+                  src={currentVariant?.image || images[selectedImage] || '/placeholder.png'}
                   alt={displayProduct?.name || product.name}
                   className="w-full h-full object-cover"
                 />
@@ -595,29 +635,76 @@ export default function ProductDetailPage() {
                 </div>
               </div>
 
-              {/* Variants */}
+              {/* Variants —— 多维度：每个维度一行；单维度：保持原样 */}
               {product.variants && product.variants.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                    {product.variants[0].name}
-                  </label>
-                  <div className="flex flex-wrap gap-2">
-                    {product.variants.map((variant) => (
-                      <button
-                        key={variant.id}
-                        onClick={() => setSelectedVariant(variant.id)}
-                        className={cn(
-                          'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-                          selectedVariant === variant.id
-                            ? 'bg-joy-orange text-white'
-                            : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200'
-                        )}
-                      >
-                        {variant.value}
-                        {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
-                      </button>
-                    ))}
-                  </div>
+                <div className="mb-6 space-y-4">
+                  {variantRows.length > 0 ? variantRows.map((row) => {
+                    const isFirstRow = row === variantRows[0]
+                    const currentVal = variantSelection[row.name] || ''
+                    return (
+                      <div key={row.name}>
+                        <label className="block text-sm font-medium text-joy-gray-700 mb-2">
+                          {row.name}
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {row.values.map((val) => {
+                            // 选中该值后能否匹配到变体
+                            const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
+                            const disabled = !probe
+                            const isActive = currentVal === val
+                            return (
+                              <button
+                                key={val}
+                                disabled={disabled}
+                                onClick={() => {
+                                  const next = { ...variantSelection, [row.name]: val }
+                                  setVariantSelection(next)
+                                  const m = matchVariant(product.variants, next)
+                                  if (m) setSelectedVariant(m.id)
+                                }}
+                                className={cn(
+                                  'px-4 py-2 rounded-lg font-medium text-sm transition-all',
+                                  isActive
+                                    ? 'bg-joy-orange text-white'
+                                    : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200',
+                                  disabled && 'opacity-40 cursor-not-allowed'
+                                )}
+                              >
+                                {val}
+                                {(() => {
+                                  const inv = probe?.inventory
+                                  return inv != null && inv < 10 ? ` (${inv} left)` : ''
+                                })()}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  }) : (
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">
+                        {product.variants[0].name}
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {product.variants.map((variant) => (
+                          <button
+                            key={variant.id}
+                            onClick={() => setSelectedVariant(variant.id)}
+                            className={cn(
+                              'px-4 py-2 rounded-lg font-medium text-sm transition-all',
+                              selectedVariant === variant.id
+                                ? 'bg-joy-orange text-white'
+                                : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200'
+                            )}
+                          >
+                            {variant.value}
+                            {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
 
