@@ -25,7 +25,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.1.5') return
+  if (window.FF1688 && window.FF1688.__v === '4.1.6') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2237,12 +2237,13 @@
     // 已知价格区间（CNY）→ 用来排除「重量 132g / 库存 132」这类非价格数字
     const gLo = guard && Number.isFinite(guard.lo) ? guard.lo : null
     const gHi = guard && Number.isFinite(guard.hi) ? guard.hi : null
-    // 候选价格必须落在区间内（放宽：低 1/5，高 5 倍）
+    // 候选价格必须落在区间内（放宽：低 1/5，高 6 倍）
+    // 6 倍仍能挡住「重量 132g」这种（14.49*6 = 86.9 < 132）
     const priceOK = p => {
       if (p === null || p === undefined || !(p > 0.01) || p > 1000000) return false
       if (gLo !== null && gHi !== null && gHi > 0) {
         const lo = Math.min(gLo, gHi) * 0.2
-        const hi = Math.max(gLo, gHi) * 5
+        const hi = Math.max(gLo, gHi) * 6
         if (p < lo || p > hi) return false
       }
       return true
@@ -2279,9 +2280,15 @@
           //   ③ 都不行 → **留空**（宁可没价格，也不要猜成重量/库存）
           let price = null
           let priceCol = priceIdx
+          // 单元格文本里**含件数/库存/重量等** → 一律不当价格
+          const NOT_PRICE_CELL_RE = /件|起批|起订|库存|已售|销量|重量|克|kg|浏览|评论|排名|编号/
           const cellPrice = i => {
-            const txt = String(cells[i] || '').replace(/[,¥￥\s]/g, '')
+            const rawTxt = String(cells[i] || '').trim()
+            if (!rawTxt) return null
+            if (NOT_PRICE_CELL_RE.test(rawTxt)) return null
+            const txt = rawTxt.replace(/[,¥￥\s]/g, '')
             if (!txt) return null
+            // 整格是纯数字
             let m = txt.match(/^\d+(\.\d+)?$/)
             if (m) return priceOK(parseFloat(m[0])) ? parseFloat(m[0]) : null
             // 区间价 "13.2-15.5" → 取下界
@@ -2289,6 +2296,12 @@
             if (m) {
               const lo = parseFloat(m[0])
               return priceOK(lo) ? lo : null
+            }
+            // 带后缀/前缀 "¥13.50起" "13.50元" "￥13.5" → 取**第一个数字**
+            m = txt.match(/\d+(\.\d+)?/)
+            if (m) {
+              const v = parseFloat(m[0])
+              return priceOK(v) ? v : null
             }
             return null
           }
@@ -2327,6 +2340,10 @@
             price,
             image,
             priceText: priceCol >= 0 ? String(cells[priceCol] || '') : '',
+            // 诊断：这一行的价格是从哪来的
+            priceCol,
+            priceHead: priceCol >= 0 ? String(headCells[priceCol] || '') : '',
+            rowText: cells.map(c => String(c || '').trim()).join(' | ').slice(0, 200),
           })
         }
       }
@@ -3050,19 +3067,41 @@
     return ''
   }
 
+  /**
+   * 诊断：把页面上的「规格价格表」原文吐出来。
+   * 用来确认列结构（哪一列是价格、哪些是重量/库存）。
+   */
+  function dumpSpecTable() {
+    const out = []
+    try {
+      for (const table of Array.from(document.querySelectorAll('table')).slice(0, 12)) {
+        const rows = Array.from(table.querySelectorAll('tr'))
+        if (rows.length < 2) continue
+        const head = Array.from(rows[0].querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || ''))
+        if (!head.length) continue
+        const hasDim = head.some(h => /(颜色|色|尺码|尺寸|大小|规格|款式|型号|材质|包装|套餐|版本|style|color|size|spec)/i.test(h))
+        const body = rows.slice(1, 5).map(r => Array.from(r.querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || '')).join(' | '))
+        if (!hasDim && !body.length) continue
+        out.push({ head, headJoined: head.join(' | '), body, rows: rows.length })
+      }
+    } catch (e) {}
+    return out
+  }
+
   /** 判断响应来自应用层还是边缘层（应用层会带 X-FF-Origin: app） */
   function isAppLayer(server, via, origin) {
     return origin === 'app' || /ff-?origin/i.test(String(origin || ''))
   }
 
   window.FF1688 = {
-    __v: '4.1.5',
+    __v: '4.1.6',
     install,
     capture,
     collectAll,
     hasSpecRows,
     pickVariants,
     domVariants,
+    dumpSpecTable,
     dedupePayloads,
     dumpStructure,
     dumpVariants,
@@ -3103,7 +3142,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.26.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.27.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
