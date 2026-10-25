@@ -29,7 +29,8 @@
     "tsnip": "node scripts/test-console-snippet.js",
     "tpanel": "node scripts/test-collector-panel.js",
     "collector:test:ver": "node public/1688-core.version.test.js",
-    "livecheck": "node public/1688-core.livecheck.js"
+    "livecheck": "node public/1688-core.livecheck.js",
+    "e2e:copy-translate": "node scripts/e2e-copy-translate.test.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",

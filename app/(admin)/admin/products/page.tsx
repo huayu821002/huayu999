@@ -12,13 +12,21 @@ import { adminFetch } from '@/lib/adminFetch'
 
 interface Variant {
   id: string
-  productId: string
+  productId?: string
   name: string
   value: string
   sku: string | null
   price: number | null
   inventory: number | null
   image: string | null
+  /** 维度明细：[{name:'颜色', value:'红色'}] —— 前台靠它拆多行选择器 */
+  specs?: Array<{ name: string; value: string }>
+}
+
+interface VariantDim {
+  name: string
+  kind?: string
+  values?: string[]
 }
 
 interface Product {
@@ -116,8 +124,20 @@ export default function AdminProductsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
   const [showVariantPanel, setShowVariantPanel] = useState(false)
   const [productVariants, setProductVariants] = useState<Variant[]>([])
-  const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '0', image: '' })
+  const [variantDims, setVariantDims] = useState<VariantDim[]>([])
+  const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '', image: '' })
   const [isSaving, setIsSaving] = useState(false)
+
+  // 「从采集品复制变体」相关
+  const [showCopyPanel, setShowCopyPanel] = useState(false)
+  const [supplierList, setSupplierList] = useState<any[]>([])
+  const [supplierLoading, setSupplierLoading] = useState(false)
+  const [copying, setCopying] = useState(false)
+  // 「一键转英文」相关
+  const [translating, setTranslating] = useState(false)
+  // 变体内联编辑
+  const [editingVariantId, setEditingVariantId] = useState<string | null>(null)
+  const [variantEdit, setVariantEdit] = useState({ value: '', price: '', inventory: '', sku: '' })
 
   const [form, setForm] = useState<{
     name: string; sku: string; description: string; shortDesc: string; price: string; comparePrice: string;
@@ -194,8 +214,36 @@ export default function AdminProductsPage() {
     try {
       const res = await adminFetch(`/api/admin/products/${productId}/variants`)
       const data = await res.json()
-      if (data.success) setProductVariants(data.data)
+      if (data.success) {
+        setProductVariants(data.data || [])
+        setVariantDims(Array.isArray(data.dims) ? data.dims : [])
+      }
     } catch (err) { console.error(err) }
+  }
+
+  /** 拉采集品列表（复制变体用） */
+  const fetchSupplierList = async () => {
+    setSupplierLoading(true)
+    try {
+      const res = await adminFetch('/api/admin/supplier-products/options?limit=50')
+      const data = await res.json()
+      if (data.success) setSupplierList(data.data || [])
+    } catch (err) { console.error(err) }
+    setSupplierLoading(false)
+  }
+
+  /** 变体落库：新建时（无 id）先在本地存着，保存商品后补 PUT */
+  const persistVariants = async (productId: string, list: Variant[]) => {
+    const res = await adminFetch(`/api/admin/products/${productId}/variants`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ variants: list }),
+    })
+    const data = await res.json()
+    if (data.success) {
+      setProductVariants(data.data || [])
+      fetchVariants(productId)
+    }
   }
 
   if (isLoading) return <div className="min-h-screen bg-joy-gray-50 flex items-center justify-center"><div className="animate-spin w-8 h-8 border-4 border-joy-orange border-t-transparent rounded-full" /></div>
@@ -209,6 +257,10 @@ export default function AdminProductsPage() {
   const openAdd = () => {
     setEditingProduct(null)
     setProductVariants([])
+    setVariantDims([])
+    setShowVariantPanel(false)
+    setShowCopyPanel(false)
+    setEditingVariantId(null)
     setWarehouseInventory({})
     setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryIds: [], images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: '' })
     setShowProductModal(true)
@@ -218,6 +270,10 @@ export default function AdminProductsPage() {
   const openEdit = (product: Product) => {
     setEditingProduct(product)
     setProductVariants([])
+    setVariantDims([])
+    setShowVariantPanel(false)
+    setShowCopyPanel(false)
+    setEditingVariantId(null)
     setWarehouseInventory({})
     setForm({
       name: product.name, sku: product.sku, description: product.description, shortDesc: product.shortDesc || '',
@@ -267,6 +323,10 @@ export default function AdminProductsPage() {
             }
           }
         }
+        // 新建产品时变体是先在本地攒着的 → 保存后补一次落库
+        if (!editingProduct && productVariants.length && savedProductId) {
+          try { await persistVariants(savedProductId, productVariants) } catch (e) { console.error(e) }
+        }
         setShowProductModal(false)
         fetchProducts()
       } else {
@@ -276,32 +336,131 @@ export default function AdminProductsPage() {
     setIsSaving(false)
   }
 
+  /** 手动加变体：新建时先存本地，编辑时直接落库 */
   const handleAddVariant = async () => {
-    if (!editingProduct || !variantForm.name || !variantForm.value) return
-    setIsSaving(true)
-    try {
-      const res = await adminFetch(`/api/admin/products/${editingProduct.id}/variants`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(variantForm),
-      })
-      const data = await res.json()
-      if (data.success) {
-        setVariantForm({ name: '', value: '', sku: '', price: '', inventory: '0', image: '' })
-        fetchVariants(editingProduct.id)
-      } else {
-        alert(data.error)
-      }
-    } catch { alert('Failed to add variant') }
-    setIsSaving(false)
+    if (!variantForm.name || !variantForm.value) return
+    const specs = [{ name: variantForm.name, value: variantForm.value }]
+    const item: Variant = {
+      id: `tmp-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`,
+      name: variantForm.name,
+      value: variantForm.value,
+      sku: variantForm.sku || null,
+      price: variantForm.price ? Number(variantForm.price) : null,
+      inventory: variantForm.inventory === '' ? null : Number(variantForm.inventory),
+      image: variantForm.image || null,
+      specs,
+    }
+    setVariantForm({ name: '', value: '', sku: '', price: '', inventory: '', image: '' })
+
+    if (editingProduct) {
+      setIsSaving(true)
+      try {
+        await persistVariants(editingProduct.id, [...productVariants, item])
+      } catch { alert('Failed to add variant') }
+      setIsSaving(false)
+    } else {
+      setProductVariants([...productVariants, item])
+    }
   }
 
   const handleDeleteVariant = async (variantId: string) => {
     if (!confirm('Delete this variant?')) return
+    if (!editingProduct) {
+      setProductVariants(productVariants.filter(v => v.id !== variantId))
+      return
+    }
     try {
-      await adminFetch(`/api/admin/products/${editingProduct!.id}/variants/${variantId}`, { method: 'DELETE' })
-      fetchVariants(editingProduct!.id)
+      await adminFetch(`/api/admin/products/${editingProduct.id}/variants/${variantId}`, { method: 'DELETE' })
+      fetchVariants(editingProduct.id)
     } catch { alert('Failed to delete variant') }
+  }
+
+  /** 内联编辑变体（展示值 / 价格 / 库存 / SKU） */
+  const startEditVariant = (v: Variant) => {
+    setEditingVariantId(v.id)
+    setVariantEdit({
+      value: v.value || '',
+      price: v.price != null ? String(v.price) : '',
+      inventory: v.inventory != null ? String(v.inventory) : '',
+      sku: v.sku || '',
+    })
+  }
+
+  const handleSaveVariantEdit = async () => {
+    if (!editingVariantId) return
+    const target = productVariants.find(v => v.id === editingVariantId)
+    if (!target) return
+    const next = productVariants.map(v => v.id === editingVariantId ? {
+      ...v,
+      value: variantEdit.value,
+      price: variantEdit.price === '' ? null : Number(variantEdit.price),
+      inventory: variantEdit.inventory === '' ? null : Number(variantEdit.inventory),
+      sku: variantEdit.sku || null,
+    } : v)
+    setEditingVariantId(null)
+    if (editingProduct) {
+      setIsSaving(true)
+      try { await persistVariants(editingProduct.id, next) } catch { alert('Failed to save variant') }
+      setIsSaving(false)
+    } else {
+      setProductVariants(next)
+    }
+  }
+
+  /** 从采集品一键复制变体（颜色/尺码） */
+  const handleCopyFromSupplier = async (supplierProductId: string) => {
+    if (!editingProduct) {
+      alert('请先保存产品，再复制变体')
+      return
+    }
+    setCopying(true)
+    try {
+      const res = await adminFetch(`/api/admin/products/${editingProduct.id}/variants/copy`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ supplierProductId, append: false }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setProductVariants(data.data || [])
+        setVariantDims(Array.isArray(data.dims) ? data.dims : [])
+        setShowCopyPanel(false)
+        alert(`✅ 已复制 ${data.copied} 个变体`)
+      } else {
+        alert(data.error || '复制失败')
+      }
+    } catch (e: any) {
+      alert('复制失败: ' + (e?.message || e))
+    }
+    setCopying(false)
+  }
+
+  /** 一键把变体规格中→英 */
+  const handleTranslateVariants = async () => {
+    if (!editingProduct) {
+      alert('请先保存产品，再翻译变体')
+      return
+    }
+    if (!confirm('把变体的颜色/尺码等规格翻译成英文？（会覆盖当前变体文字）')) return
+    setTranslating(true)
+    try {
+      const res = await adminFetch(`/api/admin/products/${editingProduct.id}/variants/translate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setProductVariants(data.data || [])
+        setVariantDims(Array.isArray(data.dims) ? data.dims : [])
+        alert('✅ 已翻译成英文')
+      } else {
+        alert(data.error || '翻译失败')
+      }
+    } catch (e: any) {
+      alert('翻译失败: ' + (e?.message || e))
+    }
+    setTranslating(false)
   }
 
   const parseImages = (imgStr: string): string[] => {
@@ -338,7 +497,8 @@ export default function AdminProductsPage() {
     setForm({...form, images: JSON.stringify(currentImages.slice(0, 5))})
   }
 
-  const COMMON_ATTRIBUTES = ['Color', 'Size', 'Material', 'Style', 'Weight', 'Dimensions']
+  const COMMON_ATTRIBUTES = ['Color', 'Size', 'Material', 'Style', 'Weight', 'Dimensions',
+    '颜色', '尺码', '尺寸', '规格', '款式', '材质', '型号']
 
   return (
     <div className="min-h-screen bg-joy-gray-50">
@@ -439,11 +599,9 @@ export default function AdminProductsPage() {
             <div className="sticky top-0 bg-white border-b border-joy-gray-100 px-6 py-4 flex items-center justify-between z-10">
               <h2 className="font-display text-xl font-bold text-joy-gray-900">{editingProduct ? 'Edit Product' : 'Add New Product'}</h2>
               <div className="flex items-center gap-2">
-                {editingProduct && (
-                  <Button variant="secondary" size="sm" onClick={() => setShowVariantPanel(!showVariantPanel)}>
-                    {showVariantPanel ? 'Hide Variants' : `Variants (${productVariants.length})`}
-                  </Button>
-                )}
+                <Button variant="secondary" size="sm" onClick={() => setShowVariantPanel(!showVariantPanel)}>
+                  {showVariantPanel ? 'Hide Variants' : `Variants (${productVariants.length})`}
+                </Button>
                 <button onClick={() => setShowProductModal(false)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
               </div>
             </div>
@@ -614,10 +772,67 @@ export default function AdminProductsPage() {
               </div>
 
               {/* Variants Panel */}
-              {showVariantPanel && editingProduct && (
-                <div className="w-80 border-l border-joy-gray-100 p-4 bg-joy-gray-50 overflow-auto">
-                  <h3 className="font-semibold text-joy-gray-900 mb-4">Product Variants</h3>
-                  
+              {showVariantPanel && (
+                <div className="w-96 border-l border-joy-gray-100 p-4 bg-joy-gray-50 overflow-auto">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold text-joy-gray-900">Product Variants</h3>
+                    <div className="flex gap-1.5">
+                      <Button variant="secondary" size="sm" onClick={() => {
+                        setShowCopyPanel(!showCopyPanel)
+                        if (!showCopyPanel && !supplierList.length) fetchSupplierList()
+                      }} title="从采集品复制颜色/尺码">
+                        📋 复制
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={handleTranslateVariants} isLoading={translating} title="颜色/尺码转英文">
+                        🌐 EN
+                      </Button>
+                    </div>
+                  </div>
+
+                  {!editingProduct && (
+                    <p className="text-xs text-amber-700 bg-amber-50 rounded-lg p-2 mb-3">
+                      新建产品：变体先存在本地，点「Save Product」后自动落库
+                    </p>
+                  )}
+
+                  {/* 从采集品复制 */}
+                  {showCopyPanel && (
+                    <div className="bg-white rounded-xl p-3 mb-3 border border-joy-orange/30">
+                      <p className="text-sm font-medium text-joy-gray-700 mb-2">从采集品复制颜色/尺码</p>
+                      {supplierLoading ? (
+                        <p className="text-xs text-joy-gray-400 py-2">加载中…</p>
+                      ) : supplierList.length === 0 ? (
+                        <p className="text-xs text-joy-gray-400 py-2">没有采集品，先去「1688 采集」页采集</p>
+                      ) : (
+                        <div className="max-h-52 overflow-auto space-y-1">
+                          {supplierList.map((s: any) => (
+                            <button
+                              key={s.id}
+                              onClick={() => handleCopyFromSupplier(s.id)}
+                              disabled={copying || !s.variantCount}
+                              className="w-full text-left px-2 py-1.5 rounded hover:bg-joy-orange/10 disabled:opacity-50"
+                            >
+                              <div className="text-xs font-medium text-joy-gray-800 truncate">{s.title}</div>
+                              <div className="text-[10px] text-joy-gray-400 truncate">
+                                {s.sourceId} · {s.variantCount ? `${s.variantCount} 变体` : '无变体'}
+                                {s.dimNames && s.dimNames.length ? ` · ${s.dimNames.join('/')}` : ''}
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* 维度汇总 */}
+                  {variantDims.length > 0 && (
+                    <div className="bg-joy-orange/10 rounded-lg px-3 py-2 mb-3">
+                      <p className="text-xs text-joy-gray-600">
+                        规格维度：{variantDims.map(d => `${d.name}（${(d.values || []).length}）`).join(' / ')}
+                      </p>
+                    </div>
+                  )}
+
                   {/* Add Variant Form */}
                   <div className="bg-white rounded-xl p-4 mb-4 space-y-3">
                     <p className="text-sm font-medium text-joy-gray-700">Add Variant</p>
@@ -625,7 +840,7 @@ export default function AdminProductsPage() {
                       <option value="">Select attribute</option>
                       {COMMON_ATTRIBUTES.map(a => <option key={a} value={a}>{a}</option>)}
                     </select>
-                    <Input placeholder="Value (e.g., Red, XL)" value={variantForm.value} onChange={(e) => setVariantForm({...variantForm, value: e.target.value})} />
+                    <Input placeholder="Value (e.g., 红色 / Red, XL)" value={variantForm.value} onChange={(e) => setVariantForm({...variantForm, value: e.target.value})} />
                     <div className="grid grid-cols-2 gap-2">
                       <Input placeholder="Variant SKU" value={variantForm.sku} onChange={(e) => setVariantForm({...variantForm, sku: e.target.value})} />
                       <Input placeholder="Variant Price" type="number" value={variantForm.price} onChange={(e) => setVariantForm({...variantForm, price: e.target.value})} />
@@ -640,12 +855,55 @@ export default function AdminProductsPage() {
                     {productVariants.length === 0 ? (
                       <p className="text-sm text-joy-gray-400 text-center py-4">No variants yet</p>
                     ) : productVariants.map(v => (
-                      <div key={v.id} className="bg-white rounded-lg p-3 flex items-center justify-between">
-                        <div>
-                          <p className="text-sm font-medium text-joy-gray-900">{v.value}</p>
-                          <p className="text-xs text-joy-gray-500">{v.name} {v.price ? `| $${v.price}` : ''} | Stock: {v.inventory ?? '—'}</p>
-                        </div>
-                        <button onClick={() => handleDeleteVariant(v.id)} className="p-1 hover:bg-red-50 rounded"><Icons.Trash2 size={14} className="text-red-500" /></button>
+                      <div key={v.id} className="bg-white rounded-lg p-3">
+                        {editingVariantId === v.id ? (
+                          /* 内联编辑 */
+                          <div className="space-y-2">
+                            <Input placeholder="展示值" value={variantEdit.value} onChange={(e) => setVariantEdit({...variantEdit, value: e.target.value})} />
+                            <div className="grid grid-cols-2 gap-2">
+                              <Input placeholder="价格" type="number" value={variantEdit.price} onChange={(e) => setVariantEdit({...variantEdit, price: e.target.value})} />
+                              <Input placeholder="库存" type="number" value={variantEdit.inventory} onChange={(e) => setVariantEdit({...variantEdit, inventory: e.target.value})} />
+                            </div>
+                            <Input placeholder="SKU" value={variantEdit.sku} onChange={(e) => setVariantEdit({...variantEdit, sku: e.target.value})} />
+                            <div className="flex gap-2">
+                              <Button size="sm" className="flex-1" onClick={handleSaveVariantEdit} isLoading={isSaving}>保存</Button>
+                              <Button size="sm" variant="secondary" className="flex-1" onClick={() => setEditingVariantId(null)}>取消</Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start justify-between gap-2">
+                            {v.image && (
+                              <img src={v.image} alt="" className="w-9 h-9 rounded object-cover border border-joy-gray-200 shrink-0" />
+                            )}
+                            <div className="min-w-0 flex-1">
+                              {/* 规格明细 —— 之前后台看不到的就是这个 */}
+                              {v.specs && v.specs.length > 0 ? (
+                                <div className="flex flex-wrap gap-1 mb-1">
+                                  {v.specs.map((sp, i) => (
+                                    <span key={i} className="text-[10px] px-1.5 py-0.5 rounded bg-joy-gray-100 text-joy-gray-700">
+                                      {sp.name}: <span className="font-medium">{sp.value}</span>
+                                    </span>
+                                  ))}
+                                </div>
+                              ) : (
+                                <p className="text-[10px] text-joy-gray-400 mb-1">规格：{v.name}</p>
+                              )}
+                              <p className="text-sm font-medium text-joy-gray-900 truncate">{v.value}</p>
+                              <p className="text-xs text-joy-gray-500">
+                                {v.price ? `$${v.price}` : '—'} · Stock: {v.inventory ?? '—'}
+                                {v.sku ? ` · ${v.sku}` : ''}
+                              </p>
+                            </div>
+                            <div className="flex flex-col gap-1 shrink-0">
+                              <button onClick={() => startEditVariant(v)} className="p-1 hover:bg-joy-gray-100 rounded" title="编辑">
+                                <Icons.Edit3 size={14} className="text-joy-gray-500" />
+                              </button>
+                              <button onClick={() => handleDeleteVariant(v.id)} className="p-1 hover:bg-red-50 rounded" title="删除">
+                                <Icons.Trash2 size={14} className="text-red-500" />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>

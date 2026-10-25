@@ -24,6 +24,8 @@ type Variant = {
   price?: number | string | null
   inventory?: number | string | null
   image?: string | null
+  /** 维度明细（颜色/尺码…）—— 必须保留，否则前台多维度选择器会退化成单行 */
+  specs?: Array<{ name?: string; value?: string }>
 }
 
 function parseVariants(raw: string | null | undefined): Variant[] {
@@ -46,6 +48,17 @@ function normalizeVariant(v: Variant, index: number): Variant {
   const rawInv = v.inventory
   const inv =
     rawInv === null || rawInv === undefined || rawInv === '' ? null : Number(rawInv)
+  // specs 一定要保留：前台靠它把「颜色 / 尺码」拆成多行选择器
+  const specs = Array.isArray(v.specs)
+    ? v.specs
+        .filter((s) => s && (s.name || s.value))
+        .map((s) => ({
+          name: String(s.name || '').trim().slice(0, 40),
+          value: String(s.value || '').trim().slice(0, 80),
+        }))
+        .filter((s) => s.name && s.value)
+        .slice(0, 8)
+    : []
   return {
     id: String(v.id || `v-${Date.now().toString(36)}-${index}-${Math.random().toString(36).slice(2, 8)}`),
     name,
@@ -54,6 +67,7 @@ function normalizeVariant(v: Variant, index: number): Variant {
     price: price !== null && Number.isFinite(price) && price > 0 ? price : null,
     inventory: inv !== null && Number.isFinite(inv) && inv >= 0 ? Math.floor(inv) : null,
     image: v.image ? String(v.image).slice(0, 500) : null,
+    specs,
   }
 }
 
