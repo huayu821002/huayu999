@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.35.0
+// @version      2.36.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.7.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.8.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -285,6 +285,12 @@
       }
     } catch (e) {}
     if (!payloads.length) payloads.push(...STORE.payloads)
+    // ★ 再解一次包：mtop 的 `data` 是**字符串形态**。
+    //   pushCapture 时已经解过一遍，但页面**预存**在 DOM 里的数据（控制台方案 /
+    //   旧版本留下的缓存）不会经过 pushCapture → 这里补一次，保证两条路一致。
+    for (const p of payloads) {
+      if (p && p.data) p.data = expandJsonStrings(p.data)
+    }
     return payloads
   }
 
@@ -1014,14 +1020,14 @@
   function specsOfSkuItem(it) {
     const out = []
     const firstStr = o => {
-      for (const k of ['name', 'propName', 'attrName', 'key', 'label', 'propertyName', 'specName']) {
+      for (const k of ['name', 'propName', 'attrName', 'propertyName', 'attributeName', 'key', 'label', 'specName']) {
         const v = o[k]
         if (typeof v === 'string' && v.trim()) return v.trim()
       }
       return ''
     }
     const firstVal = o => {
-      for (const k of ['value', 'propValue', 'attrValue', 'val', 'text', 'valueName', 'specValue', 'label']) {
+      for (const k of ['value', 'propValue', 'attrValue', 'attributeValue', 'val', 'text', 'valueName', 'specValue', 'label']) {
         const v = o[k]
         if (typeof v === 'string' && v.trim()) return v.trim()
         if (typeof v === 'number') return String(v)
@@ -2685,10 +2691,15 @@
     }
     variants.forEach((v) => {
       // 1) 接口/DOM 自带的图优先（最可信）
-      if (v.image && !isBadImage(v.image)) { usedImages.add(v.image); return }
+      if (v.image && !isBadImage(v.image)) {
+        usedImages.add(v.image)
+        // 标记来源（否则统计时会被当成 other，排查时分不清）
+        if (!v.imageSource) v.imageSource = 'api'
+        return
+      }
       // 2) B 方案：用户点击探测到的图（**只有点过的才有图**）
       const cap = matchCapturedImage(v, usedKeys, all)
-      if (cap && !isBadImage(cap.url)) {
+      if (cap && typeof cap.url === 'string' && cap.url && !isBadImage(cap.url)) {
         v.image = cap.url
         v.imageSource = 'probe'
         usedImages.add(cap.url)
@@ -4044,7 +4055,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.7.0',
+    __v: '4.8.0',
     install,
     capture,
     collectAll,
@@ -4057,14 +4068,17 @@
     assignVariantImages,
     filterVariantsByProbe,
     dropAttributeNamedVariants,
-    // 测试钩子：注入探测记录（value → {dim, img}）
+    // 测试钩子：注入探测记录（{ 黄色: { dim:'颜色', img:'https://…' } }）
+    // 注意：内部结构 map[value] = **图片 URL 字符串**（与真实探测一致）
     __setVariantCapture: (map) => {
-      VARIANT_CAPTURE.map = map || {}
+      VARIANT_CAPTURE.map = {}
       VARIANT_CAPTURE.dim = {}
       VARIANT_CAPTURE.cands = {}
       VARIANT_CAPTURE.hits = 0
-      for (const k of Object.keys(VARIANT_CAPTURE.map)) {
-        const item = VARIANT_CAPTURE.map[k]
+      for (const k of Object.keys(map || {})) {
+        const item = map[k]
+        const url = typeof item === 'string' ? item : (item && (item.img || item.url || item.image)) || ''
+        VARIANT_CAPTURE.map[k] = url
         VARIANT_CAPTURE.dim[k] = (item && item.dim) || ''
         VARIANT_CAPTURE.cands[k] = specValueCandidates(k)
         VARIANT_CAPTURE.hits++
@@ -4197,9 +4211,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.35.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.36.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.35.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.36.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -4590,9 +4604,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.7.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.8.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.7.0'
+  const MIN_CORE = '4.8.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -4645,7 +4659,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.35.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.36.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
