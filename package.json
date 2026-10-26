@@ -37,6 +37,7 @@
     "livecheck": "node public/1688-core.livecheck.js",
     "e2e:copy-translate": "node scripts/e2e-copy-translate.test.js",
     "collector:test:replay": "node public/1688-core.replay.test.js",
+    "sp:trim-gallery": "node scripts/trim-gallery5.js",
     "e2e:bulk-delete": "node scripts/e2e-bulk-delete.test.js"
   },
   "dependencies": {
