@@ -47,6 +47,36 @@ export function fallbackUploadDir(): string {
 /** 本地图片的访问前缀（与 app/api/uploads/[filename]/route.ts 对应） */
 export const LOCAL_IMAGE_PREFIX = '/api/uploads/'
 
+/**
+ * 站点基础地址（用于把本地图拼成**完整网站地址**）
+ * 用户需求（2026-10-26 第 3 条）：「图片地址用网站地址」
+ * → 存 https://fiestaflare.com/api/uploads/xxx.jpg 而不是 /api/uploads/xxx.jpg
+ * 好处：分享/外链/邮件/SEO 场景都能直接用，不用猜相对路径相对于谁。
+ */
+export function siteBaseUrl(): string {
+  const env = process.env.NEXT_PUBLIC_SITE_URL || process.env.NEXT_PUBLIC_APP_URL
+  const base = (env || 'https://fiestaflare.com').replace(/\/+$/, '')
+  return base
+}
+
+/** 本地图片的完整网站地址 */
+export function localImageUrl(filename: string): string {
+  return `${siteBaseUrl()}${LOCAL_IMAGE_PREFIX}${filename}`
+}
+
+/** 是不是本地图（相对或绝对都认） */
+export function isLocalImageUrl(url: string): boolean {
+  const u = String(url || '')
+  if (!u) return false
+  if (u.startsWith(LOCAL_IMAGE_PREFIX)) return true
+  try {
+    const parsed = new URL(u)
+    return parsed.pathname.startsWith(LOCAL_IMAGE_PREFIX)
+  } catch {
+    return false
+  }
+}
+
 /** 允许下载的域名（白名单，防 SSRF） */
 const ALLOWED_DOWNLOAD_HOSTS = new Set([
   'cbu01.alicdn.com', 'cbu02.alicdn.com', 'cbu03.alicdn.com', 'cbu04.alicdn.com',
@@ -63,7 +93,7 @@ const ALLOWED_DOWNLOAD_HOSTS = new Set([
 
 /** 是不是已经落地的本地图片 */
 export function isLocalImage(url: string): boolean {
-  return typeof url === 'string' && url.startsWith(LOCAL_IMAGE_PREFIX)
+  return isLocalImageUrl(url)
 }
 
 /** 从 URL 猜扩展名（只认常见图片类型） */
@@ -108,7 +138,7 @@ export async function downloadImageToLocal(
   if (existsSync(filepath)) {
     try {
       const st = await readFile(filepath)
-      if (st.length > 0) return LOCAL_IMAGE_PREFIX + filename
+      if (st.length > 0) return localImageUrl(filename)
     } catch { /* 落到下面重新下载 */ }
   }
 
@@ -138,7 +168,7 @@ export async function downloadImageToLocal(
       try {
         if (!existsSync(dir)) await mkdir(dir, { recursive: true })
         await writeFile(path.join(dir, filename), buf)
-        return LOCAL_IMAGE_PREFIX + filename
+        return localImageUrl(filename)
       } catch {
         // 试下一个目录
       }

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { requireAdminOrDev } from '@/lib/chatAuth'
 import { translateToEnglish } from '@/lib/cn2en'
-import { translateSpecs, translateDimName, translateDimValue } from '@/lib/variantI18n'
+import { translateVariantSpecs, translateVariantName, translateVariantValue } from '@/lib/variantTranslate'
 import { withProxiedVariantImages } from '@/lib/imgProxy'
 import { unproxyVariantImages } from '@/lib/imgProxy'
 
@@ -78,7 +78,7 @@ export async function POST(
     const out: Variant[] = []
     for (const v of variants) {
       const specs = Array.isArray(v.specs) ? v.specs : []
-      const newSpecs = await translateSpecs(
+      const newSpecs = await translateVariantSpecs(
         specs.map((s) => ({ name: String(s?.name || ''), value: String(s?.value || '') })),
         cachedTranslate
       )
@@ -88,7 +88,7 @@ export async function POST(
       if (newSpecs.length) {
         display = newSpecs.map((s) => s.value).filter(Boolean).join(' / ')
       } else {
-        display = await translateDimValue(String(v.value || ''), cachedTranslate)
+        display = await translateVariantValue(String(v.value || ''), cachedTranslate)
       }
 
       // 维度名：单维度时 name 就是维度名
@@ -97,7 +97,7 @@ export async function POST(
         const names = Array.from(new Set(newSpecs.map((s) => s.name).filter(Boolean)))
         name = names.join(' / ') || name
       } else {
-        name = translateDimName(name)
+        name = await translateVariantName(name, cachedTranslate)
       }
 
       out.push({ ...v, name, value: display, specs: newSpecs })
@@ -112,10 +112,10 @@ export async function POST(
 
     const newDims: any[] = []
     for (const d of dims) {
-      const name = translateDimName(String(d?.name || ''))
+      const name = await translateVariantName(String(d?.name || ''), cachedTranslate)
       const values: string[] = []
       for (const val of (Array.isArray(d?.values) ? d.values : [])) {
-        values.push(await translateDimValue(String(val), cachedTranslate))
+        values.push(await translateVariantValue(String(val), cachedTranslate))
       }
       newDims.push({ ...d, name, values })
     }

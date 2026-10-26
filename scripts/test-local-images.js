@@ -35,7 +35,7 @@ const src = transform(
 ).code
 const mod = { exports: {} }
 new Function('module', 'exports', 'require', src)(mod, mod.exports, req)
-const { downloadImageToLocal, downloadImagesToLocal, isLocalImage, PERSISTENT_UPLOAD_DIR, LOCAL_IMAGE_PREFIX } = mod.exports
+const { downloadImageToLocal, downloadImagesToLocal, isLocalImage, PERSISTENT_UPLOAD_DIR, LOCAL_IMAGE_PREFIX, localImageUrl, siteBaseUrl, isLocalImageUrl } = mod.exports
 
 let pass = 0, fail = 0
 const t = (n, ok, extra) => {
@@ -52,6 +52,13 @@ t('isLocalImage 认得 CDN 图不是本地', isLocalImage('https://cbu01.alicdn.
 const fetchBlock = src.slice(src.indexOf('await fetch('), src.indexOf('await fetch(') + 600)
 t('fetch 的 headers 里没有 Referer（防盗链）', !/Referer\s*:/.test(fetchBlock), fetchBlock.slice(0, 200))
 t('源码里 fetch 用了 User-Agent', /User-Agent/.test(src))
+
+console.log('\n[完整网站地址]')
+t('siteBaseUrl 默认 fiestaflare.com', siteBaseUrl() === 'https://fiestaflare.com', siteBaseUrl())
+t('localImageUrl 返回绝对地址', localImageUrl('abc.jpg') === 'https://fiestaflare.com/api/uploads/abc.jpg', localImageUrl('abc.jpg'))
+t('绝对的本地图也认得', isLocalImageUrl('https://fiestaflare.com/api/uploads/abc.jpg') === true)
+t('相对的本地图也认得', isLocalImageUrl('/api/uploads/abc.jpg') === true)
+t('CDN 图不认作本地', isLocalImageUrl('https://cbu01.alicdn.com/a.jpg') === false)
 
 console.log('\n[白名单 / SSRF]')
 ;(async () => {

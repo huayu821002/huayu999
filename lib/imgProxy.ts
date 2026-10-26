@@ -81,6 +81,24 @@ export const ALLOWED_IMAGE_HOSTS = new Set([
 const LOCAL_PREFIXES = ['/uploads', '/images', '/img', '/api/uploads', '/api/images', 'data:', 'blob:', 'http://localhost', 'http://127.0.0.1']
 
 /**
+ * 站点自身域名下的本地图（绝对地址）也不走代理。
+ * 本地图存的是完整网站地址（https://fiestaflare.com/api/uploads/xxx.jpg），
+ * 不能因为以后有人把主域名加进 ALLOWED_IMAGE_HOSTS 就被套上代理。
+ */
+function isOwnSiteLocalImage(u: string): boolean {
+  if (!u.startsWith('http://') && !u.startsWith('https://')) return false
+  try {
+    const parsed = new URL(u)
+    const host = parsed.hostname.toLowerCase()
+    const isOwn = host === 'fiestaflare.com' || host === 'www.fiestaflare.com' || host === 'localhost' || host === '127.0.0.1'
+    if (!isOwn) return false
+    return parsed.pathname.startsWith('/api/uploads/') || parsed.pathname.startsWith('/uploads/') || parsed.pathname.startsWith('/images/')
+  } catch {
+    return false
+  }
+}
+
+/**
  * 把 1688/阿里 CDN 的图片 URL 转成代理 URL；其它 URL 原样返回。
  * 已经是代理 URL 的不重复套娃。
  */
@@ -89,6 +107,7 @@ export function proxyImage(url: string | null | undefined): string {
   if (!u) return ''
   if (u.startsWith('/api/img')) return u
   if (LOCAL_PREFIXES.some(p => u.startsWith(p))) return u
+  if (isOwnSiteLocalImage(u)) return u
   let parsed: URL
   try {
     parsed = new URL(u)

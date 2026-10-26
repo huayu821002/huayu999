@@ -239,7 +239,19 @@ export default function SupplierProductsPage() {
         if (d.data.titleEn) setVal('edit-p-name', d.data.titleEn)
         if (d.data.shortDescEn) setVal('edit-p-shortdesc', d.data.shortDescEn)
         if (d.data.descriptionEn) setVal('edit-p-description', d.data.descriptionEn)
-        setMsg('翻译完成，已填入英文与 SEO 字段')
+        // ★ 变体规格也翻译了 → 刷新弹窗里的变体显示（否则还看到中文）
+        if (d.data.variants?.length || d.data.variantDims?.length) {
+          setSelected(prev => prev && prev.id === item.id
+            ? {
+                ...prev,
+                variants: d.data.variants?.length ? JSON.stringify(d.data.variants) : prev.variants,
+                variantDims: d.data.variantDims?.length ? JSON.stringify(d.data.variantDims) : prev.variantDims,
+              }
+            : prev)
+          setMsg('翻译完成：英文标题 + SEO + 变体规格')
+        } else {
+          setMsg('翻译完成，已填入英文与 SEO 字段')
+        }
       } else {
         setMsg(d.error || '翻译失败')
       }
