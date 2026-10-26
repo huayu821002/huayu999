@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { ensureSupplierProductTable, parseImagesField, parseJsonField } from '@/lib/supplier'
 import { toProductVariants } from '@/lib/variants'
+import { normalizeAlibabaImageList } from '@/lib/imageNormalize'
 
 /**
  * POST /api/admin/supplier-products/[id]/publish
@@ -21,8 +22,9 @@ export async function POST(
     }
 
     // 图集上限 5 张（主图 1 + 图集共 5），主图置首
-    const parsedImages = parseImagesField(item.images)
-    const images = parsedImages.slice(0, 5)
+    // ★ 归一化成原图（剥掉 _sum 等缩略后缀，80x80 → 800x800）
+    const parsedImages = normalizeAlibabaImageList(parseImagesField(item.images))
+    const images = Array.from(new Set(parsedImages)).slice(0, 5)
     // 英文标题优先（采集时已自动翻译），其次原标题
     const name = (body.name || item.titleEn || item.title || '').trim()
     if (!name) {

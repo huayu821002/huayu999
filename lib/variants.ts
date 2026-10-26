@@ -14,6 +14,8 @@
  * - 价格 CNY → USD 走统一的加价/汇率
  */
 
+import { normalizeAlibabaImage } from '@/lib/imageNormalize'
+
 export type SupplierVariant = {
   skuId?: string
   specs?: Array<{ name?: string; value?: string }>
@@ -97,7 +99,8 @@ export function toProductVariants(
         sku: v.skuId ? String(v.skuId).slice(0, 80) : null,
         price: cnyToUsd(cny, markup, rate),
         inventory: null,
-        image: v.image ? String(v.image).slice(0, 500) : null,
+        // ★ 变体图归一化成原图（剥掉 _sum 等缩略后缀，80x80 → 800x800）
+      image: v.image ? normalizeAlibabaImage(v.image).slice(0, 500) : null,
         specs,
       }
     })

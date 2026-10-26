@@ -13,7 +13,29 @@ const js = ts.transpileModule(src, {
 }).outputText
 
 const mod = { exports: {} }
-new Function('module', 'exports', 'require', js)(mod, mod.exports, require)
+// 支持 '@/xxx' 路径别名（Next.js 的 tsconfig paths）
+// 注意：被引用的模块可能是 .ts → 用 sucrase 即时转译
+const { transform } = require('/home/admin/Fiestaflare/node_modules/sucrase')
+const req = id => {
+  let file = null
+  if (id.startsWith('@/')) {
+    file = path.join(__dirname, '..', id.slice(2))
+  } else {
+    return require(id)
+  }
+  if (!fs.existsSync(file)) {
+    if (fs.existsSync(file + '.ts')) file = file + '.ts'
+    else if (fs.existsSync(file + '/index.ts')) file = file + '/index.ts'
+  }
+  if (file.endsWith('.ts')) {
+    const code = transform(fs.readFileSync(file, 'utf8'), { transforms: ['typescript', 'imports'] }).code
+    const m2 = { exports: {} }
+    new Function('module', 'exports', 'require', code)(m2, m2.exports, req)
+    return m2.exports
+  }
+  return require(file)
+}
+new Function('module', 'exports', 'require', js)(mod, mod.exports, req)
 const { toProductVariants, buildVariantRows, matchVariant, inferVariantDims } = mod.exports
 
 let pass = 0, fail = 0

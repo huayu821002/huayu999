@@ -1698,6 +1698,17 @@
     return m ? m[1] : ''
   }
 
+  /**
+   * 归一化图片 URL —— 目标是**尽量拿到原图**。
+   *
+   * 真实实测（2026-10-26，线上商品 O1CN013HiT1U2Gvmd6BcB0m_!!2222432059078-0-cib）：
+   *   xxx.jpg_sum.jpg   →  80x80   1896 B   ← _sum 就是缩略图！
+   *   xxx.jpg           → 800x800 87715 B   ← 去掉 _sum 即原图
+   *   xxx.jpg_1200x1200.jpg → 仍钳回 800x800（源图只有 800）
+   *   xxx.jpg_1600x1600.jpg → 404
+   *
+   * 所以规则是：**把所有「缩略/裁剪」后缀剥掉**，而不是加尺寸参数。
+   */
   function normImage(u) {
     if (typeof u !== 'string') return null
     let url = u.trim()
@@ -1707,10 +1718,40 @@
     if (!/^https?:\/\//i.test(url)) return null
     if (!/alicdn|1688|taobao|cbu/i.test(url)) return null
     url = url.split('?')[0]
-    // .jpg_.webp → .jpg（原图）
+
+    // ① .jpg_.webp → .jpg（原图）
     url = url.replace(/\.(jpg|jpeg|png|webp)_\.(webp|jpg|jpeg|png)$/i, '.$1')
-    // 去掉小图后缀
-    url = url.replace(/_\d+x\d+(xz)?\.(jpg|jpeg|png|webp)$/i, '.$1')
+
+    // ② 反复剥掉「尺寸后缀」：_100x100xz.jpg / _430x430.jpg / _1200x1200.jpg
+    //    （可能叠多层：xxx.jpg_100x100xz.jpg_50x50.jpg）
+    //    每轮都把 ②③ 两类后缀一起剥，反复直到不动点
+    let prev
+    do {
+      prev = url
+      // ②a 尺寸后缀（带扩展名）
+      url = url.replace(/_\d+x\d+(xz)?\.(jpg|jpeg|png|webp)$/i, '')
+      // ②b 尺寸后缀（跟扩展名分离：xxx_100x100.jpg）
+      url = url.replace(/_\d+x\d+(xz)?_(webp|jpg|jpeg|png)$/i, '')
+
+      // ③ ★ 1688 缩略图后缀 `_sum`
+      //    实测：'xxx.jpg_sum.jpg' 是 80x80，'xxx.jpg' 是 800x800（差 100 倍）
+      //    `_sum` 在**扩展名之前**，整段删掉：
+      //      xxx.jpg_sum.jpg → xxx.jpg      （不能变成 xxx.jpg.jpg）
+      //      xxx.jpg_sum      → xxx.jpg
+      url = url.replace(/_sum\.(jpg|jpeg|png|webp)$/i, '')
+      url = url.replace(/_sum$/i, '')
+      //  其它常见阿里缩略后缀（同样在扩展名之前）—— 整段删
+      url = url.replace(/_(?:thumb|mini|small|reduced)\.(jpg|jpeg|png|webp)$/i, '')
+      url = url.replace(/_(?:thumb|mini|small|reduced)$/i, '')
+    } while (url !== prev)
+
+    // ④ 保证还带扩展名（剥尺寸后缀时可能把 .jpg 一起剥了）
+    if (!/\.(jpg|jpeg|png|webp|gif)$/i.test(url)) {
+      // 形如 xxx.jpg_800x800 → 剥完是 xxx.jpg（上面已处理）
+      // 形如 xxx_800x800      → 补回 .jpg
+      if (/\.(jpg|jpeg|png|webp)$/i.test(url)) url += ''
+      else if (/[a-z0-9]$/i.test(url)) url += '.jpg'
+    }
     return url
   }
 
@@ -3629,6 +3670,8 @@
     parseDetail,
     parseSearch,
     push,
+    // 暴露给测试/控制台：把 1688 小图 URL 归一成原图 URL
+    normImage,
     api: API,
   }
 })();

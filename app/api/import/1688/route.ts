@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { normalizeAlibabaImage, normalizeAlibabaImageList } from '@/lib/imageNormalize'
 import { upsertSupplierProduct, ensureSupplierProductTable, scrubStoredRawPII } from '@/lib/supplier'
 import { isAdminRequest, describeAuth } from '@/lib/chatAuth'
 import { scrubPIIItem } from '@/lib/pii'
@@ -100,12 +101,17 @@ export async function POST(request: NextRequest) {
           description: safeItem?.description,
           images: (() => {
             // 图集上限 5 张（主图 1 张 + 图集共 5 张），主图必须在首位
-            const imgs = Array.isArray(safeItem?.images) ? safeItem.images.filter(Boolean) : []
-            const main = safeItem?.mainImage
+            // ★ 先归一化成原图（剥掉 _sum 等缩略后缀，80x80 → 800x800）
+            const imgs = normalizeAlibabaImageList(
+              Array.isArray(safeItem?.images) ? safeItem.images.filter(Boolean) : []
+            )
+            const main = normalizeAlibabaImage(safeItem?.mainImage)
             let out: string[]
             if (main && imgs.includes(main)) out = [main, ...imgs.filter((u: string) => u !== main)]
             else if (main) out = [main, ...imgs]
             else out = [...imgs]
+            // 去重（归一化后可能有重复）
+            out = Array.from(new Set(out))
             return out.slice(0, 5)
           })(),
           videoUrl: safeItem?.videoUrl,
@@ -175,7 +181,8 @@ function sanitizeVariants(input: any): any[] | undefined {
       specText: v.specText ? String(v.specText).slice(0, 120) : specs.map((s: any) => s.value).join(' / '),
       price,
       priceText: v.priceText ? String(v.priceText).slice(0, 40) : '',
-      image: v.image ? String(v.image).slice(0, 500) : '',
+      // ★ 变体图也要原图（_sum → 80x80 小图）
+      image: v.image ? normalizeAlibabaImage(v.image).slice(0, 500) : '',
       // 配图来源：probe=用户点击探测 / align=序号对齐 / none=没配上
       imageSource: v.imageSource === 'probe' || v.imageSource === 'align' || v.imageSource === 'none'
         ? v.imageSource
