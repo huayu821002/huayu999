@@ -1,3 +1,5 @@
+import { normalizeAlibabaImage } from '@/lib/imageNormalize'
+
 /**
  * 1688 / 阿里 CDN 图片代理
  *
@@ -196,9 +198,26 @@ export function unproxyVariantImages<T extends Record<string, any>>(variants: T[
 export function withProxiedImages<T extends Record<string, any>>(obj: T): T {
   if (!obj || typeof obj !== 'object') return obj
   const out: any = { ...obj }
-  if ('images' in out) out.images = proxyImagesField(out.images)
-  if ('modelImage' in out) out.modelImage = proxyImage(out.modelImage)
-  if ('sizeChart' in out) out.sizeChart = proxyImage(out.sizeChart)
+  // ★ 先归一化成原图（剥掉 _sum 等缩略后缀，80x80 → 800x800），再走代理
+  //   注意：**保持输入形态**（JSON 字符串进 → JSON 字符串出），不改变 API 契约
+  if ('images' in out) {
+    const raw = out.images
+    if (Array.isArray(raw)) {
+      out.images = proxyImageList(raw.map(x => normalizeAlibabaImage(String(x || ''))))
+    } else if (typeof raw === 'string' && raw.trim().startsWith('[')) {
+      try {
+        const arr = JSON.parse(raw)
+        if (Array.isArray(arr)) {
+          out.images = JSON.stringify(proxyImageList(arr.map(x => normalizeAlibabaImage(String(x || '')))))
+        }
+      } catch { /* 不是合法 JSON，交给 proxyImagesField 原样处理 */ }
+      if (out.images === raw) out.images = proxyImagesField(raw)
+    } else {
+      out.images = proxyImage(normalizeAlibabaImage(String(raw || '')))
+    }
+  }
+  if ('modelImage' in out) out.modelImage = proxyImage(normalizeAlibabaImage(out.modelImage))
+  if ('sizeChart' in out) out.sizeChart = proxyImage(normalizeAlibabaImage(out.sizeChart))
   return out as T
 }
 
@@ -211,8 +230,12 @@ export function withProxiedVariantImages<T extends Record<string, any>>(variants
   return variants.map(v => {
     if (!v || typeof v !== 'object') return v
     const out: any = { ...v }
-    if ('image' in out) out.image = out.image ? proxyImage(out.image) : out.image
-    if (Array.isArray(out.images)) out.images = proxyImageList(out.images)
+    // ★ 变体图：先归一化成**原图**（剥掉 _sum 等缩略后缀，80x80 → 800x800），再走代理
+    //   这里是所有变体图对外输出的唯一出口 → 在这里兜底，历史数据不用重刷也生效
+    if ('image' in out) {
+      out.image = out.image ? proxyImage(normalizeAlibabaImage(out.image)) : out.image
+    }
+    if (Array.isArray(out.images)) out.images = proxyImageList(out.images.map((x: any) => normalizeAlibabaImage(String(x || ''))))
     return out as T
   })
 }
