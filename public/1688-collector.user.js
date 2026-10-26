@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.30.0
+// @version      2.31.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -3700,38 +3700,53 @@
     panel.id = 'ff1688-panel'
     panel.innerHTML = `
       <style>
-        #ff1688-panel{position:fixed!important;right:8px!important;bottom:8px!important;z-index:2147483647!important;font:13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#222;border:1px solid #ddd;border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.2);width:340px;overflow:hidden}
-        #ff1688-panel .hd{background:#ff6b35;color:#fff;padding:9px 12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;cursor:pointer}
-        #ff1688-panel .bd{padding:12px}
+        #ff1688-panel{position:fixed!important;right:8px!important;bottom:8px!important;z-index:2147483647!important;font:13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#222;border:1px solid #ddd;border-radius:12px;box-shadow:0 10px 34px rgba(0,0,0,.2);width:340px;overflow:hidden;max-height:calc(100vh - 16px);display:flex;flex-direction:column}
+        #ff1688-panel .hd{background:#ff6b35;color:#fff;padding:9px 12px;font-weight:700;display:flex;justify-content:space-between;align-items:center;cursor:pointer;flex:0 0 auto}
+        #ff1688-panel .bd{padding:12px;overflow-y:auto;flex:1 1 auto;min-height:0}
+        #ff1688-panel .btns{position:sticky;top:-12px;background:#fff;padding-top:12px;padding-bottom:4px;margin-top:-12px;z-index:3;box-shadow:0 6px 8px -6px rgba(0,0,0,.15)}
+        #ff1688-panel .mini{font-size:12px;color:#c2410c;background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:6px 8px;margin-top:6px;max-height:44px;overflow:hidden;word-break:break-all}
+        #ff1688-panel details.out{margin-top:8px;border:1px solid #e5e7eb;border-radius:8px;background:#fafafa}
+        #ff1688-panel details.out>summary{cursor:pointer;padding:7px 10px;font-size:12px;color:#374151;font-weight:600;list-style:none;user-select:none}
+        #ff1688-panel details.out>summary::-webkit-details-marker{display:none}
+        #ff1688-panel details.out>summary:before{content:"▸ ";}
+        #ff1688-panel details.out[open]>summary:before{content:"▾ ";}
+        #ff1688-panel details.out>summary:hover{background:#f3f4f6}
         #ff1688-panel.collapsed .bd{display:none}
         #ff1688-panel input{width:100%;box-sizing:border-box;padding:7px 9px;border:1px solid #ccc;border-radius:8px;margin:4px 0 8px}
         #ff1688-panel button{background:#ff6b35;color:#fff;border:0;border-radius:8px;padding:8px 11px;cursor:pointer;margin-right:6px;margin-bottom:6px}
         #ff1688-panel button.ghost{background:#f1f1f1;color:#333}
         #ff1688-panel button:disabled{opacity:.5;cursor:not-allowed}
-        #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
+        #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:220px;overflow:auto;margin-top:0;background:#fafafa;border-radius:8px;padding:8px}
+        #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.30.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.31.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.30.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.31.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
         <input id="ff-token" type="password" placeholder="后台 → 采集品库 → 复制采集 Token" />
-        <button id="ff-save" class="ghost">保存设置</button>
-        <div style="margin-top:8px">
-          <button id="ff-preview">预览解析</button>
-        <button id="ff-diag" class="ghost">复制诊断</button>
-          <button id="ff-struct" class="ghost">复制结构</button>
-          <button id="ff-vstruct" class="ghost">复制变体结构</button>
-          <button id="ff-spec" class="ghost">复制规格表</button>
-          <button id="ff-vcap" class="ghost">探测变体图</button>
-          <button id="ff-vdiag" class="ghost">复制探测诊断</button>
-          <button id="ff-push">采集并推送</button>
-          <button id="ff-list" class="ghost">采集本页列表</button>
+        <div class="btns">
+          <div>
+            <button id="ff-save" class="ghost">保存设置</button>
+            <button id="ff-preview">预览解析</button>
+            <button id="ff-diag" class="ghost">复制诊断</button>
+            <button id="ff-struct" class="ghost">复制结构</button>
+            <button id="ff-vstruct" class="ghost">复制变体结构</button>
+            <button id="ff-spec" class="ghost">复制规格表</button>
+            <button id="ff-vcap" class="ghost">探测变体图</button>
+            <button id="ff-vdiag" class="ghost">复制探测诊断</button>
+            <button id="ff-push">采集并推送</button>
+            <button id="ff-list" class="ghost">采集本页列表</button>
+          </div>
+          <div class="mini" id="ff-mini">就绪</div>
         </div>
-        <div class="kv" id="ff-kv" style="display:none"></div>
-        <div class="st" id="ff-st">就绪。建议先点「预览解析」确认字段再推送。<br><b>抓变体小技巧</b>：先在页面上点一下颜色/尺码（会触发 SKU 列表接口），再点「复制变体结构」，变体才抓得全。</div>
+        <details class="out" id="ff-out">
+          <summary>采集内容预览 / 诊断输出</summary>
+          <div class="kv" id="ff-kv" style="display:none"></div>
+          <div class="st" id="ff-st">就绪。建议先点「预览解析」确认字段再推送。<br><b>抓变体小技巧</b>：先在页面上点一下颜色/尺码（会触发 SKU 列表接口），再点「复制变体结构」，变体才抓得全。</div>
+        </details>
       </div>`
     const root = document.documentElement || document.body
     if (!root) return
@@ -3739,7 +3754,15 @@
 
     const st = $('#ff-st', panel)
     const kv = $('#ff-kv', panel)
-    const say = m => { st.textContent = m }
+    const mini = $('#ff-mini', panel)
+    const out = $('#ff-out', panel)
+    const say = m => {
+      st.textContent = m
+      const s = String(m)
+      if (mini) mini.textContent = s.length > 60 ? s.slice(0, 60) + '…' : s
+      // 内容长了就自动展开下拉（面板高度已封顶，展开不影响按钮可见）
+      if (out && s.length > 120) out.open = true
+    }
     const isDetail = /\/offer\/\d+/.test(location.href)
     const isList = /selloffer|search/.test(location.href)
     if (!isDetail) $('#ff-push', panel).style.display = 'none'
@@ -3801,6 +3824,7 @@
         lines.push('--- 属性(' + ak.length + ') --- ' + ak.slice(0, 8).join('/'))
       }
       kv.style.display = 'block'
+      if (out) out.open = true
       kv.textContent = lines.join('\n')
       console.log('[Fiestaflare] 解析结果：', payload)
       console.log('[Fiestaflare] 调试信息：', debug)
@@ -3819,6 +3843,7 @@
         if (r.status === 200) {
           say('✅ 已推送 ' + ((r.json && r.json.imported) || '') + ' 条，后台「采集品库」查看')
           kv.style.display = 'block'
+          if (out) out.open = true
           kv.textContent = '推送成功：' + (r.text || '').slice(0, 300)
         } else {
           const detail = [
@@ -3830,6 +3855,7 @@
             detail.push('尝试记录: ' + r.attempts.map(a => a.url + ' → ' + a.status).join('；'))
           }
           kv.style.display = 'block'
+          if (out) out.open = true
           kv.textContent = detail.join('\n')
           say('❌ 推送失败 ' + r.status + '（详情见下方）')
           console.log('[Fiestaflare] 推送失败详情：', r)
@@ -3856,7 +3882,9 @@
           say(`✅ 探测诊断已复制（内核 ${window.FF1688.__v}）：${cands.length} 个候选 / ${(d.bigImages || []).length} 张图 / 已录 ${(d.capture && d.capture.hits) || 0} 张。把这段发给开发者`)
         } catch (e) {
           kv.style.display = 'block'
+          if (out) out.open = true
           kv.textContent = txt.slice(0, 20000)
+          if (out) out.open = true
           say('诊断数据如下')
         }
       } catch (e) {
@@ -3881,6 +3909,7 @@
           const keys = Object.keys(r.map || {})
           say('✅ 探测已停止（内核 ' + cv + '）：录到 ' + (r.hits || 0) + ' 张（' + keys.slice(0, 8).join('、') + '）。现在点「预览解析」或「采集并推送」' + ((r.hits || 0) === 0 ? ' —— 如果是 0 张，请点「复制探测诊断」把数据发给开发者' : ''))
           kv.style.display = 'block'
+          if (out) out.open = true
           kv.textContent = JSON.stringify({ map: r.map, dim: r.dim, log: r.log }, null, 1)
         } else {
           window.FF1688.startVariantCapture()
@@ -3902,6 +3931,7 @@
           say('✅ 规格表已复制（表头 + 前几行）')
         } catch (e) {
           kv.style.display = 'block'
+          if (out) out.open = true
           kv.textContent = txt.slice(0, 20000)
           say('规格表如下（复制上面的文本）')
         }
@@ -3921,6 +3951,7 @@
           say('✅ 结构数据已复制，粘贴给开发者即可定位描述/图片字段')
         } catch (e) {
           kv.style.display = 'block'
+          if (out) out.open = true
           kv.textContent = txt.slice(0, 20000)
           say('结构数据如下（复制上面的文本）')
         }
@@ -3953,6 +3984,7 @@
           say('✅ 变体结构已复制，粘贴给开发者即可校准变体提取规则')
         } catch (e) {
           kv.style.display = 'block'
+          if (out) out.open = true
           kv.textContent = txt.slice(0, 20000)
           say('变体结构如下（复制上面的文本）')
         }
@@ -4006,6 +4038,7 @@
           say('✅ 诊断数据已复制，粘贴给开发者即可定位价格问题')
         } catch (e) {
           kv.style.display = 'block'
+          if (out) out.open = true
           kv.textContent = txt.slice(0, 20000)
           say('诊断数据如下（复制上面的文本）')
         }
@@ -4026,6 +4059,7 @@
           say(`✅ 已推送 ${(r.json && r.json.imported) || ''} 条`)
         } else {
           kv.style.display = 'block'
+          if (out) out.open = true
           kv.textContent = ['状态码: ' + r.status, '地址: ' + (r.url || '-'), '返回: ' + (r.text || '(空)').slice(0, 400)].join('\n')
           say('❌ 推送失败 ' + r.status + '（详情见下方）')
           console.log('[Fiestaflare] 推送失败详情：', r)
@@ -4098,7 +4132,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.30.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.31.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
