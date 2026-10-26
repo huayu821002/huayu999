@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.28.0
+// @version      2.29.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -115,6 +115,7 @@
           <button id="ff-vstruct" class="ghost">复制变体结构</button>
           <button id="ff-spec" class="ghost">复制规格表</button>
           <button id="ff-vcap" class="ghost">探测变体图</button>
+          <button id="ff-vdiag" class="ghost">复制探测诊断</button>
           <button id="ff-push">采集并推送</button>
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
@@ -227,6 +228,30 @@
       }
     }
 
+    // 复制探测诊断：探测不到图时，把页面上真实的「选项块」和「大图」结构
+    // 导出给开发者 —— 不靠猜 DOM，选择器用真实报文校准。
+    $('#ff-vdiag', panel).onclick = async () => {
+      try {
+        ensureCore()
+        if (!window.FF1688.dumpVariantDom) {
+          say('❌ 内核太旧，没有诊断功能，请更新采集器')
+          return
+        }
+        const d = window.FF1688.dumpVariantDom()
+        const txt = JSON.stringify(d, null, 1)
+        try {
+          await navigator.clipboard.writeText(txt)
+          say(`✅ 探测诊断已复制：${d.options.length} 个候选选项块 / ${d.bigImages.length} 张大图 / 已录 ${(d.capture && d.capture.hits) || 0} 张`)
+        } catch (e) {
+          kv.style.display = 'block'
+          kv.textContent = txt.slice(0, 20000)
+          say('诊断数据如下')
+        }
+      } catch (e) {
+        say('异常: ' + e.message)
+      }
+    }
+
     // 变体图探测（方案 B）：开启后用户依次点页面上的颜色/款式，
     // 采集器盯着主图变化，记录「选项名 → 图片 URL」。
     // 配合内核的 A 方案（序号对齐），能拿到每个变体对应的图。
@@ -243,7 +268,7 @@
           const keys = Object.keys(r.map || {})
           say('✅ 探测已停止：录到 ' + (r.hits || 0) + ' 张（' + keys.slice(0, 8).join('、') + '）。现在点「预览解析」或「采集并推送」')
           kv.style.display = 'block'
-          kv.textContent = JSON.stringify(r.map || {}, null, 1)
+          kv.textContent = JSON.stringify({ map: r.map, dim: r.dim, log: r.log }, null, 1)
         } else {
           window.FF1688.startVariantCapture()
           say('🔍 探测已开启：请依次点页面上的每个颜色/款式（每个点一下停一下），再点本按钮结束')

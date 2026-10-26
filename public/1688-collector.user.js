@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.28.0
+// @version      2.29.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.2.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.3.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -1928,21 +1928,91 @@
     return ''
   }
 
-  /** 页面上的「当前大图」（点了颜色后会变的那张） */
-  function captureBigImage() {
-    const sels = [
-      '[class*="main-image"] img', '[class*="image-view"] img', '[class*="detail-gallery"] img',
-      '.od-pic img', '[class*="offer-pic"] img', '[class*="preview"] img',
-    ]
-    for (const s of sels) {
-      const el = document.querySelector(s)
-      if (!el) continue
-      const u = el.getAttribute('src') || el.getAttribute('data-src') ||
-        el.getAttribute('data-lazy-src') || el.getAttribute('data-ks-lazyload') || ''
+  /** 页面上所有「像商品图」的 img（不看容器类名） */
+  function captureAllImages() {
+    const out = []
+    const imgs = document.querySelectorAll('img')
+    for (let i = 0; i < imgs.length; i++) {
+      const img = imgs[i]
+      const u = img.getAttribute('src') || img.getAttribute('data-src') ||
+        img.getAttribute('data-lazy-src') || img.getAttribute('data-ks-lazyload') ||
+        img.getAttribute('data-image') || ''
+      if (!u) continue
       const n = normImage(u)
-      if (n && !isBadImage(n)) return n
+      if (!n || isBadImage(n)) continue
+      const w = img.naturalWidth || img.width || 0
+      const h = img.naturalHeight || img.height || 0
+      out.push({ url: n, w, h, area: w * h, cls: String(img.className || '') })
     }
-    return ''
+    return out
+  }
+
+  /** 页面上的「当前大图」：不再猜容器类名 —— 取可见 img 里面积最大的那张 */
+  function captureBigImage() {
+    const all = captureAllImages()
+    if (!all.length) return ''
+    // 优先：可见 + 面积最大
+    let best = ''
+    let bestArea = -1
+    for (const it of all) {
+      if (it.area > bestArea) { bestArea = it.area; best = it.url }
+    }
+    return best
+  }
+
+  /**
+   * 找到被点击的「选项块」。
+   * 不依赖固定选择器：先试 SKU_OPTION_SEL；
+   * 不中则向上找「文字短、且同级还有类似兄弟」的元素（典型选项列表结构）。
+   */
+  function findOptionEl(target) {
+    if (!target || !target.closest) return null
+    const direct = target.closest(SKU_OPTION_SEL)
+    if (direct) return direct
+    const HINT_RE = /sku|prop|attr|value|spec|item|option|choice|color|style|swatch|size/i
+    let el = target
+    for (let up = 0; up < 5 && el && el.tagName !== 'BODY'; up++) {
+      const txt = clean(el.innerText || el.textContent || '')
+      if (txt && txt.length <= 30) {
+        const cls = String(el.className || '')
+        const hasImg = !!(el.querySelector && el.querySelector('img'))
+        // ① 自身带图 + 文字短 → 极可能就是色卡/款式块
+        if (hasImg) return el
+        // ② 类名像选项
+        if (HINT_RE.test(cls)) return el
+        // ③ 同级还有文字短的兄弟 → 选项列表
+        const p = el.parentElement
+        if (p) {
+          const likeSibs = Array.from(p.children || []).filter(c => {
+            if (c === el) return false
+            const t = clean(c.innerText || c.textContent || '')
+            return t && t.length <= 30
+          })
+          if (likeSibs.length >= 1) return el
+        }
+      }
+      el = el.parentElement
+    }
+    return null
+  }
+
+  /** 选项块自带的缩略图（1688 颜色块常常就带一张小图） */
+  function captureOptionOwnImage(el) {
+    if (!el || !el.querySelector) return ''
+    const imgs = el.querySelectorAll('img')
+    let best = ''
+    let bestArea = -1
+    for (const img of imgs) {
+      const u = img.getAttribute('src') || img.getAttribute('data-src') ||
+        img.getAttribute('data-lazy-src') || img.getAttribute('data-ks-lazyload') || ''
+      const n = normImage(u)
+      if (!n || isBadImage(n)) continue
+      const w = img.naturalWidth || img.width || 0
+      const h = img.naturalHeight || img.height || 0
+      const area = w * h
+      if (area > bestArea) { bestArea = area; best = n }
+    }
+    return best
   }
 
   /** 开始 B 方案：监听点击，记录「选项文字 → 图片」 */
@@ -1952,49 +2022,86 @@
     VARIANT_CAPTURE.map = {}
     VARIANT_CAPTURE.dim = {}
     VARIANT_CAPTURE.hits = 0
+    VARIANT_CAPTURE.log = []
 
-    let pending = null   // { value, dim }
+    let pending = null   // { value, dim, before:Set }
     let pendingTimer = null
 
     const onClick = ev => {
-      const el = ev.target && ev.target.closest ? ev.target.closest(SKU_OPTION_SEL) : null
+      const el = findOptionEl(ev.target)
       if (!el) return
       const value = clean(el.innerText || el.textContent || '').slice(0, 40)
       if (!value || value.length > 40) return
-      pending = { value, dim: captureDimOf(el) }
+
+      // ① 最高可信：选项块自带的缩略图
+      const own = captureOptionOwnImage(el)
+      if (own) {
+        VARIANT_CAPTURE.map[value] = own
+        const dim = captureDimOf(el)
+        if (dim) VARIANT_CAPTURE.dim[value] = dim
+        VARIANT_CAPTURE.hits++
+        VARIANT_CAPTURE.log.push({ value, src: 'option-img', url: own, cls: String(el.className || '') })
+        return
+      }
+
+      // ② 退化：记住点击前全页图片快照，等主图换
+      const before = new Set(captureAllImages().map(x => x.url))
+      pending = { value, dim: captureDimOf(el), before }
       if (pendingTimer) clearTimeout(pendingTimer)
-      // 点完等一会儿，看主图有没有换
       pendingTimer = setTimeout(() => {
-        const img = captureBigImage()
-        if (img && pending) {
+        if (!pending) return
+        const after = captureAllImages()
+        // 新出现的 URL = 刚点出来的那张图
+        const fresh = after.filter(x => !pending.before.has(x.url))
+        const img = fresh.length
+          ? fresh.sort((a, b) => b.area - a.area)[0].url
+          : captureBigImage()
+        if (img) {
           VARIANT_CAPTURE.map[pending.value] = img
           if (pending.dim) VARIANT_CAPTURE.dim[pending.value] = pending.dim
           VARIANT_CAPTURE.hits++
+          VARIANT_CAPTURE.log.push({ value, src: fresh.length ? 'new-img' : 'big-img', url: img })
+        } else {
+          VARIANT_CAPTURE.log.push({ value, src: 'miss', url: '', cls: String(el.className || '') })
         }
         pending = null
-      }, 450)
+      }, 500)
     }
     document.addEventListener('click', onClick, true)
 
-    // 主图自己变了（有些页面不换大图，只换缩略图高亮）→ 监听 img src 变化
+    // 主图自己变了 → 立刻记录（比 500ms 定时器更快）
     const mo = new MutationObserver(muts => {
       if (!pending) return
       for (const m of muts) {
         const node = m.target
-        if (!node || node.tagName !== 'IMG') continue
-        const u = node.getAttribute('src') || node.getAttribute('data-src') || ''
+        if (!node) continue
+        let u = ''
+        if (node.tagName === 'IMG') {
+          u = node.getAttribute('src') || node.getAttribute('data-src') || ''
+        } else if (node.tagName && node.tagName !== 'BODY' && node.getAttribute) {
+          // background-image 形式
+          const st = node.getAttribute('style') || ''
+          const m2 = /background-image\s*:\s*url\(['"]?([^'")]+)/i.exec(st)
+          if (m2) u = m2[1]
+        }
+        if (!u) continue
         const n = normImage(u)
         if (!n || isBadImage(n)) continue
-        if (!VARIANT_CAPTURE.map[pending.value] || VARIANT_CAPTURE.map[pending.value] !== n) {
-          VARIANT_CAPTURE.map[pending.value] = n
-          if (pending.dim) VARIANT_CAPTURE.dim[pending.value] = pending.dim
-          VARIANT_CAPTURE.hits++
-          pending = null
-          return
-        }
+        if (pending.before && pending.before.has(n)) continue
+        VARIANT_CAPTURE.map[pending.value] = n
+        if (pending.dim) VARIANT_CAPTURE.dim[pending.value] = pending.dim
+        VARIANT_CAPTURE.hits++
+        VARIANT_CAPTURE.log.push({ value: pending.value, src: 'mo', url: n })
+        pending = null
+        return
       }
     })
-    try { mo.observe(document.body || document.documentElement, { subtree: true, attributes: true, attributeFilter: ['src', 'data-src'] }) } catch (e) {}
+    try {
+      mo.observe(document.body || document.documentElement, {
+        subtree: true, attributes: true,
+        attributeFilter: ['src', 'data-src', 'style', 'data-lazy-src'],
+      })
+    } catch (e) {}
 
     VARIANT_CAPTURE.stop = () => {
       document.removeEventListener('click', onClick, true)
@@ -2004,10 +2111,64 @@
     return { active: true, hits: 0 }
   }
 
+  /**
+   * 诊断：把页面上「像选项块」的元素和「像大图」的图片都列出来。
+   * 用途：用户点了探测却没结果时，复制这份输出给我 → 不用猜 DOM 结构。
+   */
+  function dumpVariantDom() {
+    const opts = []
+    const seen = new Set()
+    const sels = SKU_OPTION_SEL.split(',').concat([
+      '[class*="sku"]', '[class*="prop"]', '[class*="attr"]', '[class*="option"]',
+      '[class*="swatch"]', '[class*="choice"]', '[class*="spec"]',
+    ])
+    for (const s of sels) {
+      let els = []
+      try { els = document.querySelectorAll(s) } catch (e) { continue }
+      for (const el of Array.from(els).slice(0, 40)) {
+        const txt = clean(el.innerText || el.textContent || '').slice(0, 30)
+        if (!txt || txt.length > 30) continue
+        const key = txt + '|' + String(el.className || '')
+        if (seen.has(key)) continue
+        seen.add(key)
+        opts.push({
+          sel: s,
+          cls: String(el.className || '').slice(0, 80),
+          text: txt,
+          ownImg: captureOptionOwnImage(el),
+          dim: captureDimOf(el),
+        })
+        if (opts.length >= 60) break
+      }
+      if (opts.length >= 60) break
+    }
+    const imgs = captureAllImages()
+      .sort((a, b) => b.area - a.area)
+      .slice(0, 20)
+      .map(x => ({ url: x.url, w: x.w, h: x.h, cls: x.cls.slice(0, 60) }))
+    return {
+      options: opts,
+      bigImages: imgs,
+      capture: {
+        active: VARIANT_CAPTURE.active,
+        hits: VARIANT_CAPTURE.hits,
+        map: VARIANT_CAPTURE.map,
+        dim: VARIANT_CAPTURE.dim,
+        log: VARIANT_CAPTURE.log || [],
+      },
+    }
+  }
+
   function stopVariantCapture() {
     if (VARIANT_CAPTURE.stop) VARIANT_CAPTURE.stop()
     VARIANT_CAPTURE.stop = null
-    return { active: false, hits: VARIANT_CAPTURE.hits, map: VARIANT_CAPTURE.map, dim: VARIANT_CAPTURE.dim }
+    return {
+      active: false,
+      hits: VARIANT_CAPTURE.hits,
+      map: VARIANT_CAPTURE.map,
+      dim: VARIANT_CAPTURE.dim,
+      log: VARIANT_CAPTURE.log || [],
+    }
   }
 
   /** B 方案匹配：按维度 + 值 找到探测到的图片 */
@@ -3360,7 +3521,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.2.0',
+    __v: '4.3.0',
     install,
     capture,
     collectAll,
@@ -3371,6 +3532,7 @@
     startVariantCapture,
     stopVariantCapture,
     assignVariantImages,
+    dumpVariantDom,
     /** 直接写入探测结果（控制台调试 / 测试用） */
     setVariantCapture: (map, dim) => {
       VARIANT_CAPTURE.map = map && typeof map === 'object' ? map : {}
@@ -3383,6 +3545,7 @@
       hits: VARIANT_CAPTURE.hits,
       map: VARIANT_CAPTURE.map,
       dim: VARIANT_CAPTURE.dim,
+      log: VARIANT_CAPTURE.log || [],
     }),
     dedupePayloads,
     dumpStructure,
@@ -3476,9 +3639,9 @@
         #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.28.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.29.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.28.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.29.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -3491,6 +3654,7 @@
           <button id="ff-vstruct" class="ghost">复制变体结构</button>
           <button id="ff-spec" class="ghost">复制规格表</button>
           <button id="ff-vcap" class="ghost">探测变体图</button>
+          <button id="ff-vdiag" class="ghost">复制探测诊断</button>
           <button id="ff-push">采集并推送</button>
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
@@ -3603,6 +3767,30 @@
       }
     }
 
+    // 复制探测诊断：探测不到图时，把页面上真实的「选项块」和「大图」结构
+    // 导出给开发者 —— 不靠猜 DOM，选择器用真实报文校准。
+    $('#ff-vdiag', panel).onclick = async () => {
+      try {
+        ensureCore()
+        if (!window.FF1688.dumpVariantDom) {
+          say('❌ 内核太旧，没有诊断功能，请更新采集器')
+          return
+        }
+        const d = window.FF1688.dumpVariantDom()
+        const txt = JSON.stringify(d, null, 1)
+        try {
+          await navigator.clipboard.writeText(txt)
+          say(`✅ 探测诊断已复制：${d.options.length} 个候选选项块 / ${d.bigImages.length} 张大图 / 已录 ${(d.capture && d.capture.hits) || 0} 张`)
+        } catch (e) {
+          kv.style.display = 'block'
+          kv.textContent = txt.slice(0, 20000)
+          say('诊断数据如下')
+        }
+      } catch (e) {
+        say('异常: ' + e.message)
+      }
+    }
+
     // 变体图探测（方案 B）：开启后用户依次点页面上的颜色/款式，
     // 采集器盯着主图变化，记录「选项名 → 图片 URL」。
     // 配合内核的 A 方案（序号对齐），能拿到每个变体对应的图。
@@ -3619,7 +3807,7 @@
           const keys = Object.keys(r.map || {})
           say('✅ 探测已停止：录到 ' + (r.hits || 0) + ' 张（' + keys.slice(0, 8).join('、') + '）。现在点「预览解析」或「采集并推送」')
           kv.style.display = 'block'
-          kv.textContent = JSON.stringify(r.map || {}, null, 1)
+          kv.textContent = JSON.stringify({ map: r.map, dim: r.dim, log: r.log }, null, 1)
         } else {
           window.FF1688.startVariantCapture()
           say('🔍 探测已开启：请依次点页面上的每个颜色/款式（每个点一下停一下），再点本按钮结束')
@@ -3781,9 +3969,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.2.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.3.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.2.0'
+  const MIN_CORE = '4.3.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -3836,7 +4024,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.28.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.29.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
