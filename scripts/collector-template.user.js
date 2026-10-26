@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.33.0
+// @version      2.34.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -359,18 +359,54 @@
           : { payloads: (window.FF1688.capture ? window.FF1688.capture() : []), sources: {} }
         const captured = collected.payloads || []
         const struct = window.FF1688.dumpVariants ? window.FF1688.dumpVariants(captured) : {}
+        // ★ 直接把「解析出的变体」带上 —— 变体到底来自接口还是 DOM 规格表，一次看全
+        let variants = []
+        let variantDims = []
+        let specTable = []
+        let parseErr = ''
+        try {
+          const pd = await window.FF1688.parseDetail()
+          variants = (pd && pd.payload && pd.payload.variants) || []
+          variantDims = (pd && pd.payload && pd.payload.variantDims) || []
+        } catch (e) { parseErr = String(e && e.message || e) }
+        try {
+          specTable = window.FF1688.dumpSpecTable ? window.FF1688.dumpSpecTable() : []
+        } catch (e) { /* ignore */ }
         // 紧凑输出：报文多时用 indent:2 会大到难以粘贴
         const txt = JSON.stringify({
           url: location.href,
           capturedCount: captured.length,
           sources: collected.sources || {},
+          // ★ 变体结论（最有用的一段）
+          variantCount: variants.length,
+          variantDims: variantDims,
+          variants: variants.map(v => ({
+            specs: (v.specs || []).map(s => s.name + ':' + s.value).join(' | '),
+            color: v.color || '',
+            size: v.size || '',
+            price: v.price,
+            imageSource: v.imageSource || '',
+            image: v.image || '',
+          })),
+          specTableRows: (() => {
+            // 规格表压成「行数组」，便于看列结构
+            const out = []
+            for (const t of (specTable || [])) {
+              for (const tb of (t.tables || [])) {
+                for (const r of (tb.rows || [])) out.push(r)
+              }
+            }
+            return out.slice(0, 40)
+          })(),
+          parseErr,
           contentKeyUnion: struct.contentKeyUnion,
+          variantKeyUnion: struct.variantKeyUnion,
           allKeyUnion: struct.allKeyUnion,
           payloads: struct.payloads,
         })
         try {
           await navigator.clipboard.writeText(txt)
-          say('✅ 变体结构已复制，粘贴给开发者即可校准变体提取规则')
+          say('✅ 变体结构已复制（变体 ' + variants.length + ' 个）' + (variants.length ? '' : ' —— 接口里没有变体，说明走的是页面规格表'))
         } catch (e) {
           kv.style.display = 'block'
           if (out) out.open = true

@@ -14,7 +14,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.5.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.6.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -70,6 +70,56 @@
   /* ---------------------------------------------------------- 截获接口返回 */
   const STORE = { payloads: [], requests: [], installed: false }
 
+  /**
+   * mtop 的 `data` 字段**常常是 JSON 字符串**，不是对象。
+   * 不解开的话，整棵真实结构（SKU 容器 / 规格价格表）对 walk/collect 完全不可见。
+   *
+   * 2026-10-26 实测（offer 828424453992，57 个报文）：
+   *   contentKeyUnion / allKeyUnion 里 **一个 sku/spec/props 容器都没有**
+   *   → 变体根本不是「没解析出来」，而是**从来没被遍历到**
+   *
+   * 规则：只解「以 { 或 [ 开头、且长度合理」的字符串，避免误伤普通文本。
+   */
+  function tryParseJsonValue(s) {
+    if (typeof s !== 'string') return null
+    const t = s.trim()
+    if (!t || t.length > 400000) return null
+    if (t[0] !== '{' && t[0] !== '[') return null
+    try {
+      const p = JSON.parse(t)
+      return (p && typeof p === 'object') ? p : null
+    } catch (e) { return null }
+  }
+
+  /** 递归展开字符串形态的 JSON（深度受限，防跑飞） */
+  function expandJsonStrings(node, depth = 0, seen = new Set()) {
+    if (!node || typeof node !== 'object' || depth > 5) return node
+    if (seen.has(node)) return node
+    seen.add(node)
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) {
+        const v = node[i]
+        if (typeof v === 'string') {
+          const p = tryParseJsonValue(v)
+          node[i] = p ? expandJsonStrings(p, depth + 1, seen) : v
+        } else {
+          node[i] = expandJsonStrings(v, depth + 1, seen)
+        }
+      }
+      return node
+    }
+    for (const k of Object.keys(node)) {
+      const v = node[k]
+      if (typeof v === 'string') {
+        const p = tryParseJsonValue(v)
+        if (p) node[k] = expandJsonStrings(p, depth + 1, seen)
+      } else {
+        node[k] = expandJsonStrings(v, depth + 1, seen)
+      }
+    }
+    return node
+  }
+
   function pushCapture(url, data) {
     if (!data || typeof data !== 'object') return
     const u = (url || '').toLowerCase()
@@ -79,7 +129,8 @@
     // 隐私：个人地址簿/账号信息类报文直接丢弃，绝不采集
     if (isSensitivePayload({ url })) return
     // URL 不截断：mtop 的 data/sign 在 query 尾部，截断后重放就会 invalid param
-    STORE.payloads.push({ url: String(url), data })
+    // ★ 解开字符串形态的 JSON（mtop 的 data 常是字符串）→ 否则真实结构不可见
+    STORE.payloads.push({ url: String(url), data: expandJsonStrings(data) })
     // 缓冲别太小：首屏可能有几十个 mtop 请求，40 容易把「SKU 列表那条」挤掉
     if (STORE.payloads.length > 200) STORE.payloads.shift()
     flush()
@@ -251,7 +302,7 @@
           const parsed = parseLoose(txt)
           if (!parsed || typeof parsed !== 'object') return
           if (isUselessPayload(parsed)) return
-          out.push({ url: String(u), data: parsed, from: 'replay' })
+          out.push({ url: String(u), data: expandJsonStrings(parsed), from: 'replay' })
         } catch (e) {}
       })
     )
@@ -278,7 +329,7 @@
         const txt = await res.text()
         const parsed = parseLoose(txt)
         if (!parsed || typeof parsed !== 'object') continue
-        out.push({ url: String(r.url).slice(0, 300), data: parsed, from: 'replay-body' })
+        out.push({ url: String(r.url).slice(0, 300), data: expandJsonStrings(parsed), from: 'replay-body' })
       } catch (e) {}
     }
     return out
@@ -1530,14 +1581,16 @@
     const out = []
     const contentUnion = []
     const allUnion = []
+    const variantKeys = []
     const addUnion = (arr, keys) => {
       for (const k of keys) if (!arr.includes(k)) arr.push(k)
     }
 
     for (const p of payloads) {
-      const api = (String(p.url || '').match(/api=([\w.]+)/) || [])[1] || p.from || 'unknown'
+      const api = apiNameOf(p.url) || p.from || 'unknown'
 
       const deep = []
+      const layers = []
       let node = p.data
       let pathLabel = ''
       let contentKeys = []
@@ -1548,8 +1601,11 @@
         const ks = Object.keys(node)
         if (!ks.length) break
         addUnion(allUnion, ks)
+        addUnion(variantKeys, ks.filter(k => /sku|spec|prop|model|price|stock|quantity|skuMap|skuList/i.test(k)))
         contentKeys = ks
         depth++
+        // ★ 记录**每一层**的 key（原来只记最后一层 → 中间层漏了看不见）
+        layers.push({ path: pathLabel || '(root)', keys: ks.slice(0, 60) })
 
         // 这一层里名字可疑的容器 → 挖内部结构
         for (const k of ks) {
@@ -1583,16 +1639,31 @@
       }
 
       addUnion(contentUnion, contentKeys)
-      out.push({ api: api, depth: depth, contentKeys: contentKeys, deep: deep })
+      // ★ 带上 url（mtop 的 fields= 分片参数在 query 里，不带 url 根本定位不到分片）
+      out.push({
+        api: api,
+        url: String(p.url || '').slice(0, 600),
+        depth: depth,
+        contentKeys: contentKeys,
+        layers: layers,
+        deep: deep,
+      })
     }
 
-    return { contentKeyUnion: contentUnion, allKeyUnion: allUnion, payloads: out }
+    return {
+      contentKeyUnion: contentUnion,
+      allKeyUnion: allUnion,
+      // ★ 变体容器嫌疑名单：所有层里名字像变体的 key
+      //   （原来只有 deep 里的容器，内部结构被 5 条上限截断就看不到了）
+      variantKeyUnion: variantKeys,
+      payloads: out,
+    }
   }
 
   function dumpStructure(payloads) {
     const all = []
     for (const p of payloads) {
-      const api = (String(p.url || '').match(/api=([\w.]+)/) || [])[1] || p.from || 'unknown'
+      const api = apiNameOf(p.url) || p.from || 'unknown'
       const leaves = []
       walk(p.data, (k, v, parent, path) => {
         const pth = (path || []).concat(String(k)).join('.')
@@ -1672,8 +1743,14 @@
 
   /** 从接口 URL 里拿 api 名 */
   function apiNameOf(url) {
-    const m = String(url || '').match(/api=([\w.]+)/)
-    return m ? m[1] : ''
+    const u = String(url || '')
+    // ① query 形态：...&api=mtop.xxx.service
+    let m = u.match(/[?&]api=([\w.]+)/)
+    if (m) return m[1]
+    // ② 路径形态：/h5/mtop.1688.mmga.offerdetail.service/1.0/?...
+    m = u.match(/\/h5\/([\w.]+?)\/\d+(?:\.\d+)?(?:[/?#]|$)/)
+    if (m) return m[1]
+    return ''
   }
 
   /**
@@ -3717,7 +3794,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.5.0',
+    __v: '4.6.0',
     install,
     capture,
     collectAll,
@@ -3752,6 +3829,7 @@
     dedupePayloads,
     dumpStructure,
     dumpVariants,
+    expandJsonStrings: (node) => expandJsonStrings(node),
     replayResources,
     replayCapturedRequests,
     scanInlineData,

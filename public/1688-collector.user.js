@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.33.0
+// @version      2.34.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.5.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.6.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -92,6 +92,56 @@
   /* ---------------------------------------------------------- 截获接口返回 */
   const STORE = { payloads: [], requests: [], installed: false }
 
+  /**
+   * mtop 的 `data` 字段**常常是 JSON 字符串**，不是对象。
+   * 不解开的话，整棵真实结构（SKU 容器 / 规格价格表）对 walk/collect 完全不可见。
+   *
+   * 2026-10-26 实测（offer 828424453992，57 个报文）：
+   *   contentKeyUnion / allKeyUnion 里 **一个 sku/spec/props 容器都没有**
+   *   → 变体根本不是「没解析出来」，而是**从来没被遍历到**
+   *
+   * 规则：只解「以 { 或 [ 开头、且长度合理」的字符串，避免误伤普通文本。
+   */
+  function tryParseJsonValue(s) {
+    if (typeof s !== 'string') return null
+    const t = s.trim()
+    if (!t || t.length > 400000) return null
+    if (t[0] !== '{' && t[0] !== '[') return null
+    try {
+      const p = JSON.parse(t)
+      return (p && typeof p === 'object') ? p : null
+    } catch (e) { return null }
+  }
+
+  /** 递归展开字符串形态的 JSON（深度受限，防跑飞） */
+  function expandJsonStrings(node, depth = 0, seen = new Set()) {
+    if (!node || typeof node !== 'object' || depth > 5) return node
+    if (seen.has(node)) return node
+    seen.add(node)
+    if (Array.isArray(node)) {
+      for (let i = 0; i < node.length; i++) {
+        const v = node[i]
+        if (typeof v === 'string') {
+          const p = tryParseJsonValue(v)
+          node[i] = p ? expandJsonStrings(p, depth + 1, seen) : v
+        } else {
+          node[i] = expandJsonStrings(v, depth + 1, seen)
+        }
+      }
+      return node
+    }
+    for (const k of Object.keys(node)) {
+      const v = node[k]
+      if (typeof v === 'string') {
+        const p = tryParseJsonValue(v)
+        if (p) node[k] = expandJsonStrings(p, depth + 1, seen)
+      } else {
+        node[k] = expandJsonStrings(v, depth + 1, seen)
+      }
+    }
+    return node
+  }
+
   function pushCapture(url, data) {
     if (!data || typeof data !== 'object') return
     const u = (url || '').toLowerCase()
@@ -101,7 +151,8 @@
     // 隐私：个人地址簿/账号信息类报文直接丢弃，绝不采集
     if (isSensitivePayload({ url })) return
     // URL 不截断：mtop 的 data/sign 在 query 尾部，截断后重放就会 invalid param
-    STORE.payloads.push({ url: String(url), data })
+    // ★ 解开字符串形态的 JSON（mtop 的 data 常是字符串）→ 否则真实结构不可见
+    STORE.payloads.push({ url: String(url), data: expandJsonStrings(data) })
     // 缓冲别太小：首屏可能有几十个 mtop 请求，40 容易把「SKU 列表那条」挤掉
     if (STORE.payloads.length > 200) STORE.payloads.shift()
     flush()
@@ -273,7 +324,7 @@
           const parsed = parseLoose(txt)
           if (!parsed || typeof parsed !== 'object') return
           if (isUselessPayload(parsed)) return
-          out.push({ url: String(u), data: parsed, from: 'replay' })
+          out.push({ url: String(u), data: expandJsonStrings(parsed), from: 'replay' })
         } catch (e) {}
       })
     )
@@ -300,7 +351,7 @@
         const txt = await res.text()
         const parsed = parseLoose(txt)
         if (!parsed || typeof parsed !== 'object') continue
-        out.push({ url: String(r.url).slice(0, 300), data: parsed, from: 'replay-body' })
+        out.push({ url: String(r.url).slice(0, 300), data: expandJsonStrings(parsed), from: 'replay-body' })
       } catch (e) {}
     }
     return out
@@ -1552,14 +1603,16 @@
     const out = []
     const contentUnion = []
     const allUnion = []
+    const variantKeys = []
     const addUnion = (arr, keys) => {
       for (const k of keys) if (!arr.includes(k)) arr.push(k)
     }
 
     for (const p of payloads) {
-      const api = (String(p.url || '').match(/api=([\w.]+)/) || [])[1] || p.from || 'unknown'
+      const api = apiNameOf(p.url) || p.from || 'unknown'
 
       const deep = []
+      const layers = []
       let node = p.data
       let pathLabel = ''
       let contentKeys = []
@@ -1570,8 +1623,11 @@
         const ks = Object.keys(node)
         if (!ks.length) break
         addUnion(allUnion, ks)
+        addUnion(variantKeys, ks.filter(k => /sku|spec|prop|model|price|stock|quantity|skuMap|skuList/i.test(k)))
         contentKeys = ks
         depth++
+        // ★ 记录**每一层**的 key（原来只记最后一层 → 中间层漏了看不见）
+        layers.push({ path: pathLabel || '(root)', keys: ks.slice(0, 60) })
 
         // 这一层里名字可疑的容器 → 挖内部结构
         for (const k of ks) {
@@ -1605,16 +1661,31 @@
       }
 
       addUnion(contentUnion, contentKeys)
-      out.push({ api: api, depth: depth, contentKeys: contentKeys, deep: deep })
+      // ★ 带上 url（mtop 的 fields= 分片参数在 query 里，不带 url 根本定位不到分片）
+      out.push({
+        api: api,
+        url: String(p.url || '').slice(0, 600),
+        depth: depth,
+        contentKeys: contentKeys,
+        layers: layers,
+        deep: deep,
+      })
     }
 
-    return { contentKeyUnion: contentUnion, allKeyUnion: allUnion, payloads: out }
+    return {
+      contentKeyUnion: contentUnion,
+      allKeyUnion: allUnion,
+      // ★ 变体容器嫌疑名单：所有层里名字像变体的 key
+      //   （原来只有 deep 里的容器，内部结构被 5 条上限截断就看不到了）
+      variantKeyUnion: variantKeys,
+      payloads: out,
+    }
   }
 
   function dumpStructure(payloads) {
     const all = []
     for (const p of payloads) {
-      const api = (String(p.url || '').match(/api=([\w.]+)/) || [])[1] || p.from || 'unknown'
+      const api = apiNameOf(p.url) || p.from || 'unknown'
       const leaves = []
       walk(p.data, (k, v, parent, path) => {
         const pth = (path || []).concat(String(k)).join('.')
@@ -1694,8 +1765,14 @@
 
   /** 从接口 URL 里拿 api 名 */
   function apiNameOf(url) {
-    const m = String(url || '').match(/api=([\w.]+)/)
-    return m ? m[1] : ''
+    const u = String(url || '')
+    // ① query 形态：...&api=mtop.xxx.service
+    let m = u.match(/[?&]api=([\w.]+)/)
+    if (m) return m[1]
+    // ② 路径形态：/h5/mtop.1688.mmga.offerdetail.service/1.0/?...
+    m = u.match(/\/h5\/([\w.]+?)\/\d+(?:\.\d+)?(?:[/?#]|$)/)
+    if (m) return m[1]
+    return ''
   }
 
   /**
@@ -3739,7 +3816,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.5.0',
+    __v: '4.6.0',
     install,
     capture,
     collectAll,
@@ -3774,6 +3851,7 @@
     dedupePayloads,
     dumpStructure,
     dumpVariants,
+    expandJsonStrings: (node) => expandJsonStrings(node),
     replayResources,
     replayCapturedRequests,
     scanInlineData,
@@ -3874,9 +3952,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.33.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.34.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.33.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.34.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -4124,18 +4202,54 @@
           : { payloads: (window.FF1688.capture ? window.FF1688.capture() : []), sources: {} }
         const captured = collected.payloads || []
         const struct = window.FF1688.dumpVariants ? window.FF1688.dumpVariants(captured) : {}
+        // ★ 直接把「解析出的变体」带上 —— 变体到底来自接口还是 DOM 规格表，一次看全
+        let variants = []
+        let variantDims = []
+        let specTable = []
+        let parseErr = ''
+        try {
+          const pd = await window.FF1688.parseDetail()
+          variants = (pd && pd.payload && pd.payload.variants) || []
+          variantDims = (pd && pd.payload && pd.payload.variantDims) || []
+        } catch (e) { parseErr = String(e && e.message || e) }
+        try {
+          specTable = window.FF1688.dumpSpecTable ? window.FF1688.dumpSpecTable() : []
+        } catch (e) { /* ignore */ }
         // 紧凑输出：报文多时用 indent:2 会大到难以粘贴
         const txt = JSON.stringify({
           url: location.href,
           capturedCount: captured.length,
           sources: collected.sources || {},
+          // ★ 变体结论（最有用的一段）
+          variantCount: variants.length,
+          variantDims: variantDims,
+          variants: variants.map(v => ({
+            specs: (v.specs || []).map(s => s.name + ':' + s.value).join(' | '),
+            color: v.color || '',
+            size: v.size || '',
+            price: v.price,
+            imageSource: v.imageSource || '',
+            image: v.image || '',
+          })),
+          specTableRows: (() => {
+            // 规格表压成「行数组」，便于看列结构
+            const out = []
+            for (const t of (specTable || [])) {
+              for (const tb of (t.tables || [])) {
+                for (const r of (tb.rows || [])) out.push(r)
+              }
+            }
+            return out.slice(0, 40)
+          })(),
+          parseErr,
           contentKeyUnion: struct.contentKeyUnion,
+          variantKeyUnion: struct.variantKeyUnion,
           allKeyUnion: struct.allKeyUnion,
           payloads: struct.payloads,
         })
         try {
           await navigator.clipboard.writeText(txt)
-          say('✅ 变体结构已复制，粘贴给开发者即可校准变体提取规则')
+          say('✅ 变体结构已复制（变体 ' + variants.length + ' 个）' + (variants.length ? '' : ' —— 接口里没有变体，说明走的是页面规格表'))
         } catch (e) {
           kv.style.display = 'block'
           if (out) out.open = true
@@ -4231,9 +4345,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.5.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.6.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.5.0'
+  const MIN_CORE = '4.6.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -4286,7 +4400,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.33.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.34.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
