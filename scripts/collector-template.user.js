@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.27.0
+// @version      2.28.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -114,6 +114,7 @@
           <button id="ff-struct" class="ghost">复制结构</button>
           <button id="ff-vstruct" class="ghost">复制变体结构</button>
           <button id="ff-spec" class="ghost">复制规格表</button>
+          <button id="ff-vcap" class="ghost">探测变体图</button>
           <button id="ff-push">采集并推送</button>
           <button id="ff-list" class="ghost">采集本页列表</button>
         </div>
@@ -161,7 +162,7 @@
         `标题: ${payload.title}`,
         `价格: ${payload.priceMin ?? '?'} ~ ${payload.priceMax ?? '?'}`,
         `起订: ${payload.moq ?? '?'}`,
-        `图片: ${payload.images.length} 张`,
+        `图片: ${payload.images.length} 张（主图 1 + 图集，上限 5）`,
         `主图: ${payload.mainImage ? '✓ 已锁定' : '❌ 缺失'}`,
         `变体: ${payload.variants ? payload.variants.length + ' 个' : '0 个'}`,
         `维度: ${payload.variantDims ? payload.variantDims.map(d => d.name + '(' + d.values.length + ')').join(' / ') : '-'}`,
@@ -176,8 +177,11 @@
         lines.push('--- 变体 ---')
         for (const v of payload.variants.slice(0, 20)) {
           const dims = (v.specs || []).map(s => s.name + ':' + s.value).join(' | ')
-          lines.push(`  ${dims || v.specText} → ${v.price}${v.image ? ' [图]' : ''}`)
+          const src = v.imageSource ? `{${v.imageSource}}` : ''
+          lines.push(`  ${dims || v.specText} → ${v.price}${v.image ? ' [图' + src + ']' : ' [无图]'}`)
         }
+        const vs = payload.raw && payload.raw.variantImageStat
+        if (vs) lines.push(`变体配图: 探测命中 ${vs.matched} 个 / 序号对齐 ${vs.aligned} 个`)
       }
       // 属性（描述来源）
       if (payload.attributes && Object.keys(payload.attributes).length) {
@@ -217,6 +221,32 @@
           kv.textContent = detail.join('\n')
           say('❌ 推送失败 ' + r.status + '（详情见下方）')
           console.log('[Fiestaflare] 推送失败详情：', r)
+        }
+      } catch (e) {
+        say('异常: ' + e.message)
+      }
+    }
+
+    // 变体图探测（方案 B）：开启后用户依次点页面上的颜色/款式，
+    // 采集器盯着主图变化，记录「选项名 → 图片 URL」。
+    // 配合内核的 A 方案（序号对齐），能拿到每个变体对应的图。
+    $('#ff-vcap', panel).onclick = () => {
+      try {
+        ensureCore()
+        if (!window.FF1688.getVariantCapture || !window.FF1688.startVariantCapture) {
+          say('❌ 内核太旧，没有探测功能，请更新采集器')
+          return
+        }
+        const cur = window.FF1688.getVariantCapture()
+        if (cur.active) {
+          const r = window.FF1688.stopVariantCapture()
+          const keys = Object.keys(r.map || {})
+          say('✅ 探测已停止：录到 ' + (r.hits || 0) + ' 张（' + keys.slice(0, 8).join('、') + '）。现在点「预览解析」或「采集并推送」')
+          kv.style.display = 'block'
+          kv.textContent = JSON.stringify(r.map || {}, null, 1)
+        } else {
+          window.FF1688.startVariantCapture()
+          say('🔍 探测已开启：请依次点页面上的每个颜色/款式（每个点一下停一下），再点本按钮结束')
         }
       } catch (e) {
         say('异常: ' + e.message)

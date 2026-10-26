@@ -25,10 +25,12 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.1.6') return
+  if (window.FF1688 && window.FF1688.__v === '4.2.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
+  /** 图集总张数（用户要求：主图 1 张 + 图集共 5 张） */
+  const MAX_GALLERY = 5
 
   const clean = s => (s || '').replace(/\s+/g, ' ').trim()
   const num = s => {
@@ -1799,11 +1801,32 @@
       if (list.length >= 20) break
     }
 
+    // 页面/报文里的**原始顺序**列表（不做分数排序）
+    // 变体配图 A 方案（序号对齐）必须用这个：变体第 N 个 ↔ 图集第 N 张，
+    // 按分数排序会把图序打乱，对齐就全错了。
+    const ordered = []
+    const seenOrdered = new Set()
+    const pushOrdered = u => {
+      const n = normImage(u)
+      if (!n || isBadImage(n) || seenOrdered.has(n)) return
+      seenOrdered.add(n)
+      ordered.push(n)
+    }
+    if (mainImage && !isBadImage(mainImage)) pushOrdered(mainImage)
+    for (const c of good) {
+      if (isBadImage(c.url) || seenOrdered.has(c.url)) continue
+      // 只收图集类数组里的图（offerImgList / offerImages / gallery ...），
+      // 杂散单图（详情推荐、SKU 小图）不参与顺序
+      if (!/offerimglist|offerimages|mainimages|mainpics|gallery|imageList|images/i.test(c.path)) continue
+      pushOrdered(c.url)
+    }
+
     // DOM 兵底补充（图集区 → 详情区）
     const dom = domFallback()
     for (const u of dom.images) {
       const n = normImage(u)
       if (n && !list.includes(n) && !isBadImage(n)) list.push(n)
+      pushOrdered(u)
     }
     // 详情区图片也算商品图（1688 详情区常常就是一组商品图）
     for (const u of (dom.descImages || [])) {
@@ -1823,7 +1846,231 @@
       const any = cands.map(c => c.url).filter(u => !isReviewImage(u))
       if (any.length) list.push(any[0])
     }
-    return { list: list.slice(0, 20), main: mainImage, mainWhy: mainImageWhy }
+    // 图集总张数上限（主图 1 张 + 图集共 5 张）
+    // 注意：ordered 保留**未截断、原始顺序**的完整列表 —— 变体图要按序号对齐（A 方案），
+    // 变体数可能多于 5，不能用截断后的列表去对齐。
+    // 展示顺序也用 ordered（页面真实顺序），不够 5 张再用分数列表补。
+    const galleryAll = ordered.length ? ordered : list
+    const display = galleryAll.slice(0, MAX_GALLERY)
+    for (const u of list) {
+      if (display.length >= MAX_GALLERY) break
+      if (!display.includes(u)) display.push(u)
+    }
+    if (mainImage && !isBadImage(mainImage)) {
+      if (display[0] !== mainImage) {
+        // 主图必须在首位，且不能重复
+        const dup = display.indexOf(mainImage)
+        if (dup > 0) display.splice(dup, 1)
+        display.unshift(mainImage)
+      }
+    }
+    return { list: display, all: galleryAll, main: mainImage, mainWhy: mainImageWhy }
+  }
+
+  /* ============================================================
+   * 变体图采集：方案 A（序号对齐）+ 方案 B（逐个点击探测）
+   *
+   * A. 序号对齐：变体第 N 个 ← 图集第 N 张（1688 上图序/色序通常一致）
+   * B. 点击探测：用户在页面上点一下颜色，采集器盯着主图 src 变化，
+   *    记录「颜色名 → 图片 URL」—— 100% 准，但需要用户点几下。
+   *
+   * 两者组合：先按 B 精确匹配（命中就用），没命中的回退到 A。
+   * ============================================================ */
+  const VARIANT_CAPTURE = { active: false, map: {}, dim: {}, hits: 0 }
+
+  /** SKU 选项元素（颜色/款式/尺码那些可点的块） */
+  const SKU_OPTION_SEL = [
+    '[class*="sku-item"]', '[class*="skuItem"]', '[class*="sku-item-wrap"]',
+    '[class*="prop-item"]', '[class*="value-item"]', '[class*="sku-value"]',
+    '[class*="sku-property"] li', '[class*="sku-property"] span',
+    '[class*="offer-attr"] li', '[class*="offer-attr"] span',
+  ].join(',')
+
+  const normSpec = s => String(s || '').replace(/\s+/g, '').replace(/[（）()]/g, '').toLowerCase()
+
+  /** 从选项元素往上找它属于哪个维度（颜色/款式/尺码…） */
+  function captureDimOf(el) {
+    const DIM_RE = /^(颜色|色|款式|尺码|尺寸|规格|型号|材质|包装|套餐|版本|style|color|size|spec)$/i
+    let n = el
+    for (let i = 0; i < 5 && n; i++) {
+      // 同一容器里的其它子元素（标题）
+      const kids = (n.children || [])
+      for (const k of kids) {
+        if (k === el) continue
+        const t = clean(k.innerText || k.textContent || '')
+        if (t && t.length <= 8 && DIM_RE.test(t)) return t
+      }
+      // 容器前面的兄弟元素（标题）
+      const prev = n.previousElementSibling
+      if (prev) {
+        const t = clean(prev.innerText || prev.textContent || '')
+        if (t && t.length <= 8 && DIM_RE.test(t)) return t
+      }
+      // 容器自己的第一个短文本子节点
+      const first = n.querySelector ? n.querySelector('[class*="label"],[class*="title"],dt,legend,strong') : null
+      if (first) {
+        const t = clean(first.innerText || first.textContent || '')
+        if (t && t.length <= 8 && DIM_RE.test(t)) return t
+      }
+      n = n.parentElement
+    }
+    return ''
+  }
+
+  /** 页面上的「当前大图」（点了颜色后会变的那张） */
+  function captureBigImage() {
+    const sels = [
+      '[class*="main-image"] img', '[class*="image-view"] img', '[class*="detail-gallery"] img',
+      '.od-pic img', '[class*="offer-pic"] img', '[class*="preview"] img',
+    ]
+    for (const s of sels) {
+      const el = document.querySelector(s)
+      if (!el) continue
+      const u = el.getAttribute('src') || el.getAttribute('data-src') ||
+        el.getAttribute('data-lazy-src') || el.getAttribute('data-ks-lazyload') || ''
+      const n = normImage(u)
+      if (n && !isBadImage(n)) return n
+    }
+    return ''
+  }
+
+  /** 开始 B 方案：监听点击，记录「选项文字 → 图片」 */
+  function startVariantCapture() {
+    if (VARIANT_CAPTURE.active) return { active: true, hits: VARIANT_CAPTURE.hits }
+    VARIANT_CAPTURE.active = true
+    VARIANT_CAPTURE.map = {}
+    VARIANT_CAPTURE.dim = {}
+    VARIANT_CAPTURE.hits = 0
+
+    let pending = null   // { value, dim }
+    let pendingTimer = null
+
+    const onClick = ev => {
+      const el = ev.target && ev.target.closest ? ev.target.closest(SKU_OPTION_SEL) : null
+      if (!el) return
+      const value = clean(el.innerText || el.textContent || '').slice(0, 40)
+      if (!value || value.length > 40) return
+      pending = { value, dim: captureDimOf(el) }
+      if (pendingTimer) clearTimeout(pendingTimer)
+      // 点完等一会儿，看主图有没有换
+      pendingTimer = setTimeout(() => {
+        const img = captureBigImage()
+        if (img && pending) {
+          VARIANT_CAPTURE.map[pending.value] = img
+          if (pending.dim) VARIANT_CAPTURE.dim[pending.value] = pending.dim
+          VARIANT_CAPTURE.hits++
+        }
+        pending = null
+      }, 450)
+    }
+    document.addEventListener('click', onClick, true)
+
+    // 主图自己变了（有些页面不换大图，只换缩略图高亮）→ 监听 img src 变化
+    const mo = new MutationObserver(muts => {
+      if (!pending) return
+      for (const m of muts) {
+        const node = m.target
+        if (!node || node.tagName !== 'IMG') continue
+        const u = node.getAttribute('src') || node.getAttribute('data-src') || ''
+        const n = normImage(u)
+        if (!n || isBadImage(n)) continue
+        if (!VARIANT_CAPTURE.map[pending.value] || VARIANT_CAPTURE.map[pending.value] !== n) {
+          VARIANT_CAPTURE.map[pending.value] = n
+          if (pending.dim) VARIANT_CAPTURE.dim[pending.value] = pending.dim
+          VARIANT_CAPTURE.hits++
+          pending = null
+          return
+        }
+      }
+    })
+    try { mo.observe(document.body || document.documentElement, { subtree: true, attributes: true, attributeFilter: ['src', 'data-src'] }) } catch (e) {}
+
+    VARIANT_CAPTURE.stop = () => {
+      document.removeEventListener('click', onClick, true)
+      try { mo.disconnect() } catch (e) {}
+      VARIANT_CAPTURE.active = false
+    }
+    return { active: true, hits: 0 }
+  }
+
+  function stopVariantCapture() {
+    if (VARIANT_CAPTURE.stop) VARIANT_CAPTURE.stop()
+    VARIANT_CAPTURE.stop = null
+    return { active: false, hits: VARIANT_CAPTURE.hits, map: VARIANT_CAPTURE.map, dim: VARIANT_CAPTURE.dim }
+  }
+
+  /** B 方案匹配：按维度 + 值 找到探测到的图片 */
+  function matchCapturedImage(v) {
+    const map = VARIANT_CAPTURE.map || {}
+    const keys = Object.keys(map)
+    if (!keys.length) return ''
+    // 候选值：颜色优先，然后所有 spec 值
+    const cands = []
+    if (v.color) cands.push({ dim: '颜色', val: v.color })
+    for (const s of (v.specs || [])) {
+      if (!s || !s.value) continue
+      cands.push({ dim: String(s.name || ''), val: s.value })
+    }
+    // 1) 维度 + 值 完全匹配
+    for (const c of cands) {
+      for (const k of keys) {
+        if (normSpec(k) !== normSpec(c.val)) continue
+        const kd = VARIANT_CAPTURE.dim[k] || ''
+        if (!c.dim || !kd || kd === c.dim || /颜色|色/i.test(c.dim) === /颜色|色/i.test(kd)) {
+          return map[k]
+        }
+      }
+    }
+    // 2) 只按值匹配（忽略维度）
+    for (const c of cands) {
+      for (const k of keys) {
+        if (normSpec(k) === normSpec(c.val)) return map[k]
+      }
+    }
+    // 3) 包含关系（"BMZ160丁香紫" vs "丁香紫"）
+    for (const c of cands) {
+      for (const k of keys) {
+        const a = normSpec(k), b = normSpec(c.val)
+        if (!a || !b) continue
+        if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return map[k]
+      }
+    }
+    return ''
+  }
+
+  /**
+   * 给变体配图：A（序号对齐）+ B（点击探测）。
+   * @param {Array} variants 变体数组（原地修改）
+   * @param {Array} galleryAll 未截断的图集列表（按顺序）
+   */
+  function assignVariantImages(variants, galleryAll) {
+    if (!Array.isArray(variants) || !variants.length) return { matched: 0, aligned: 0 }
+    let matched = 0, aligned = 0
+    const used = new Set()
+    variants.forEach((v, i) => {
+      // 1) 接口/DOM 自带的图优先（最可信）
+      if (v.image && !isBadImage(v.image)) { used.add(v.image); return }
+      // 2) B 方案：用户点击探测到的图
+      const cap = matchCapturedImage(v)
+      if (cap && !isBadImage(cap)) {
+        v.image = cap
+        v.imageSource = 'probe'
+        used.add(cap)
+        matched++
+        return
+      }
+      // 3) A 方案：序号对齐（图集第 N 张 ↔ 变体第 N 个）
+      const g = (galleryAll || [])[i]
+      if (g && !isBadImage(g) && !used.has(g)) {
+        v.image = g
+        v.imageSource = 'align'
+        used.add(g)
+        aligned++
+        return
+      }
+      v.imageSource = 'none'
+    })
+    return { matched, aligned }
   }
 
   /* ------------------------------------------------------- SKU / 阶梯价 */
@@ -2403,6 +2650,7 @@
     }
     const imgRes = pickImages(payloads)
     const images = imgRes.list
+    const galleryAll = imgRes.all || images
     const mainImage = imgRes.main
     const moq = pickMoq(payloads)
     const supplier = pickSupplier(payloads)
@@ -2448,6 +2696,9 @@
         variantDims = Array.from(dimMap.values())
       }
     }
+
+    // 变体配图：A（序号对齐）+ B（点击探测）—— 详见 assignVariantImages
+    const vimgStat = assignVariantImages(variants, galleryAll)
 
     // 描述 = 商品基本属性表（不是详情页那段图片 HTML）
     const attributes = pickAttributeTable(payloads) || dom.attributes || undefined
@@ -2542,6 +2793,10 @@
         priceRangeOld,
         skuPrices: skuPrices.slice(0, 30),
         tierSource,
+        variantImageStat: vimgStat,
+        variantImageCapture: VARIANT_CAPTURE.active || VARIANT_CAPTURE.hits
+          ? { hits: VARIANT_CAPTURE.hits, map: VARIANT_CAPTURE.map, dim: VARIANT_CAPTURE.dim }
+          : undefined,
         skuCount: skuInfo.skuIds.length,
         capturedUrls: scrubUrls(payloads.filter(p => !isSensitivePayload(p)).map(p => p.url)),
         snapshot: payloads.filter(p => !isSensitivePayload(p)).slice(0, 5).map(p => ({
@@ -3094,7 +3349,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.1.6',
+    __v: '4.2.0',
     install,
     capture,
     collectAll,
@@ -3102,6 +3357,22 @@
     pickVariants,
     domVariants,
     dumpSpecTable,
+    startVariantCapture,
+    stopVariantCapture,
+    assignVariantImages,
+    /** 直接写入探测结果（控制台调试 / 测试用） */
+    setVariantCapture: (map, dim) => {
+      VARIANT_CAPTURE.map = map && typeof map === 'object' ? map : {}
+      VARIANT_CAPTURE.dim = dim && typeof dim === 'object' ? dim : {}
+      VARIANT_CAPTURE.hits = Object.keys(VARIANT_CAPTURE.map).length
+      return VARIANT_CAPTURE.hits
+    },
+    getVariantCapture: () => ({
+      active: VARIANT_CAPTURE.active,
+      hits: VARIANT_CAPTURE.hits,
+      map: VARIANT_CAPTURE.map,
+      dim: VARIANT_CAPTURE.dim,
+    }),
     dedupePayloads,
     dumpStructure,
     dumpVariants,
@@ -3142,7 +3413,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.27.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.28.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +

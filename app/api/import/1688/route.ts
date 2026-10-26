@@ -99,11 +99,14 @@ export async function POST(request: NextRequest) {
           skuPrices: Array.isArray(safeItem?.skuPrices) ? JSON.stringify(safeItem.skuPrices) : safeItem?.skuPrices,
           description: safeItem?.description,
           images: (() => {
+            // 图集上限 5 张（主图 1 张 + 图集共 5 张），主图必须在首位
             const imgs = Array.isArray(safeItem?.images) ? safeItem.images.filter(Boolean) : []
             const main = safeItem?.mainImage
-            if (main && imgs.includes(main)) return [main, ...imgs.filter((u: string) => u !== main)]
-            if (main) return [main, ...imgs]
-            return imgs
+            let out: string[]
+            if (main && imgs.includes(main)) out = [main, ...imgs.filter((u: string) => u !== main)]
+            else if (main) out = [main, ...imgs]
+            else out = [...imgs]
+            return out.slice(0, 5)
           })(),
           videoUrl: safeItem?.videoUrl,
           priceMin: numberOrNull(safeItem?.priceMin),
@@ -173,6 +176,10 @@ function sanitizeVariants(input: any): any[] | undefined {
       price,
       priceText: v.priceText ? String(v.priceText).slice(0, 40) : '',
       image: v.image ? String(v.image).slice(0, 500) : '',
+      // 配图来源：probe=用户点击探测 / align=序号对齐 / none=没配上
+      imageSource: v.imageSource === 'probe' || v.imageSource === 'align' || v.imageSource === 'none'
+        ? v.imageSource
+        : undefined,
     })
   }
   return out.length ? out : undefined
