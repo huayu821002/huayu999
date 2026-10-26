@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.34.0
+// @version      2.35.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.6.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.7.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2493,6 +2493,174 @@
     return ''
   }
 
+  /* ------------------------------------------------------------------
+   * 探测记录 → 规格值匹配
+   * ------------------------------------------------------------------ */
+
+  /** 变体规格值与探测候选值是否匹配（标准化后相等 / 双向包含） */
+  function probeValueMatch(specValue, capVals) {
+    const sv = normSpec(specValue)
+    if (!sv) return false
+    for (const cv of capVals) if (sv === cv) return true
+    for (const cv of capVals) {
+      if (!cv) continue
+      if (sv.indexOf(cv) >= 0 || cv.indexOf(sv) >= 0) return true
+    }
+    return false
+  }
+
+  /**
+   * 排除「属性名伪装成规格值」的变体。
+   *
+   * 用户 2026-10-26 18:00 真实输出：
+   *   材质:风格 / 材质:发夹分类 / 材质:镶嵌材质 …
+   *   —— 这些「值」不是规格值，是**商品属性名**（材质、流行元素、风格、发夹分类…）
+   *
+   * 判据（双重确认，宁可放过也不误杀）：
+   *   变体的**维度名** ∈ 属性表 keys  且  变体的**值** ∈ 属性表 keys → 丢弃
+   *
+   * @param {Array} variants 变体数组
+   * @param {Object} attrs   商品属性表 { 材质:'仿金属', 风格:'百搭风', … }
+   */
+  function dropAttributeNamedVariants(variants, attrs) {
+    if (!Array.isArray(variants) || !variants.length) return { variants: variants || [], dropped: 0 }
+    const keys = attrs && typeof attrs === 'object' ? Object.keys(attrs) : []
+    if (!keys.length) return { variants, dropped: 0 }
+    const keySet = new Set(keys.map(k => normSpec(k)))
+    const keep = []
+    let dropped = 0
+    for (const v of variants) {
+      const specs = []
+      if (v.color) specs.push({ name: '颜色', value: v.color })
+      for (const s of (Array.isArray(v.specs) ? v.specs : [])) {
+        if (s && s.value) specs.push({ name: String(s.name || ''), value: String(s.value) })
+      }
+      if (!specs.length) { keep.push(v); continue }
+      // 双重确认：规格值全部是**属性名** → 这是属性表冒充的变体
+      //   （维度名也命中属性名时更可信，但不是必须 —— 避免漏网）
+      const allAttr = specs.every(s => keySet.has(normSpec(s.value)))
+      if (allAttr) { dropped++; continue }
+      keep.push(v)
+    }
+    return { variants: keep, dropped }
+  }
+
+  /**
+   * 按「用户点过的探测项」过滤变体。
+   * 用户诉求（2026-10-26 18:03）：
+   *   「我点了颜色黄色。红色我没有点，变体里就不要出现红色。
+   *     这个颜色变体项。不只是图包括整个红色变体就不要出来。」
+   *
+   * @param {Array} variants 变体数组
+   * @returns {{variants: Array, filtered: number, active: boolean}}
+   */
+  function filterVariantsByProbe(variants) {
+    if (!Array.isArray(variants) || !variants.length) {
+      return { variants: variants || [], filtered: 0, active: false }
+    }
+    const capMap = (VARIANT_CAPTURE && VARIANT_CAPTURE.map) || {}
+    const capDim = (VARIANT_CAPTURE && VARIANT_CAPTURE.dim) || {}
+    const capCands = (VARIANT_CAPTURE && VARIANT_CAPTURE.cands) || {}
+    const capKeys = Object.keys(capMap)
+    // ① 没有任何探测记录 → 完全不过滤（用户没开探测）
+    if (!capKeys.length) return { variants, filtered: 0, active: false }
+
+    const caps = []
+    for (const key of capKeys) {
+      const dim = String(capDim[key] || '')
+      const set = new Set()
+      const add = v => { const n = normSpec(v); if (n) set.add(n) }
+      add(key)
+      const cands = capCands[key]
+      if (Array.isArray(cands)) for (const c of cands) add(c)
+      if (!set.size) add(key)
+      caps.push({ key, dim, dimKind: dimKind(dim), vals: Array.from(set) })
+    }
+    if (!caps.length) return { variants, filtered: 0, active: false }
+
+    const vIndex = new Map()
+    variants.forEach((v, i) => vIndex.set(v, i))
+
+    // 每个变体的每个规格维度 → 候选 cap（强匹配 / 弱匹配）
+    const entries = []
+    for (const v of variants) {
+      const specs = []
+      if (v.color) specs.push({ name: '颜色', value: v.color })
+      for (const s of (Array.isArray(v.specs) ? v.specs : [])) {
+        if (s && s.value) specs.push({ name: String(s.name || ''), value: String(s.value) })
+      }
+      for (const s of specs) {
+        const sName = s.name
+        const sKind = dimKind(sName)
+        // ① 同名维度优先
+        const sameDim = []
+        const sameKind = []
+        for (let ci = 0; ci < caps.length; ci++) {
+          const c = caps[ci]
+          if (c.dim && sName && c.dim === sName) sameDim.push(ci)
+          else if (c.dimKind && c.dimKind !== 'custom' && sKind && c.dimKind === sKind) sameKind.push(ci)
+        }
+        const strict = sameDim.length ? sameDim : sameKind
+        const pool = strict.length ? strict : caps.map((c, i) => i)
+        const sv = normSpec(s.value)
+        const strong = []
+        const weak = []
+        for (const ci of pool) {
+          const vals = caps[ci].vals
+          if (vals.indexOf(sv) >= 0) { strong.push(ci); continue }
+          if (vals.some(cv => cv && (sv.indexOf(cv) >= 0 || cv.indexOf(sv) >= 0))) weak.push(ci)
+        }
+        entries.push({ v, vi: vIndex.get(v), strict: strict.length > 0, strong, weak })
+      }
+    }
+
+    // 强匹配归属：cap → 拥有它的变体
+    const capStrong = new Map()
+    for (const e of entries) {
+      for (const ci of e.strong) {
+        if (!capStrong.has(ci)) capStrong.set(ci, new Set())
+        capStrong.get(ci).add(e.vi)
+      }
+    }
+    // 弱匹配归属：只统计「没被强匹配占用」的 cap
+    const capWeak = new Map()
+    for (const e of entries) {
+      for (const ci of e.weak) {
+        const owners = capStrong.get(ci)
+        if (owners && owners.size) continue
+        if (!capWeak.has(ci)) capWeak.set(ci, new Set())
+        capWeak.get(ci).add(e.vi)
+      }
+    }
+
+    const keep = []
+    let filtered = 0
+    for (const v of variants) {
+      const es = entries.filter(e => e.v === v)
+      if (!es.length) { keep.push(v); continue }
+      let ok = true
+      let anyHit = false
+      for (const e of es) {
+        if (e.strong.length === 1) { anyHit = true; continue }
+        if (e.strong.length > 1) { ok = false; break }   // 强匹配歧义 → 丢弃
+        // 弱匹配：必须唯一（只有一个变体能弱匹配到这个 cap）
+        const wOk = e.weak.filter(ci => {
+          const owners = capWeak.get(ci)
+          return owners && owners.size === 1 && owners.has(e.vi)
+        })
+        if (wOk.length === 1) { anyHit = true; continue }
+        if (wOk.length > 1) { ok = false; break }          // 弱匹配歧义 → 丢弃
+        if (e.strict) { ok = false; break }                // 该维度被探测过，但没这个值
+        // 该维度没被探测过 → 不参与判定
+      }
+      // 兜底：所有维度都没命中 → 一定没被点过
+      if (ok && !anyHit) ok = false
+      if (ok) keep.push(v)
+      else filtered++
+    }
+    return { variants: keep, filtered, active: true }
+  }
+
   /**
    * 给变体配图：A（序号对齐）+ B（点击探测）。
    * @param {Array} variants 变体数组（原地修改）
@@ -2972,10 +3140,40 @@
         if (headCells.length < 2) continue
         // 表头里必须有维度词，且有价格列
         const DIM_RE = /(颜色|色|尺码|尺寸|大小|规格|款式|型号|材质|包装|套餐|版本|style|color|size|spec)/i
-        const dimIdx = []
+        const candIdx = []
         for (let i = 0; i < headCells.length; i++) {
-          if (DIM_RE.test(headCells[i])) dimIdx.push(i)
+          if (DIM_RE.test(headCells[i])) candIdx.push(i)
         }
+        if (!candIdx.length) continue
+
+        // ── 判据 ① + ②：把「商品属性表」从「规格价格表」里剔出去 ──
+        // ① 某维度所有行取值都相同 → 固定属性，不是可选规格
+        // ② 某维度的取值出现在表头里 → 表头行其实是数据行（双层表头错位）
+        const headSet = new Set(headCells.map(h => String(h || '').trim()).filter(Boolean))
+        const dataRows = []
+        const dataRowEls = []
+        for (let r = 1; r < rows.length; r++) {
+          const cells = Array.from(rows[r].querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || ''))
+          if (cells.length < 2) continue
+          dataRows.push(cells)
+          dataRowEls.push(rows[r])
+        }
+        if (!dataRows.length) continue
+        const dimIdx = []
+        for (const i of candIdx) {
+          const vals = dataRows
+            .map(c => String(c[i] || '').trim())
+            .filter(v => v && !isJunkSpec(v))
+          if (!vals.length) continue
+          // 取值出现在表头 → 那是「属性名」不是「属性值」，排除
+          // （注意：**不能**因为「只有一个取值」就排除 ——
+          //   「尺码=均码」这种单取值维度是合法规格，见 domprice 回归测试）
+          let inHead = false
+          for (const v of vals) { if (headSet.has(v)) { inHead = true; break } }
+          if (inHead) continue
+          dimIdx.push(i)
+        }
+        // 一个维度都不剩 → 这不是规格表（是商品属性表）→ 跳过
         if (!dimIdx.length) continue
         // 价格列：表头含“价”，或数据行里带 ¥ 且是数字
         let priceIdx = headCells.findIndex(h => /价|price|金额|单价/i.test(h))
@@ -2983,9 +3181,8 @@
         const isTierTable = /起订|起批|数量|件数/.test(headCells.join(' '))
         if (isTierTable) continue // 阶梯价表不是变体表
 
-        for (let r = 1; r < rows.length; r++) {
-          const cells = Array.from(rows[r].querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || ''))
-          if (cells.length < 2) continue
+        for (let ri = 0; ri < dataRows.length; ri++) {
+          const cells = dataRows[ri]
           // 找这一行的价格
           // 规则（2026-10-25 修）：
           //   ① 表头有「价格/金额/单价」→ 用该列
@@ -3043,7 +3240,7 @@
           // 行首可能是颜色图（img）而不是文字
           let image = ''
           try {
-            const imgs = Array.from(rows[r].querySelectorAll('img'))
+            const imgs = Array.from(dataRowEls[ri].querySelectorAll('img'))
             for (const im of imgs) {
               const u = im.getAttribute('src') || im.getAttribute('data-src') || im.getAttribute('data-lazy-src') || ''
               if (u && /alicdn|1688|cbu/i.test(u) && !isBadImage(u)) { image = u; break }
@@ -3164,11 +3361,42 @@
       }
     }
 
+    // 描述 = 商品基本属性表（不是详情页那段图片 HTML）
+    const attributes = pickAttributeTable(payloads) || dom.attributes || undefined
+
+    // ★ 排除「属性名伪装成规格值」的变体（2026-10-26 18:00 用户反馈）
+    //   「材质:风格」「材质:发夹分类」这种根本不是变体，是商品属性表
+    const attrDrop = dropAttributeNamedVariants(variants, attributes)
+    variants = attrDrop.variants
+
+    // ★ 变体项本身按「用户点过的探测项」过滤（2026-10-26 18:03 用户要求）
+    //   「红色我没有点，变体里就不要出现红色这个颜色变体项」
+    //   没有探测记录时完全不过滤，保持原有行为。
+    const probeFilter = filterVariantsByProbe(variants)
+    variants = probeFilter.variants
+    if (probeFilter.active && variantDims.length) {
+      // 维度定义里的「可选值」也要跟着过滤，否则前端仍会列出没点过的值
+      const keptVals = new Map()
+      for (const v of variants) {
+        for (const s of (v.specs || [])) {
+          if (!s || !s.value) continue
+          if (!keptVals.has(s.name)) keptVals.set(s.name, new Set())
+          keptVals.get(s.name).add(s.value)
+        }
+      }
+      variantDims = variantDims
+        .map(d => {
+          const set = keptVals.get(d.name)
+          if (!set) return d
+          const values = (d.values || []).filter(x => set.has(x))
+          return values.length ? Object.assign({}, d, { values }) : null
+        })
+        .filter(Boolean)
+    }
+
     // 变体配图：A（序号对齐）+ B（点击探测）—— 详见 assignVariantImages
     const vimgStat = assignVariantImages(variants, galleryAll)
 
-    // 描述 = 商品基本属性表（不是详情页那段图片 HTML）
-    const attributes = pickAttributeTable(payloads) || dom.attributes || undefined
     const descFromAttrs = attributeTableToText(attributes)
 
     // 货号 / 首个规格 / 阶梯价 / 批发价（新增字段，不影响原有字段）
@@ -3816,7 +4044,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.6.0',
+    __v: '4.7.0',
     install,
     capture,
     collectAll,
@@ -3827,6 +4055,23 @@
     startVariantCapture,
     stopVariantCapture,
     assignVariantImages,
+    filterVariantsByProbe,
+    dropAttributeNamedVariants,
+    // 测试钩子：注入探测记录（value → {dim, img}）
+    __setVariantCapture: (map) => {
+      VARIANT_CAPTURE.map = map || {}
+      VARIANT_CAPTURE.dim = {}
+      VARIANT_CAPTURE.cands = {}
+      VARIANT_CAPTURE.hits = 0
+      for (const k of Object.keys(VARIANT_CAPTURE.map)) {
+        const item = VARIANT_CAPTURE.map[k]
+        VARIANT_CAPTURE.dim[k] = (item && item.dim) || ''
+        VARIANT_CAPTURE.cands[k] = specValueCandidates(k)
+        VARIANT_CAPTURE.hits++
+      }
+      VARIANT_CAPTURE.active = Object.keys(VARIANT_CAPTURE.map).length > 0
+      return VARIANT_CAPTURE.hits
+    },
     dumpVariantDom,
     /** 直接写入探测结果（控制台调试 / 测试用） */
     setVariantCapture: (map, dim, cands) => {
@@ -3952,9 +4197,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.34.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.35.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.34.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.35.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -4345,9 +4590,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.6.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.7.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.6.0'
+  const MIN_CORE = '4.7.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -4400,7 +4645,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.34.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.35.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
