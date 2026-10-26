@@ -18,7 +18,6 @@
 
 import { writeFile, mkdir, readFile } from 'fs/promises'
 import { existsSync } from 'fs'
-import fs from 'fs'
 import path from 'path'
 import { createHash } from 'crypto'
 
@@ -26,18 +25,22 @@ import { createHash } from 'crypto'
 export const PERSISTENT_UPLOAD_DIR = '/home/u828392799/domains/fiestaflare.com/uploads'
 
 /**
- * 实际落地目录。
- * 生产环境 = PERSISTENT_UPLOAD_DIR；
- * 本地开发 / CI（没权限建 /home/u828392799）→ 回退到 public/uploads。
+ * 实际落地目录（按优先级）。
+ *  1) UPLOAD_DIR 环境变量（显式指定）
+ *  2) 持久目录 PERSISTENT_UPLOAD_DIR（生产环境）
+ *  3) public/uploads（本地开发 / CI 没权限时）
+ *
+ * 注意：这里只做「选目录」，**能不能写由写入时的 try/catch 决定** ——
+ * 目录存在 ≠ 可写（生产环境可能是只读挂载）。
  */
 export function resolveUploadDir(): string {
   const env = process.env.UPLOAD_DIR
   if (env) return env
-  try {
-    // 父目录可写 → 用持久目录
-    const parent = path.dirname(PERSISTENT_UPLOAD_DIR)
-    if (fs.existsSync(parent)) return PERSISTENT_UPLOAD_DIR
-  } catch { /* ignore */ }
+  return PERSISTENT_UPLOAD_DIR
+}
+
+/** 备选目录（持久目录写不进去时用） */
+export function fallbackUploadDir(): string {
   return path.join(process.cwd(), 'public', 'uploads')
 }
 
@@ -130,11 +133,17 @@ export async function downloadImageToLocal(
     if (buf.length < 1024) return null
     if (buf.slice(0, 3).toString('latin1') === 'GIF') return null
 
-    if (!existsSync(uploadDir)) {
-      await mkdir(uploadDir, { recursive: true })
+    // 写入：优先持久目录，失败（没权限/只读）→ 回退到 public/uploads
+    for (const dir of [uploadDir, fallbackUploadDir()]) {
+      try {
+        if (!existsSync(dir)) await mkdir(dir, { recursive: true })
+        await writeFile(path.join(dir, filename), buf)
+        return LOCAL_IMAGE_PREFIX + filename
+      } catch {
+        // 试下一个目录
+      }
     }
-    await writeFile(filepath, buf)
-    return LOCAL_IMAGE_PREFIX + filename
+    return null
   } catch {
     return null
   } finally {

@@ -30,7 +30,7 @@ const src = transform(
 ).code
 const mod = { exports: {} }
 new Function('module', 'exports', 'require', src)(mod, mod.exports, req)
-const { downloadImageToLocal, resolveUploadDir } = mod.exports
+const { downloadImageToLocal, resolveUploadDir, fallbackUploadDir } = mod.exports
 
 /** 读 JPEG 宽高（读 SOF 标记，不装库） */
 function jpegSize(buf) {
@@ -65,8 +65,14 @@ const t = (n, ok, extra) => {
 
   if (local) {
     const filename = local.replace('/api/uploads/', '')
-    const filepath = path.join(resolveUploadDir(), filename)
-    t('文件已落地', fs.existsSync(filepath), filepath)
+    // 可能落在持久目录，也可能回退到 public/uploads（取决于权限）
+    const candidates = [
+      path.join(resolveUploadDir(), filename),
+      path.join(fallbackUploadDir(), filename),
+    ]
+    const filepath = candidates.find(p => fs.existsSync(p)) || candidates[0]
+    console.log('  落地位置:', filepath)
+    t('文件已落地', fs.existsSync(filepath), candidates.join(' | '))
     if (fs.existsSync(filepath)) {
       const buf = fs.readFileSync(filepath)
       console.log('  文件大小:', buf.length, '字节')
