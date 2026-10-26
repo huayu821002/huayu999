@@ -5,7 +5,7 @@ import path from 'path'
 import { verifyToken } from '@/lib/auth'
 import { randomUUID } from 'crypto'
 
-const PERSISTENT_UPLOAD_DIR = '/home/u828392799/domains/fiestaflare.com/uploads'
+import { resolveUploadDir } from '@/lib/localImages'
 
 export async function POST(request: Request) {
   try {
@@ -45,13 +45,14 @@ export async function POST(request: Request) {
     const filename = isDoc ? file.name : `${randomUUID()}.${ext}`
 
     // 上传到持久目录（部署后不会被清空）
-    if (!existsSync(PERSISTENT_UPLOAD_DIR)) {
-      await mkdir(PERSISTENT_UPLOAD_DIR, { recursive: true })
+    const uploadDir = resolveUploadDir()
+    if (!existsSync(uploadDir)) {
+      await mkdir(uploadDir, { recursive: true })
     }
 
     const bytes = await file.arrayBuffer()
     const buffer = Buffer.from(bytes)
-    const filepath = path.join(PERSISTENT_UPLOAD_DIR, filename)
+    const filepath = path.join(uploadDir, filename)
     await writeFile(filepath, buffer)
 
     // 返回相对路径，前端通过 /api/uploads/xxx 访问

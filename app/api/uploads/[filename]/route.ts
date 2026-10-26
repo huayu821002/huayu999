@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server'
 import { readFile } from 'fs/promises'
 import { existsSync } from 'fs'
 import path from 'path'
-
-const PERSISTENT_UPLOAD_DIR = '/home/u828392799/domains/fiestaflare.com/uploads'
+import { resolveUploadDir } from '@/lib/localImages'
 
 export async function GET(
   request: Request,
@@ -16,10 +15,11 @@ export async function GET(
       return new NextResponse('Invalid filename', { status: 400 })
     }
 
-    const filepath = path.join(PERSISTENT_UPLOAD_DIR, filename)
+    const uploadDir = resolveUploadDir()
+    const filepath = path.join(uploadDir, filename)
 
     // 安全检查：确保文件在允许的目录内
-    if (!filepath.startsWith(PERSISTENT_UPLOAD_DIR)) {
+    if (!filepath.startsWith(uploadDir)) {
       return new NextResponse('Forbidden', { status: 403 })
     }
 

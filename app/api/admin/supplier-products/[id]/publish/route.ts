@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { ensureSupplierProductTable, parseImagesField, parseJsonField } from '@/lib/supplier'
 import { toProductVariants } from '@/lib/variants'
 import { normalizeAlibabaImageList } from '@/lib/imageNormalize'
+import { downloadImagesToLocal, isLocalImage } from '@/lib/localImages'
 
 /**
  * POST /api/admin/supplier-products/[id]/publish
@@ -25,6 +26,12 @@ export async function POST(
     // ★ 归一化成原图（剥掉 _sum 等缩略后缀，80x80 → 800x800）
     const parsedImages = normalizeAlibabaImageList(parseImagesField(item.images))
     const images = Array.from(new Set(parsedImages)).slice(0, 5)
+
+    // ★ 把图片下载到本地空间，商品图片地址改用本地路径
+    //   （不依赖 1688 CDN —— 对方防盗链 / 可能删图）
+    //   下载失败的保留原 CDN 地址，不阻塞上架
+    const localImages = await downloadImagesToLocal(images)
+    const finalImages = images.map((u, i) => localImages[i] || u)
     // 英文标题优先（采集时已自动翻译），其次原标题
     const name = (body.name || item.titleEn || item.title || '').trim()
     if (!name) {
@@ -79,6 +86,16 @@ export async function POST(
     const variantDims = parseJsonField<any[]>(item.variantDims) || []
     const variants = toProductVariants(supplierVariants, variantDims, { markup, rate: 7.2 })
 
+    // ★ 变体图也下载到本地（每个变体一张）
+    const variantImgIdx = variants.map((v: any, i: number) => (v.image ? i : -1)).filter((i: number) => i >= 0)
+    if (variantImgIdx.length) {
+      const urls = variantImgIdx.map(i => variants[i].image as string)
+      const local = await downloadImagesToLocal(urls)
+      variantImgIdx.forEach((vi, k) => {
+        if (local[k]) variants[vi] = { ...variants[vi], image: local[k] }
+      })
+    }
+
     // 商品价：有变体时取最低变体价（前台显示的起价）
     const variantPrices = variants.map(v => v.price).filter((p): p is number => typeof p === 'number')
     const finalPrice = variantPrices.length ? Math.min(...variantPrices) : price
@@ -97,7 +114,7 @@ export async function POST(
         barcode: body.barcode || item.sourceSkuId || undefined,
         dimensions: body.dimensions || undefined,
         sizeChart: body.sizeChart || undefined,
-        images: JSON.stringify(images),
+        images: JSON.stringify(finalImages),
         minOrderQty: numOrNull(body.minOrderQty) ?? item.moq ?? 1,
         inventory: numOrNull(body.inventory) ?? 0,
         lowStockAlert: numOrNull(body.lowStockAlert) ?? 10,
