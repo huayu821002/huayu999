@@ -174,7 +174,7 @@ function makeSandbox(docOpts = {}) {
     t('最大面积那张排第一', d.bigImages[0] && d.bigImages[0].url.includes('BIG'), JSON.stringify(d.bigImages[0]))
   }
 
-  console.log('\n[B-4] 探测结果仍能匹配到变体（probe 优先于 align）')
+  console.log('\n[B-4] 探测结果能匹配到变体（probe 命中）')
   {
     const body = mkEl('body')
     const { sandbox } = makeSandbox({ body })

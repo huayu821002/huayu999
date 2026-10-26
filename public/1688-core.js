@@ -14,7 +14,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.4.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.5.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -1918,6 +1918,47 @@
 
   const normSpec = s => String(s || '').replace(/\s+/g, '').replace(/[（）()]/g, '').toLowerCase()
 
+  /**
+   * 由探测到的原始文字，生成一组「可能与规格表值对应的候选」
+   *
+   * 场景：色卡上写的可能是
+   *   "深灰"          → 规格表 "P064深灰"
+   *   "P064深灰"      → 规格表 "P064深灰"      （直接相等）
+   *   "P064深灰 已有1000件" → 规格表 "P064深灰"
+   *   "颜色 深灰"     → 规格表 "P064深灰"
+   *
+   * 做法：按分隔符切段 + 剥常见前缀（型号/编码），全部作为候选。
+   * 匹配时只要**任一候选**与规格表值对上就算命中。
+   */
+  function specValueCandidates(raw) {
+    const out = []
+    const push = s => {
+      const t = String(s || '').trim()
+      if (!t || t.length > 40) return
+      if (!out.includes(t)) out.push(t)
+    }
+    push(raw)
+    // 按常见分隔符切成多段
+    for (const sep of ['/', '|', '、', ',', '，', '·', '\n', '\t']) {
+      const parts = String(raw || '').split(sep).map(s => s.trim()).filter(Boolean)
+      if (parts.length > 1) for (const p of parts) push(p)
+    }
+    // 按空白切（"颜色 深灰" / "P064深灰 已有1000件"）
+    const ws = String(raw || '').split(/\s+/).map(s => s.trim()).filter(Boolean)
+    if (ws.length > 1) for (const w of ws) push(w)
+    // 剥掉开头的型号/编码前缀（P064深灰 → 深灰）
+    for (const v of out.slice()) {
+      const m = v.match(/^([A-Za-z]{0,4}[-_]?\d{2,6}[A-Za-z0-9]*)\s*[\s:：]?\s*(.+)$/)
+      if (m && m[2]) push(m[2])
+    }
+    // 剥掉结尾的数量/备注（"P064深灰 已有1000件" → "P064深灰 已有"）
+    for (const v of out.slice()) {
+      const m = v.match(/^(.*?)\s*(已有|现货|有货|剩余)\s*[\d.]*\s*[件个条支]?$/)
+      if (m && m[1]) push(m[1].trim())
+    }
+    return out
+  }
+
   /** 从选项元素往上找它属于哪个维度（颜色/款式/尺码…） */
   function captureDimOf(el) {
     const DIM_RE = /^(颜色|色|款式|尺码|尺寸|规格|型号|材质|包装|套餐|版本|style|color|size|spec)$/i
@@ -2064,6 +2105,7 @@
     VARIANT_CAPTURE.active = true
     VARIANT_CAPTURE.map = {}
     VARIANT_CAPTURE.dim = {}
+    VARIANT_CAPTURE.cands = {}   // value → 候选值数组（提高匹配命中率）
     VARIANT_CAPTURE.hits = 0
     VARIANT_CAPTURE.log = []
 
@@ -2107,6 +2149,7 @@
       // ① 最高可信：选项块自带的缩略图
       if (ownImg) {
         VARIANT_CAPTURE.map[value] = ownImg
+        VARIANT_CAPTURE.cands[value] = specValueCandidates(value)
         if (dim) VARIANT_CAPTURE.dim[value] = dim
         VARIANT_CAPTURE.hits++
         VARIANT_CAPTURE.log.push({ value, src: 'option-img', url: ownImg, cls: String((el && el.className) || '') })
@@ -2125,6 +2168,7 @@
           : captureBigImage()
         if (img) {
           VARIANT_CAPTURE.map[pending.value] = img
+          VARIANT_CAPTURE.cands[pending.value] = specValueCandidates(pending.value)
           if (pending.dim) VARIANT_CAPTURE.dim[pending.value] = pending.dim
           VARIANT_CAPTURE.hits++
           VARIANT_CAPTURE.log.push({ value: pending.value, src: fresh.length ? 'new-img' : 'big-img', url: img })
@@ -2156,6 +2200,7 @@
         if (!n || isBadImage(n)) continue
         if (pending.before && pending.before.has(n)) continue
         VARIANT_CAPTURE.map[pending.value] = n
+        VARIANT_CAPTURE.cands[pending.value] = specValueCandidates(pending.value)
         if (pending.dim) VARIANT_CAPTURE.dim[pending.value] = pending.dim
         VARIANT_CAPTURE.hits++
         VARIANT_CAPTURE.log.push({ value: pending.value, src: 'mo', url: n })
@@ -2262,10 +2307,23 @@
     }
   }
 
-  /** B 方案匹配：按维度 + 值 找到探测到的图片 */
-  function matchCapturedImage(v) {
+  /**
+   * B 方案匹配：按维度 + 值 找到探测到的图片
+   *
+   * ★ 用户要求（2026-10-26 17:40）：「只要点了就采集出来，没点的不要出来」
+   *   → 匹配必须**准确**，宁可匹配不上也不能配错。
+   *   → 之前的「包含关系」匹配会把 P064深灰 配给 深灰 那个变体（配错）。
+   *
+   * 匹配分级（从严到松）：
+   *   1) 标准化后**完全相等** + 维度兼容 → 最可信
+   *   2) 标准化后完全相等（忽略维度）
+   *   3) **双向包含**（"P064深灰" vs "深灰"）—— 但必须**唯一命中**，
+   *      命中多个时视为不确定 → 不配（宁可不给图，也不要配错）
+   */
+  function matchCapturedImage(v, usedKeys, allVariants) {
     const map = VARIANT_CAPTURE.map || {}
-    const keys = Object.keys(map)
+    const used = usedKeys || new Set()
+    const keys = Object.keys(map).filter(k => !used.has(k))
     if (!keys.length) return ''
     // 候选值：颜色优先，然后所有 spec 值
     const cands = []
@@ -2274,30 +2332,65 @@
       if (!s || !s.value) continue
       cands.push({ dim: String(s.name || ''), val: s.value })
     }
-    // 1) 维度 + 值 完全匹配
+    if (!cands.length) return ''
+
+    // 每个探测项的候选值（原始值 + 派生的候选）
+    const candOf = k => {
+      const list = (VARIANT_CAPTURE.cands && VARIANT_CAPTURE.cands[k]) || []
+      return list.length ? list : [k]
+    }
+    // 1) 维度 + 值 完全相等
     for (const c of cands) {
       for (const k of keys) {
-        if (normSpec(k) !== normSpec(c.val)) continue
+        const hit = candOf(k).some(cv => normSpec(cv) === normSpec(c.val))
+        if (!hit) continue
         const kd = VARIANT_CAPTURE.dim[k] || ''
         if (!c.dim || !kd || kd === c.dim || /颜色|色/i.test(c.dim) === /颜色|色/i.test(kd)) {
-          return map[k]
+          return { url: map[k], key: k }
         }
       }
     }
-    // 2) 只按值匹配（忽略维度）
+    // 2) 只按值完全相等（忽略维度）
     for (const c of cands) {
       for (const k of keys) {
-        if (normSpec(k) === normSpec(c.val)) return map[k]
+        if (candOf(k).some(cv => normSpec(cv) === normSpec(c.val))) return { url: map[k], key: k }
       }
     }
-    // 3) 包含关系（"BMZ160丁香紫" vs "丁香紫"）
-    for (const c of cands) {
-      for (const k of keys) {
-        const a = normSpec(k), b = normSpec(c.val)
-        if (!a || !b) continue
-        if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) return map[k]
+    // 3) 双向包含 —— 必须**双向唯一**，否则不配
+    //    「双向唯一」= 探测项唯一 + 变体唯一
+    //    （如果两个变体都包含同一个探测值，说明这个探测值不足以区分它们 → 都不配）
+    const hitKeys = []
+    for (const k of keys) {
+      let hit = false
+      for (const cv of candOf(k)) {
+        const a = normSpec(cv)
+        if (!a) continue
+        for (const c of cands) {
+          const b = normSpec(c.val)
+          if (!b) continue
+          if (a.indexOf(b) >= 0 || b.indexOf(a) >= 0) { hit = true; break }
+        }
+        if (hit) break
       }
+      if (hit && !hitKeys.includes(k)) hitKeys.push(k)
     }
+    if (hitKeys.length === 1) {
+      // 反查：还有别的变体也包含这个探测值吗？→ 有则不配（分不清）
+      const onlyList = candOf(hitKeys[0]).map(normSpec).filter(Boolean)
+      let ambiguous = false
+      for (const other of (allVariants || [])) {
+        if (!other || other.v === v) continue
+        for (const c of (other.cands || [])) {
+          const b = normSpec(c.val)
+          if (!b) continue
+          if (onlyList.some(o => o.indexOf(b) >= 0 || b.indexOf(o) >= 0)) { ambiguous = true; break }
+        }
+        if (ambiguous) break
+      }
+      if (ambiguous) return ''
+      return { url: map[hitKeys[0]], key: hitKeys[0] }
+    }
+    // 多个探测项都包含匹配 → 不确定，不配图（宁可不给图，也不要配错）
     return ''
   }
 
@@ -2307,33 +2400,45 @@
    * @param {Array} galleryAll 未截断的图集列表（按顺序）
    */
   function assignVariantImages(variants, galleryAll) {
-    if (!Array.isArray(variants) || !variants.length) return { matched: 0, aligned: 0 }
-    let matched = 0, aligned = 0
-    const used = new Set()
-    variants.forEach((v, i) => {
+    if (!Array.isArray(variants) || !variants.length) return { matched: 0, aligned: 0, skipped: 0 }
+    let matched = 0, aligned = 0, skipped = 0
+    const usedImages = new Set()
+    const usedKeys = new Set()
+    // 预先算好每个变体的候选值（color + specs），
+    // 并把全部变体挂上去 —— 包含匹配需要**全局唯一性**判断
+    const all = []
+    for (const v of variants) {
+      const cands = []
+      if (v.color) cands.push({ dim: '颜色', val: v.color })
+      for (const s of (v.specs || [])) {
+        if (!s || !s.value) continue
+        cands.push({ dim: String(s.name || ''), val: s.value })
+      }
+      all.push({ v, cands })
+    }
+    variants.forEach((v) => {
       // 1) 接口/DOM 自带的图优先（最可信）
-      if (v.image && !isBadImage(v.image)) { used.add(v.image); return }
-      // 2) B 方案：用户点击探测到的图
-      const cap = matchCapturedImage(v)
-      if (cap && !isBadImage(cap)) {
-        v.image = cap
+      if (v.image && !isBadImage(v.image)) { usedImages.add(v.image); return }
+      // 2) B 方案：用户点击探测到的图（**只有点过的才有图**）
+      const cap = matchCapturedImage(v, usedKeys, all)
+      if (cap && !isBadImage(cap.url)) {
+        v.image = cap.url
         v.imageSource = 'probe'
-        used.add(cap)
+        usedImages.add(cap.url)
+        usedKeys.add(cap.key)
         matched++
         return
       }
-      // 3) A 方案：序号对齐（图集第 N 张 ↔ 变体第 N 个）
-      const g = (galleryAll || [])[i]
-      if (g && !isBadImage(g) && !used.has(g)) {
-        v.image = g
-        v.imageSource = 'align'
-        used.add(g)
-        aligned++
-        return
-      }
+      // 3) ★ A 方案（序号对齐）已移除 ——
+      //    用户要求：「没点的就不要出来」。
+      //    之前这里按「图集第 N 张 ↔ 变体第 N 个」硬配 —— 纯猜，
+      //    会把图配到用户根本没点过的变体上（线上实测 align=1 / probe=0）。
+      //    猜错比没图更糟：客户看到颜色和图片对不上。
+      v.image = ''
       v.imageSource = 'none'
+      skipped++
     })
-    return { matched, aligned }
+    return { matched, aligned, skipped }
   }
 
   /* ------------------------------------------------------- SKU / 阶梯价 */
@@ -3612,7 +3717,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.4.0',
+    __v: '4.5.0',
     install,
     capture,
     collectAll,
@@ -3625,15 +3730,21 @@
     assignVariantImages,
     dumpVariantDom,
     /** 直接写入探测结果（控制台调试 / 测试用） */
-    setVariantCapture: (map, dim) => {
+    setVariantCapture: (map, dim, cands) => {
       VARIANT_CAPTURE.map = map && typeof map === 'object' ? map : {}
       VARIANT_CAPTURE.dim = dim && typeof dim === 'object' ? dim : {}
+      // cands 可选：不传就自动生成候选值
+      VARIANT_CAPTURE.cands = {}
+      for (const k of Object.keys(VARIANT_CAPTURE.map)) {
+        VARIANT_CAPTURE.cands[k] = (cands && cands[k]) || specValueCandidates(k)
+      }
       VARIANT_CAPTURE.hits = Object.keys(VARIANT_CAPTURE.map).length
       return VARIANT_CAPTURE.hits
     },
     getVariantCapture: () => ({
       active: VARIANT_CAPTURE.active,
       hits: VARIANT_CAPTURE.hits,
+      cands: VARIANT_CAPTURE.cands || {},
       map: VARIANT_CAPTURE.map,
       dim: VARIANT_CAPTURE.dim,
       log: VARIANT_CAPTURE.log || [],

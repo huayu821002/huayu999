@@ -8,7 +8,7 @@
  */
 const fs = require('fs')
 const { PrismaClient } = require('/home/admin/Fiestaflare/node_modules/@prisma/client')
-const dbUrl = fs.readFileSync('/home/admin/.openclaw/workspace/dburl_pool.txt', 'utf8').trim()
+const dbUrl = fs.readFileSync('/home/admin/.openclaw/workspace/dburl.txt', 'utf8').trim()
 const prisma = new PrismaClient({ datasources: { db: { url: dbUrl } } })
 
 const SITE = 'https://fiestaflare.com'

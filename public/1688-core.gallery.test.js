@@ -71,13 +71,16 @@ function makeSandbox(capturePayloads = []) {
   ]
   const st1 = FF2.assignVariantImages(variants, gallery)
   console.log('  stat =', JSON.stringify(st1))
-  t('对齐 3 个', st1.aligned === 3, JSON.stringify(st1))
-  t('变体0 → 图集第1张', variants[0].image === gallery[0], variants[0].image)
-  t('变体1 → 图集第2张', variants[1].image === gallery[1], variants[1].image)
-  t('变体2 → 图集第3张', variants[2].image === gallery[2], variants[2].image)
-  t('来源标记 align', variants[0].imageSource === 'align', variants[0].imageSource)
+  // ★ 用户要求（2026-10-26 17:40）：「没点过的就不要出来」
+  //   序号对齐（A 方案）已移除 —— 没探测过的变体**一律不给图**
+  t('没探测过 → 一个都不配', st1.matched === 0, JSON.stringify(st1))
+  t('aligned 恒为 0', st1.aligned === 0, JSON.stringify(st1))
+  t('变体0 无图', variants[0].image === '', variants[0].image)
+  t('变体1 无图', variants[1].image === '', variants[1].image)
+  t('变体2 无图', variants[2].image === '', variants[2].image)
+  t('来源标记 none', variants[0].imageSource === 'none', variants[0].imageSource)
 
-  console.log('\n[3] 变体配图 B：点击探测优先于对齐')
+  console.log('\n[3] 变体配图 B：探测命中的有图，没点过的没有')
   const sb3 = makeSandbox(capture)
   const FF3 = sb3.FF1688
   FF3.setVariantCapture({ '艾青绿': PICS[9] }, { '艾青绿': '颜色' })
@@ -90,7 +93,8 @@ function makeSandbox(capturePayloads = []) {
   t('探测命中 1 个', st3.matched === 1, JSON.stringify(st3))
   t('探测到的图生效', v3[1].image === PICS[9], v3[1].image)
   t('来源标记 probe', v3[1].imageSource === 'probe', v3[1].imageSource)
-  t('未探测的仍走对齐', v3[0].image === gallery[0], v3[0].image)
+  t('★ 没点过的变体无图（不再走对齐）', v3[0].image === '', v3[0].image)
+  t('★ 没点过的来源是 none', v3[0].imageSource === 'none', v3[0].imageSource)
 
   console.log('\n[4] 变体自带图优先，不被覆盖')
   const sb4 = makeSandbox(capture)

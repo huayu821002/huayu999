@@ -183,7 +183,9 @@ function sanitizeVariants(input: any): any[] | undefined {
       priceText: v.priceText ? String(v.priceText).slice(0, 40) : '',
       // ★ 变体图也要原图（_sum → 80x80 小图）
       image: v.image ? normalizeAlibabaImage(v.image).slice(0, 500) : '',
-      // 配图来源：probe=用户点击探测 / align=序号对齐 / none=没配上
+      // 配图来源：probe=用户点击探测 / none=没配上
+      // （'align' 序号对齐已于 2026-10-26 移除 —— 用户要求「没点过的不要出来」，
+      //   这里保留兼容：万一旧版采集器还在上报 align，也能正常入库不报错）
       imageSource: v.imageSource === 'probe' || v.imageSource === 'align' || v.imageSource === 'none'
         ? v.imageSource
         : undefined,
