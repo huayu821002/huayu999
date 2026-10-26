@@ -14,7 +14,7 @@
 (function () {
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.3.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.4.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -1993,6 +1993,30 @@
     return best
   }
 
+  /**
+   * 找「当前选中的规格项」。
+   * 1688 点完颜色后会给选中项加 class(selected/active/checked) 或 aria-selected。
+   * 读这个比认「被点的元素」可靠得多。
+   */
+  function captureSelectedValue() {
+    const sels = [
+      '[aria-selected="true"]', '[aria-checked="true"]',
+      '[class*="selected"]', '[class*="Selected"]', '[class*="active"]',
+      '[class*="checked"]', '[class*="current"]', '[class*="choose"]',
+    ]
+    for (const s of sels) {
+      let els = []
+      try { els = document.querySelectorAll(s) } catch (e) { continue }
+      for (const el of Array.from(els).slice(0, 30)) {
+        const txt = clean(el.innerText || el.textContent || '').slice(0, 40)
+        if (!txt || txt.length > 30) continue
+        const img = captureOptionOwnImage(el)
+        return { value: txt, el, img }
+      }
+    }
+    return null
+  }
+
   /** 开始 B 方案：监听点击，记录「选项文字 → 图片」 */
   function startVariantCapture() {
     if (VARIANT_CAPTURE.active) return { active: true, hits: VARIANT_CAPTURE.hits }
@@ -2006,30 +2030,54 @@
     let pendingTimer = null
 
     const onClick = ev => {
+      // 点击前的全页图片快照（用于识别「新出现」的那张）
+      const before = new Set(captureAllImages().map(x => x.url))
       const el = findOptionEl(ev.target)
-      if (!el) return
-      const value = clean(el.innerText || el.textContent || '').slice(0, 40)
-      if (!value || value.length > 40) return
 
-      // ① 最高可信：选项块自带的缩略图
-      const own = captureOptionOwnImage(el)
-      if (own) {
-        VARIANT_CAPTURE.map[value] = own
-        const dim = captureDimOf(el)
-        if (dim) VARIANT_CAPTURE.dim[value] = dim
-        VARIANT_CAPTURE.hits++
-        VARIANT_CAPTURE.log.push({ value, src: 'option-img', url: own, cls: String(el.className || '') })
+      // 值的来源优先级：① 认出选项块 ② 页面上「已选中」的规格 ③ 点击目标的短文字
+      let value = ''
+      let dim = ''
+      let ownImg = ''
+      if (el) {
+        value = clean(el.innerText || el.textContent || '').slice(0, 40)
+        dim = captureDimOf(el)
+        ownImg = captureOptionOwnImage(el)
+      }
+      if (!value) {
+        const sel = captureSelectedValue()
+        if (sel) {
+          value = sel.value
+          if (!ownImg) ownImg = sel.img
+        }
+      }
+      if (!value) {
+        let n = ev.target
+        for (let i = 0; i < 3 && n; i++) {
+          const t = clean(n.innerText || n.textContent || '')
+          if (t && t.length <= 30) { value = t.slice(0, 40); break }
+          n = n.parentElement
+        }
+      }
+      if (!value) {
+        VARIANT_CAPTURE.log.push({ value: '', src: 'no-value', url: '', cls: String((ev.target && ev.target.className) || '') })
         return
       }
 
-      // ② 退化：记住点击前全页图片快照，等主图换
-      const before = new Set(captureAllImages().map(x => x.url))
-      pending = { value, dim: captureDimOf(el), before }
+      // ① 最高可信：选项块自带的缩略图
+      if (ownImg) {
+        VARIANT_CAPTURE.map[value] = ownImg
+        if (dim) VARIANT_CAPTURE.dim[value] = dim
+        VARIANT_CAPTURE.hits++
+        VARIANT_CAPTURE.log.push({ value, src: 'option-img', url: ownImg, cls: String((el && el.className) || '') })
+        return
+      }
+
+      // ② 退化：等主图换（用点击前快照做差）
+      pending = { value, dim, before }
       if (pendingTimer) clearTimeout(pendingTimer)
       pendingTimer = setTimeout(() => {
         if (!pending) return
         const after = captureAllImages()
-        // 新出现的 URL = 刚点出来的那张图
         const fresh = after.filter(x => !pending.before.has(x.url))
         const img = fresh.length
           ? fresh.sort((a, b) => b.area - a.area)[0].url
@@ -2038,9 +2086,9 @@
           VARIANT_CAPTURE.map[pending.value] = img
           if (pending.dim) VARIANT_CAPTURE.dim[pending.value] = pending.dim
           VARIANT_CAPTURE.hits++
-          VARIANT_CAPTURE.log.push({ value, src: fresh.length ? 'new-img' : 'big-img', url: img })
+          VARIANT_CAPTURE.log.push({ value: pending.value, src: fresh.length ? 'new-img' : 'big-img', url: img })
         } else {
-          VARIANT_CAPTURE.log.push({ value, src: 'miss', url: '', cls: String(el.className || '') })
+          VARIANT_CAPTURE.log.push({ value: pending.value, src: 'miss', url: '' })
         }
         pending = null
       }, 500)
@@ -2090,42 +2138,66 @@
   }
 
   /**
-   * 诊断：把页面上「像选项块」的元素和「像大图」的图片都列出来。
-   * 用途：用户点了探测却没结果时，复制这份输出给我 → 不用猜 DOM 结构。
+   * 诊断：把页面上真实的「可能与选项块」的元素都列出来。
+   *
+   * 关键：**不按类名过滤**。只按「特征」筛：
+   *   - 文字短（≤ 30 字）且非空
+   *   - 自身或后代有 <img>
+   *   - 或被标记为选中（selected/active/checked/aria-selected）
+   * 这样不管 1688 用什么类名，都能导出候选。
    */
   function dumpVariantDom() {
-    const opts = []
+    const out = []
     const seen = new Set()
-    const sels = SKU_OPTION_SEL.split(',').concat([
-      '[class*="sku"]', '[class*="prop"]', '[class*="attr"]', '[class*="option"]',
-      '[class*="swatch"]', '[class*="choice"]', '[class*="spec"]',
-    ])
-    for (const s of sels) {
+    const pushEl = (el, tag) => {
+      const txt = clean(el.innerText || el.textContent || '').slice(0, 30)
+      const key = txt + '|' + String(el.className || '')
+      if (seen.has(key)) return
+      seen.add(key)
+      out.push({
+        tag,
+        cls: String(el.className || '').slice(0, 100),
+        text: txt,
+        ownImg: captureOptionOwnImage(el),
+        dim: captureDimOf(el),
+        parentCls: String((el.parentElement && el.parentElement.className) || '').slice(0, 100),
+        grandparentCls: String((el.parentElement && el.parentElement.parentElement && el.parentElement.parentElement.className) || '').slice(0, 100),
+        selected: /selected|active|checked|current/i.test(String(el.className || '')) ||
+          el.getAttribute && (el.getAttribute('aria-selected') === 'true' || el.getAttribute('aria-checked') === 'true'),
+      })
+    }
+
+    // ① 所有带选中标记的
+    for (const s of ['[aria-selected="true"]', '[aria-checked="true"]', '[class*="selected"]',
+      '[class*="Selected"]', '[class*="active"]', '[class*="checked"]', '[class*="current"]']) {
       let els = []
       try { els = document.querySelectorAll(s) } catch (e) { continue }
-      for (const el of Array.from(els).slice(0, 40)) {
-        const txt = clean(el.innerText || el.textContent || '').slice(0, 30)
-        if (!txt || txt.length > 30) continue
-        const key = txt + '|' + String(el.className || '')
-        if (seen.has(key)) continue
-        seen.add(key)
-        opts.push({
-          sel: s,
-          cls: String(el.className || '').slice(0, 80),
-          text: txt,
-          ownImg: captureOptionOwnImage(el),
-          dim: captureDimOf(el),
-        })
-        if (opts.length >= 60) break
-      }
-      if (opts.length >= 60) break
+      for (const el of Array.from(els).slice(0, 30)) pushEl(el, 'selected')
     }
+
+    // ② 所有「文字短 + 带图」的元素（色卡/款式块几乎都带小图）
+    let all = []
+    try { all = document.querySelectorAll('*') } catch (e) { all = [] }
+    for (const el of Array.from(all).slice(0, 6000)) {
+      const txt = clean(el.innerText || el.textContent || '')
+      if (!txt || txt.length > 30) continue
+      // 必须是「叶子ish」节点：不再有同样文字的子节点
+      const kids = Array.from(el.children || [])
+      const kidSame = kids.some(c => clean(c.innerText || c.textContent || '') === txt)
+      if (kidSame) continue
+      const hasImg = !!(el.querySelector && el.querySelector('img'))
+      if (!hasImg) continue
+      pushEl(el, 'img-text')
+    }
+
+    // ③ 页面上的图（按面积排）
     const imgs = captureAllImages()
       .sort((a, b) => b.area - a.area)
-      .slice(0, 20)
-      .map(x => ({ url: x.url, w: x.w, h: x.h, cls: x.cls.slice(0, 60) }))
+      .slice(0, 25)
+      .map(x => ({ url: x.url, w: x.w, h: x.h, cls: String(x.cls || '').slice(0, 80) }))
+
     return {
-      options: opts,
+      candidates: out.slice(0, 80),
       bigImages: imgs,
       capture: {
         active: VARIANT_CAPTURE.active,
@@ -3499,7 +3571,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.3.0',
+    __v: '4.4.0',
     install,
     capture,
     collectAll,

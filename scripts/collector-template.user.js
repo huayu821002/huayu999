@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.29.0
+// @version      2.30.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -238,10 +238,11 @@
           return
         }
         const d = window.FF1688.dumpVariantDom()
+        const cands = d.candidates || d.options || []
         const txt = JSON.stringify(d, null, 1)
         try {
           await navigator.clipboard.writeText(txt)
-          say(`✅ 探测诊断已复制：${d.options.length} 个候选选项块 / ${d.bigImages.length} 张大图 / 已录 ${(d.capture && d.capture.hits) || 0} 张`)
+          say(`✅ 探测诊断已复制（内核 ${window.FF1688.__v}）：${cands.length} 个候选 / ${(d.bigImages || []).length} 张图 / 已录 ${(d.capture && d.capture.hits) || 0} 张。把这段发给开发者`)
         } catch (e) {
           kv.style.display = 'block'
           kv.textContent = txt.slice(0, 20000)
@@ -263,15 +264,16 @@
           return
         }
         const cur = window.FF1688.getVariantCapture()
+        const cv = window.FF1688.__v || '?'
         if (cur.active) {
           const r = window.FF1688.stopVariantCapture()
           const keys = Object.keys(r.map || {})
-          say('✅ 探测已停止：录到 ' + (r.hits || 0) + ' 张（' + keys.slice(0, 8).join('、') + '）。现在点「预览解析」或「采集并推送」')
+          say('✅ 探测已停止（内核 ' + cv + '）：录到 ' + (r.hits || 0) + ' 张（' + keys.slice(0, 8).join('、') + '）。现在点「预览解析」或「采集并推送」' + ((r.hits || 0) === 0 ? ' —— 如果是 0 张，请点「复制探测诊断」把数据发给开发者' : ''))
           kv.style.display = 'block'
           kv.textContent = JSON.stringify({ map: r.map, dim: r.dim, log: r.log }, null, 1)
         } else {
           window.FF1688.startVariantCapture()
-          say('🔍 探测已开启：请依次点页面上的每个颜色/款式（每个点一下停一下），再点本按钮结束')
+          say('🔍 探测已开启（内核 ' + cv + '）：请依次点页面上的每个颜色/款式（每个点一下停一下），再点本按钮结束')
         }
       } catch (e) {
         say('异常: ' + e.message)

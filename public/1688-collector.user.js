@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.29.0
+// @version      2.30.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.3.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.4.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2015,6 +2015,30 @@
     return best
   }
 
+  /**
+   * 找「当前选中的规格项」。
+   * 1688 点完颜色后会给选中项加 class(selected/active/checked) 或 aria-selected。
+   * 读这个比认「被点的元素」可靠得多。
+   */
+  function captureSelectedValue() {
+    const sels = [
+      '[aria-selected="true"]', '[aria-checked="true"]',
+      '[class*="selected"]', '[class*="Selected"]', '[class*="active"]',
+      '[class*="checked"]', '[class*="current"]', '[class*="choose"]',
+    ]
+    for (const s of sels) {
+      let els = []
+      try { els = document.querySelectorAll(s) } catch (e) { continue }
+      for (const el of Array.from(els).slice(0, 30)) {
+        const txt = clean(el.innerText || el.textContent || '').slice(0, 40)
+        if (!txt || txt.length > 30) continue
+        const img = captureOptionOwnImage(el)
+        return { value: txt, el, img }
+      }
+    }
+    return null
+  }
+
   /** 开始 B 方案：监听点击，记录「选项文字 → 图片」 */
   function startVariantCapture() {
     if (VARIANT_CAPTURE.active) return { active: true, hits: VARIANT_CAPTURE.hits }
@@ -2028,30 +2052,54 @@
     let pendingTimer = null
 
     const onClick = ev => {
+      // 点击前的全页图片快照（用于识别「新出现」的那张）
+      const before = new Set(captureAllImages().map(x => x.url))
       const el = findOptionEl(ev.target)
-      if (!el) return
-      const value = clean(el.innerText || el.textContent || '').slice(0, 40)
-      if (!value || value.length > 40) return
 
-      // ① 最高可信：选项块自带的缩略图
-      const own = captureOptionOwnImage(el)
-      if (own) {
-        VARIANT_CAPTURE.map[value] = own
-        const dim = captureDimOf(el)
-        if (dim) VARIANT_CAPTURE.dim[value] = dim
-        VARIANT_CAPTURE.hits++
-        VARIANT_CAPTURE.log.push({ value, src: 'option-img', url: own, cls: String(el.className || '') })
+      // 值的来源优先级：① 认出选项块 ② 页面上「已选中」的规格 ③ 点击目标的短文字
+      let value = ''
+      let dim = ''
+      let ownImg = ''
+      if (el) {
+        value = clean(el.innerText || el.textContent || '').slice(0, 40)
+        dim = captureDimOf(el)
+        ownImg = captureOptionOwnImage(el)
+      }
+      if (!value) {
+        const sel = captureSelectedValue()
+        if (sel) {
+          value = sel.value
+          if (!ownImg) ownImg = sel.img
+        }
+      }
+      if (!value) {
+        let n = ev.target
+        for (let i = 0; i < 3 && n; i++) {
+          const t = clean(n.innerText || n.textContent || '')
+          if (t && t.length <= 30) { value = t.slice(0, 40); break }
+          n = n.parentElement
+        }
+      }
+      if (!value) {
+        VARIANT_CAPTURE.log.push({ value: '', src: 'no-value', url: '', cls: String((ev.target && ev.target.className) || '') })
         return
       }
 
-      // ② 退化：记住点击前全页图片快照，等主图换
-      const before = new Set(captureAllImages().map(x => x.url))
-      pending = { value, dim: captureDimOf(el), before }
+      // ① 最高可信：选项块自带的缩略图
+      if (ownImg) {
+        VARIANT_CAPTURE.map[value] = ownImg
+        if (dim) VARIANT_CAPTURE.dim[value] = dim
+        VARIANT_CAPTURE.hits++
+        VARIANT_CAPTURE.log.push({ value, src: 'option-img', url: ownImg, cls: String((el && el.className) || '') })
+        return
+      }
+
+      // ② 退化：等主图换（用点击前快照做差）
+      pending = { value, dim, before }
       if (pendingTimer) clearTimeout(pendingTimer)
       pendingTimer = setTimeout(() => {
         if (!pending) return
         const after = captureAllImages()
-        // 新出现的 URL = 刚点出来的那张图
         const fresh = after.filter(x => !pending.before.has(x.url))
         const img = fresh.length
           ? fresh.sort((a, b) => b.area - a.area)[0].url
@@ -2060,9 +2108,9 @@
           VARIANT_CAPTURE.map[pending.value] = img
           if (pending.dim) VARIANT_CAPTURE.dim[pending.value] = pending.dim
           VARIANT_CAPTURE.hits++
-          VARIANT_CAPTURE.log.push({ value, src: fresh.length ? 'new-img' : 'big-img', url: img })
+          VARIANT_CAPTURE.log.push({ value: pending.value, src: fresh.length ? 'new-img' : 'big-img', url: img })
         } else {
-          VARIANT_CAPTURE.log.push({ value, src: 'miss', url: '', cls: String(el.className || '') })
+          VARIANT_CAPTURE.log.push({ value: pending.value, src: 'miss', url: '' })
         }
         pending = null
       }, 500)
@@ -2112,42 +2160,66 @@
   }
 
   /**
-   * 诊断：把页面上「像选项块」的元素和「像大图」的图片都列出来。
-   * 用途：用户点了探测却没结果时，复制这份输出给我 → 不用猜 DOM 结构。
+   * 诊断：把页面上真实的「可能与选项块」的元素都列出来。
+   *
+   * 关键：**不按类名过滤**。只按「特征」筛：
+   *   - 文字短（≤ 30 字）且非空
+   *   - 自身或后代有 <img>
+   *   - 或被标记为选中（selected/active/checked/aria-selected）
+   * 这样不管 1688 用什么类名，都能导出候选。
    */
   function dumpVariantDom() {
-    const opts = []
+    const out = []
     const seen = new Set()
-    const sels = SKU_OPTION_SEL.split(',').concat([
-      '[class*="sku"]', '[class*="prop"]', '[class*="attr"]', '[class*="option"]',
-      '[class*="swatch"]', '[class*="choice"]', '[class*="spec"]',
-    ])
-    for (const s of sels) {
+    const pushEl = (el, tag) => {
+      const txt = clean(el.innerText || el.textContent || '').slice(0, 30)
+      const key = txt + '|' + String(el.className || '')
+      if (seen.has(key)) return
+      seen.add(key)
+      out.push({
+        tag,
+        cls: String(el.className || '').slice(0, 100),
+        text: txt,
+        ownImg: captureOptionOwnImage(el),
+        dim: captureDimOf(el),
+        parentCls: String((el.parentElement && el.parentElement.className) || '').slice(0, 100),
+        grandparentCls: String((el.parentElement && el.parentElement.parentElement && el.parentElement.parentElement.className) || '').slice(0, 100),
+        selected: /selected|active|checked|current/i.test(String(el.className || '')) ||
+          el.getAttribute && (el.getAttribute('aria-selected') === 'true' || el.getAttribute('aria-checked') === 'true'),
+      })
+    }
+
+    // ① 所有带选中标记的
+    for (const s of ['[aria-selected="true"]', '[aria-checked="true"]', '[class*="selected"]',
+      '[class*="Selected"]', '[class*="active"]', '[class*="checked"]', '[class*="current"]']) {
       let els = []
       try { els = document.querySelectorAll(s) } catch (e) { continue }
-      for (const el of Array.from(els).slice(0, 40)) {
-        const txt = clean(el.innerText || el.textContent || '').slice(0, 30)
-        if (!txt || txt.length > 30) continue
-        const key = txt + '|' + String(el.className || '')
-        if (seen.has(key)) continue
-        seen.add(key)
-        opts.push({
-          sel: s,
-          cls: String(el.className || '').slice(0, 80),
-          text: txt,
-          ownImg: captureOptionOwnImage(el),
-          dim: captureDimOf(el),
-        })
-        if (opts.length >= 60) break
-      }
-      if (opts.length >= 60) break
+      for (const el of Array.from(els).slice(0, 30)) pushEl(el, 'selected')
     }
+
+    // ② 所有「文字短 + 带图」的元素（色卡/款式块几乎都带小图）
+    let all = []
+    try { all = document.querySelectorAll('*') } catch (e) { all = [] }
+    for (const el of Array.from(all).slice(0, 6000)) {
+      const txt = clean(el.innerText || el.textContent || '')
+      if (!txt || txt.length > 30) continue
+      // 必须是「叶子ish」节点：不再有同样文字的子节点
+      const kids = Array.from(el.children || [])
+      const kidSame = kids.some(c => clean(c.innerText || c.textContent || '') === txt)
+      if (kidSame) continue
+      const hasImg = !!(el.querySelector && el.querySelector('img'))
+      if (!hasImg) continue
+      pushEl(el, 'img-text')
+    }
+
+    // ③ 页面上的图（按面积排）
     const imgs = captureAllImages()
       .sort((a, b) => b.area - a.area)
-      .slice(0, 20)
-      .map(x => ({ url: x.url, w: x.w, h: x.h, cls: x.cls.slice(0, 60) }))
+      .slice(0, 25)
+      .map(x => ({ url: x.url, w: x.w, h: x.h, cls: String(x.cls || '').slice(0, 80) }))
+
     return {
-      options: opts,
+      candidates: out.slice(0, 80),
       bigImages: imgs,
       capture: {
         active: VARIANT_CAPTURE.active,
@@ -3521,7 +3593,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.3.0',
+    __v: '4.4.0',
     install,
     capture,
     collectAll,
@@ -3639,9 +3711,9 @@
         #ff1688-panel .st{font-size:12px;color:#555;white-space:pre-wrap;word-break:break-all;max-height:260px;overflow:auto;margin-top:8px;background:#fafafa;border-radius:8px;padding:8px}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.29.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.30.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.29.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.30.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -3777,10 +3849,11 @@
           return
         }
         const d = window.FF1688.dumpVariantDom()
+        const cands = d.candidates || d.options || []
         const txt = JSON.stringify(d, null, 1)
         try {
           await navigator.clipboard.writeText(txt)
-          say(`✅ 探测诊断已复制：${d.options.length} 个候选选项块 / ${d.bigImages.length} 张大图 / 已录 ${(d.capture && d.capture.hits) || 0} 张`)
+          say(`✅ 探测诊断已复制（内核 ${window.FF1688.__v}）：${cands.length} 个候选 / ${(d.bigImages || []).length} 张图 / 已录 ${(d.capture && d.capture.hits) || 0} 张。把这段发给开发者`)
         } catch (e) {
           kv.style.display = 'block'
           kv.textContent = txt.slice(0, 20000)
@@ -3802,15 +3875,16 @@
           return
         }
         const cur = window.FF1688.getVariantCapture()
+        const cv = window.FF1688.__v || '?'
         if (cur.active) {
           const r = window.FF1688.stopVariantCapture()
           const keys = Object.keys(r.map || {})
-          say('✅ 探测已停止：录到 ' + (r.hits || 0) + ' 张（' + keys.slice(0, 8).join('、') + '）。现在点「预览解析」或「采集并推送」')
+          say('✅ 探测已停止（内核 ' + cv + '）：录到 ' + (r.hits || 0) + ' 张（' + keys.slice(0, 8).join('、') + '）。现在点「预览解析」或「采集并推送」' + ((r.hits || 0) === 0 ? ' —— 如果是 0 张，请点「复制探测诊断」把数据发给开发者' : ''))
           kv.style.display = 'block'
           kv.textContent = JSON.stringify({ map: r.map, dim: r.dim, log: r.log }, null, 1)
         } else {
           window.FF1688.startVariantCapture()
-          say('🔍 探测已开启：请依次点页面上的每个颜色/款式（每个点一下停一下），再点本按钮结束')
+          say('🔍 探测已开启（内核 ' + cv + '）：请依次点页面上的每个颜色/款式（每个点一下停一下），再点本按钮结束')
         }
       } catch (e) {
         say('异常: ' + e.message)
@@ -3969,9 +4043,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.3.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.4.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.3.0'
+  const MIN_CORE = '4.4.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -4024,7 +4098,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.29.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.30.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }

@@ -187,6 +187,40 @@ function makeSandbox(docOpts = {}) {
     t('来源 = probe', variants[0].imageSource === 'probe', variants[0].imageSource)
   }
 
+  console.log('\n[B-5] 认不出选项块 → 从「已选中项」取值（selected/active/checked）')
+  {
+    // 模拟：点击目标是个完全陌生的元素，但页面上有个 selected 标记的规格项
+    const sel = mkEl('div', { className: 'x-sku-opt is-selected', text: '古巴砂' })
+    const junk = mkEl('div', { className: 'unknown-thing', text: '' })
+    const big = mkEl('img', { attrs: { src: 'https://cbu01.alicdn.com/img/ibank/O1CN01SANDB!!1.jpg' }, w: 900, h: 900 })
+    const body = mkEl('body', { children: [sel, junk, big] })
+    const { sandbox, doc } = makeSandbox({ body })
+    const FF = sandbox.FF1688
+    FF.startVariantCapture()
+    for (const fn of doc.__listeners.click || []) fn({ target: junk })
+    await new Promise(r => setTimeout(r, 700))
+    const cap = FF.getVariantCapture()
+    console.log('  map =', JSON.stringify(cap.map), 'log =', JSON.stringify(cap.log))
+    t('从已选中项取到值', '古巴砂' in cap.map, JSON.stringify(cap.map))
+    t('配上了页面大图', cap.map['古巴砂'] === 'https://cbu01.alicdn.com/img/ibank/O1CN01SANDB!!1.jpg', JSON.stringify(cap.map))
+  }
+
+  console.log('\n[B-6] 诊断导出真实结构（不按类名过滤）')
+  {
+    const thumb = mkEl('img', { attrs: { src: 'https://cbu01.alicdn.com/img/ibank/O1CN01T!!1.jpg' }, w: 40, h: 40 })
+    const opt = mkEl('div', { className: 'zzz-unknown', text: '焦糖色', children: [thumb] })
+    const body = mkEl('body', { children: [opt] })
+    const { sandbox } = makeSandbox({ body })
+    const FF = sandbox.FF1688
+    const d = FF.dumpVariantDom()
+    console.log('  candidates =', (d.candidates || []).length)
+    const hit = (d.candidates || []).find(c => c.text === '焦糖色')
+    console.log('  hit =', JSON.stringify(hit))
+    t('导出到候选元素', !!hit, JSON.stringify(d.candidates))
+    t('带上了类名', hit && hit.cls === 'zzz-unknown', hit && hit.cls)
+    t('带上了自身图', hit && hit.ownImg.includes('O1CN01T'), hit && hit.ownImg)
+  }
+
   console.log('\n--------------------------------')
   console.log(`通过 ${pass} / 失败 ${fail}`)
   process.exit(fail ? 1 : 0)
