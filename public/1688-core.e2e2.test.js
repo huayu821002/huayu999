@@ -196,6 +196,18 @@ function makeFF(payloadData, href) {
     t('★ 颜色的可选值只剩黄色', colorDim && JSON.stringify(colorDim.values) === JSON.stringify(['黄色']), JSON.stringify(colorDim))
   }
 
+  console.log('\n[⑥ 过滤统计能看到（面板要展示）]')
+  {
+    const FF = makeFF(payloads)
+    FF.__setVariantCapture({ '黄色': { dim: '颜色', img: 'https://cbu01.alicdn.com/img/ibank/yellow.jpg' } })
+    const { payload } = await FF.parseDetail()
+    const fs = (payload.raw || {}).variantFilterStat
+    console.log('  统计 =', JSON.stringify(fs))
+    t('★ 统计存在', !!fs, JSON.stringify(fs))
+    t('★ 剔除了 2 个未点过的变体', fs && fs.probeFiltered === 2, JSON.stringify(fs))
+    t('★ 剩余 1 个', fs && fs.after === 1, JSON.stringify(fs))
+  }
+
   console.log('\n通过 ' + pass + ' / 失败 ' + fail)
   process.exit(fail === 0 ? 0 : 1)
 })()

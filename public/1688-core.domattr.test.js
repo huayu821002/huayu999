@@ -129,6 +129,18 @@ console.log('\n[① 属性名伪装成规格值 → 全部丢弃]')
   t('★ 属性名变体全部丢弃', r.variants.length === 0 && r.dropped === 3, JSON.stringify(r.variants.length))
 }
 
+console.log('\n[①b 维度名是属性名 → 也丢弃]')
+{
+  const FF = makeSandbox(mkEl('body', { children: [] }))
+  const fake = [
+    // 维度名「材质」是属性名，值「仿金属」也是属性表里的值
+    { skuId: '', specs: [{ name: '材质', value: '仿金属' }], color: '', size: '', specText: '仿金属', price: 0.9, priceText: '0.9', image: '' },
+  ]
+  const r = FF.dropAttributeNamedVariants(fake, ATTRS)
+  console.log('  结果 =', JSON.stringify(r.variants.map(v => v.specs.map(s => s.name + ':' + s.value))))
+  t('★ 维度名是属性名 → 丢弃', r.variants.length === 0 && r.dropped === 1, JSON.stringify(r.variants.length))
+}
+
 console.log('\n[② 真变体不受影响]')
 {
   const FF = makeSandbox(mkEl('body', { children: [] }))

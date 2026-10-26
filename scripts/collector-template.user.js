@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.36.0
+// @version      2.37.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -205,7 +205,15 @@
           lines.push(`  ${dims || v.specText} → ${v.price}${v.image ? ' [图' + src + ']' : ' [无图]'}`)
         }
         const vs = payload.raw && payload.raw.variantImageStat
-        if (vs) lines.push(`变体配图: 探测命中 ${vs.matched} 个 / 序号对齐 ${vs.aligned} 个`)
+        if (vs) lines.push(`变体配图: 探测命中 ${vs.matched} 个 / 未配上 ${vs.skipped} 个`)
+        // 变体过滤统计 —— 让用户一眼看到「没点过的变体」被剔掉了多少
+        const fs = payload.raw && payload.raw.variantFilterStat
+        if (fs && (fs.attrDropped || fs.probeFiltered)) {
+          const parts = []
+          if (fs.attrDropped) parts.push(`属性表剔除 ${fs.attrDropped} 个`)
+          if (fs.probeFiltered) parts.push(`未点过剔除 ${fs.probeFiltered} 个`)
+          lines.push(`变体过滤: ${fs.before} → ${fs.after} 个（${parts.join('，')}）`)
+        }
       }
       // 属性（描述来源）
       if (payload.attributes && Object.keys(payload.attributes).length) {

@@ -25,7 +25,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.8.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.9.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2531,10 +2531,13 @@
         if (s && s.value) specs.push({ name: String(s.name || ''), value: String(s.value) })
       }
       if (!specs.length) { keep.push(v); continue }
-      // 双重确认：规格值全部是**属性名** → 这是属性表冒充的变体
-      //   （维度名也命中属性名时更可信，但不是必须 —— 避免漏网）
-      const allAttr = specs.every(s => keySet.has(normSpec(s.value)))
-      if (allAttr) { dropped++; continue }
+      // 双重确认（与变体来源无关，DOM / 接口都管得住）：
+      //   ① 规格值全部是**属性名** → 那是属性表冒充的变体
+      //   ② 维度名全部是**属性名** → 那是属性表的维度（材质/风格/…），不是规格维度
+      //   （不采用「某个维度只有一个取值就排除」—— 那会误伤「尺码=均码」）
+      const valAllAttr = specs.every(s => keySet.has(normSpec(s.value)))
+      const nameAllAttr = specs.every(s => keySet.has(normSpec(s.name)))
+      if (valAllAttr || nameAllAttr) { dropped++; continue }
       keep.push(v)
     }
     return { variants: keep, dropped }
@@ -3366,6 +3369,7 @@
 
     // ★ 排除「属性名伪装成规格值」的变体（2026-10-26 18:00 用户反馈）
     //   「材质:风格」「材质:发夹分类」这种根本不是变体，是商品属性表
+    const variantsRawCount = variants.length
     const attrDrop = dropAttributeNamedVariants(variants, attributes)
     variants = attrDrop.variants
 
@@ -3489,6 +3493,14 @@
         skuPrices: skuPrices.slice(0, 30),
         tierSource,
         variantImageStat: vimgStat,
+        // 变体过滤统计（面板展示，让用户一眼看到过滤是否生效）
+        variantFilterStat: {
+          before: variantsRawCount,
+          attrDropped: attrDrop.dropped,
+          probeFiltered: probeFilter.filtered,
+          probeActive: probeFilter.active,
+          after: variants.length,
+        },
         variantImageCapture: VARIANT_CAPTURE.active || VARIANT_CAPTURE.hits
           ? { hits: VARIANT_CAPTURE.hits, map: VARIANT_CAPTURE.map, dim: VARIANT_CAPTURE.dim }
           : undefined,
@@ -4044,7 +4056,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.8.0',
+    __v: '4.9.0',
     install,
     capture,
     collectAll,
@@ -4139,7 +4151,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.36.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.37.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
