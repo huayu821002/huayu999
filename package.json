@@ -21,6 +21,7 @@
     "dbg:fix-bigimg": "node scripts/fix-big-images.js",
     "dbg:checkdb": "node scripts/checkdb.js",
     "dbg:var-tr-e2e": "node scripts/test-variant-translate-e2e.js",
+    "dbg:fix-abs": "node scripts/fix-local-image-abs.js",
     "dbg:test-tier-e2e": "node scripts/test-tier-e2e.js",
     "collector:test:tier": "node scripts/test-tiered-pricing.js",
     "collector:test:proxy": "node scripts/test-imgproxy-normalize.js",
