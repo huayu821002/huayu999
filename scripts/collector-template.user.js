@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.45.0
+// @version      2.45.1
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -202,7 +202,23 @@
         for (const v of payload.variants.slice(0, 20)) {
           const dims = (v.specs || []).map(s => s.name + ':' + s.value).join(' | ')
           const src = v.imageSource ? `{${v.imageSource}}` : ''
-          lines.push(`  ${dims || v.specText} → ${v.price}${v.image ? ' [图' + src + ']' : ' [无图]'}`)
+          // ★ 2026-10-28：标出价格来源，一眼看出是探测真价还是兜底价
+          const psrc = v.priceSource ? `{价:${v.priceSource}}` : '{价:兜底}'
+          lines.push(`  ${dims || v.specText} → ${v.price} ${psrc}${v.image ? ' [图' + src + ']' : ' [无图]'}`)
+        }
+        // 变体价格分布 —— 「全都是同一个价」时这里会直接显示 distinct=1
+        const vp = (payload.variants || []).map(v => v.price).filter(p => typeof p === 'number')
+        if (vp.length) {
+          const uniq = [...new Set(vp)].sort((a, b) => a - b)
+          lines.push(`变体价格: ${uniq.length} 个不同值 ${JSON.stringify(uniq.slice(0, 12))}`)
+        }
+        // 探测价命中情况（probe = 用户点色卡抓到的当前 SKU 真实价）
+        const pp = payload.raw && payload.raw.probePrices
+        if (pp && Object.keys(pp).length) {
+          const kk = Object.keys(pp)
+          lines.push(`探测价: ${kk.length} 个（${kk.slice(0, 6).map(k => k + '=' + pp[k]).join('，')}）`)
+        } else {
+          lines.push('探测价: 0 个 ⚠️ 没点过颜色就没有逐变体价')
         }
         const vs = payload.raw && payload.raw.variantImageStat
         if (vs) lines.push(`变体配图: 探测命中 ${vs.matched} 个 / 未配上 ${vs.skipped} 个`)

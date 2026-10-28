@@ -14,7 +14,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.17.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.17.1') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -4829,7 +4829,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.17.0',
+    __v: '4.17.1',
     install,
     capture,
     collectAll,

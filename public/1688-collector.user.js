@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.45.0
+// @version      2.45.1
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.17.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.17.1') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -4851,7 +4851,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.17.0',
+    __v: '4.17.1',
     install,
     capture,
     collectAll,
@@ -5037,9 +5037,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.45.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.45.1</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.45.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.45.1 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -5130,7 +5130,23 @@
         for (const v of payload.variants.slice(0, 20)) {
           const dims = (v.specs || []).map(s => s.name + ':' + s.value).join(' | ')
           const src = v.imageSource ? `{${v.imageSource}}` : ''
-          lines.push(`  ${dims || v.specText} → ${v.price}${v.image ? ' [图' + src + ']' : ' [无图]'}`)
+          // ★ 2026-10-28：标出价格来源，一眼看出是探测真价还是兜底价
+          const psrc = v.priceSource ? `{价:${v.priceSource}}` : '{价:兜底}'
+          lines.push(`  ${dims || v.specText} → ${v.price} ${psrc}${v.image ? ' [图' + src + ']' : ' [无图]'}`)
+        }
+        // 变体价格分布 —— 「全都是同一个价」时这里会直接显示 distinct=1
+        const vp = (payload.variants || []).map(v => v.price).filter(p => typeof p === 'number')
+        if (vp.length) {
+          const uniq = [...new Set(vp)].sort((a, b) => a - b)
+          lines.push(`变体价格: ${uniq.length} 个不同值 ${JSON.stringify(uniq.slice(0, 12))}`)
+        }
+        // 探测价命中情况（probe = 用户点色卡抓到的当前 SKU 真实价）
+        const pp = payload.raw && payload.raw.probePrices
+        if (pp && Object.keys(pp).length) {
+          const kk = Object.keys(pp)
+          lines.push(`探测价: ${kk.length} 个（${kk.slice(0, 6).map(k => k + '=' + pp[k]).join('，')}）`)
+        } else {
+          lines.push('探测价: 0 个 ⚠️ 没点过颜色就没有逐变体价')
         }
         const vs = payload.raw && payload.raw.variantImageStat
         if (vs) lines.push(`变体配图: 探测命中 ${vs.matched} 个 / 未配上 ${vs.skipped} 个`)
@@ -5438,9 +5454,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.17.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.17.1 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.17.0'
+  const MIN_CORE = '4.17.1'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -5493,7 +5509,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.45.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.45.1，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }

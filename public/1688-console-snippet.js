@@ -25,7 +25,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.17.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.17.1') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -4840,7 +4840,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.17.0',
+    __v: '4.17.1',
     install,
     capture,
     collectAll,
@@ -4965,7 +4965,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.45.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.45.1  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
