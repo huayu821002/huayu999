@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.42.0
+// @version      2.43.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.14.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.15.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2744,6 +2744,76 @@
   }
 
   /**
+   * ★★ 用「用户探测到的规格项」直接生成变体（2026-10-28 15:09）
+   *
+   * 为什么需要：
+   *   有一类 1688 商品，offerdetail 报文里**根本没有 SKU 容器**
+   *   （variantKeyUnion 只有 model / priceInfoList / deliveryLimitTimeModel），
+   *   规格选择器是**前端渲染的色卡按钮**（不是 <table>），
+   *   所以 pickVariants 抓不到、domVariants（只查 table）也抓不到 →
+   *   采集结果 variantCount=0，前台一个变体都没有。
+   *
+   *   实测样本：offer 1051478424254（儿童饰品，只有颜色一个规格）
+   *     → 60 条报文、offerList 是同店推荐位、currentOffer.price=1.7、
+   *        priceInfoList=[{"price":"2.2","text":"≥2件"}]、variants=[]。
+   *
+   *   而用户**点过的每个色卡**都被探测记录了（值/维度/图/价），
+   *   这才是这类商品唯一可靠的变体来源。
+   *
+   * 行为（与用户诉求一致，2026-10-26）：
+   *   「我点了黄色，红色没点 → 变体里就不要出现红色」→ 只用探测到的项。
+   *
+   * @param {Object} opts { lo, hi } 商品价区间，用于价格兜底
+   * @returns {{variants: Array, dims: Array, from: number}}
+   */
+  function variantsFromProbe(opts) {
+    const cap = VARIANT_CAPTURE || {}
+    const keys = Object.keys(cap.map || {})
+    if (!keys.length) return { variants: [], dims: [], from: 0 }
+
+    const out = []
+    for (const value of keys) {
+      const v = String(value || '').trim()
+      if (!v) continue
+      // 维度名：探测时抓到的（一般是「颜色」/「尺码」）；抓不到就按内容猜
+      let dim = String((cap.dim && cap.dim[value]) || '').trim()
+      if (!dim) dim = /尺码|尺寸|大小|size/i.test(v) ? '尺码' : '颜色'
+      const price = (cap.prices && cap.prices[value]) != null ? Number(cap.prices[value]) : null
+      out.push({
+        skuId: '',
+        specs: [{ name: dim.slice(0, 30), value: v.slice(0, 60) }],
+        color: dimKind(dim) === 'color' ? v : '',
+        size: dimKind(dim) === 'size' ? v : '',
+        specText: v,
+        price: price != null && price > 0.01 ? price : null,
+        priceText: price != null && price > 0.01 ? String(price) : '',
+        image: String(cap.map[value] || ''),
+        imageSource: 'probe',
+      })
+    }
+    if (!out.length) return { variants: [], dims: [], from: 0 }
+
+    // 维度定义
+    const dimMap = new Map()
+    for (const v of out) {
+      for (const sp of v.specs) {
+        if (!dimMap.has(sp.name)) dimMap.set(sp.name, { name: sp.name, kind: dimKind(sp.name), values: [] })
+        const d = dimMap.get(sp.name)
+        if (!d.values.includes(sp.value)) d.values.push(sp.value)
+      }
+    }
+    // 价格兜底：探测没抓到价 → 用商品价（总比留空强）
+    const fallback = opts && (opts.lo != null ? opts.lo : opts.hi)
+    for (const v of out) {
+      if (v.price == null) {
+        v.price = fallback != null ? fallback : null
+        v.priceText = v.price != null ? String(v.price) : ''
+      }
+    }
+    return { variants: out, dims: Array.from(dimMap.values()), from: out.length }
+  }
+
+  /**
    * 按「用户点过的探测项」过滤变体。
    * 用户诉求（2026-10-26 18:03）：
    *   「我点了颜色黄色。红色我没有点，变体里就不要出现红色。
@@ -3608,38 +3678,46 @@
   }
 
   /* --------------------------------------------------------------- 解析 */
-  async function parseDetail() {
-    const url = location.href
+  /**
+   * 解析商品详情。
+   *
+   * @param {Array}  [payloadsOverride] 仅供测试：直接注入报文，跳过捕获与重放
+   * @param {Object} [optsOverride]      仅供测试：{ url }
+   */
+  async function parseDetail(payloadsOverride, optsOverride) {
+    const url = (optsOverride && optsOverride.url) || location.href
     const offerId = (url.match(/offer\/(\d+)/) || [])[1] || ''
-    let payloads = capture()
+    let payloads = Array.isArray(payloadsOverride) ? payloadsOverride : capture()
     let replayed = 0
     const sources = { capture: payloads.length, replay: 0, replayBody: 0, inline: 0 }
+    // 测试注入模式：不重放
+    const injected = Array.isArray(payloadsOverride)
     // 判据：抓到的 SKU 行里有没有「规格明细」
     // 没有 = 变体没抓全（首屏请求没截到 / 被环形缓冲挤掉 / 要点颜色才懒加载）
     const needMore = () => payloads.length < 2 || !hasSpecRows(payloads)
 
-    if (payloads.length < 2) {
+    if (!injected && payloads.length < 2) {
       const extra = await replayResources()
       sources.replay = extra.length
       replayed = extra.length
       payloads = payloads.concat(extra)
     }
     // 报文够多但没有规格 → 强制重放 1688 自己的接口（原来这条永远不会触发）
-    if (needMore()) {
+    if (!injected && needMore()) {
       const extra = await replayResources(40)
       sources.replay += extra.length
       replayed += extra.length
       payloads = dedupePayloads(payloads.concat(extra))
     }
     // 页面已加载完才装内核时，首屏请求没被截到 → 用截获到的原始 method/body 重放
-    if (needMore()) {
+    if (!injected && needMore()) {
       const extra = await replayCapturedRequests(16)
       sources.replayBody = extra.length
       replayed += extra.length
       payloads = dedupePayloads(payloads.concat(extra))
     }
     // 首屏数据常挂在 window 全局或内联脚本里
-    if (needMore()) {
+    if (!injected && needMore()) {
       const extra = scanInlineData()
       sources.inline = extra.length
       payloads = dedupePayloads(payloads.concat(extra))
@@ -3741,6 +3819,43 @@
     //   没有探测记录时完全不过滤，保持原有行为。
     const probeFilter = filterVariantsByProbe(variants)
     variants = probeFilter.variants
+
+    // ★★ 接口 + DOM 都没产出变体 → 用「用户探测到的规格项」生成（2026-10-28 15:09）
+    //   这类商品的 1688 页面规格是**前端渲染的色卡按钮**，offerdetail 报文里
+    //   根本没有 SKU 容器（variantKeyUnion 只有 model/priceInfoList/deliveryLimitTimeModel），
+    //   pickVariants / domVariants（只查 <table>）都抓不到 → 之前 variantCount=0。
+    //   用户点过的每个色卡都被探测记录了，那才是唯一可靠的来源。
+    //   ⚠️ 必须放在 filterVariantsByProbe **之后**：探针生成的变体天然就是
+    //   「点过的那些」，再过一次过滤反而会被误删。
+    let probeVariantsStat = null
+    if (!variants.length) {
+      const pv = variantsFromProbe({ lo: pr.lo, hi: pr.hi })
+      if (pv.variants.length) {
+        variants = pv.variants
+        variantDims = pv.dims
+        probeVariantsStat = { from: pv.from }
+      }
+    }
+
+    // ★ 维度定义必须与**最终变体**一致（2026-10-28 修）
+    //   之前 dropAttributeNamedVariants 把变体删光了，dims 却还留着
+    //   → 前台看到「材质」维度却一个变体都没有（用户报「没有变体」）。
+    {
+      const dm = new Map()
+      for (const v of variants) {
+        const sps = []
+        if (v.color) sps.push({ name: '颜色', value: v.color })
+        for (const sp of (v.specs || [])) {
+          if (sp && sp.value) sps.push({ name: String(sp.name || ''), value: String(sp.value) })
+        }
+        for (const sp of sps) {
+          if (!dm.has(sp.name)) dm.set(sp.name, { name: sp.name, kind: dimKind(sp.name), values: [] })
+          const d = dm.get(sp.name)
+          if (!d.values.includes(sp.value)) d.values.push(sp.value)
+        }
+      }
+      variantDims = Array.from(dm.values())
+    }
     if (probeFilter.active && variantDims.length) {
       // 维度定义里的「可选值」也要跟着过滤，否则前端仍会列出没点过的值
       const keptVals = new Map()
@@ -3862,6 +3977,8 @@
         })(),
         priceWhy: pr.why,
         variantPriceBackfill: priceBackfill || undefined,
+        // ★ 探针生成了几个变体（接口/DOM 都没变体时）
+        probeVariants: probeVariantsStat || undefined,
         // ★ 探测到的原始价格（诊断用）：key = 规格值，value = 抓到的价
         //   用户报「采集价格不正确」时，先看这里确认抓到的是不是真价
         probePrices: (VARIANT_CAPTURE && VARIANT_CAPTURE.prices) || undefined,
@@ -4435,7 +4552,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.14.0',
+    __v: '4.15.0',
     install,
     capture,
     collectAll,
@@ -4500,12 +4617,24 @@
     backfillVariantPrices,
     applyProbePrices,
     captureCurrentPrice,
+    // 探针生成变体（2026-10-28）：接口/DOM 都没变体时的唯一来源
+    variantsFromProbe,
     // 仅供测试：直接拿 DOM 抓到的规格价（2026-10-28 单维度规格表回归用）
     __test_domSkuPrices: () => domSkuPrices(),
     // 仅供测试注入探测结果（生产环境无副作用）
     __test_setProbePrices: (obj) => {
       VARIANT_CAPTURE.prices = Object.assign({}, obj)
       return VARIANT_CAPTURE.prices
+    },
+    // 仅供测试注入完整探测状态（图 map / 维度 dim / 价格 prices）
+    __test_setProbeState: (st) => {
+      st = st || {}
+      VARIANT_CAPTURE.map = Object.assign({}, st.map || {})
+      VARIANT_CAPTURE.dim = Object.assign({}, st.dim || {})
+      VARIANT_CAPTURE.cands = Object.assign({}, st.cands || {})
+      VARIANT_CAPTURE.prices = Object.assign({}, st.prices || {})
+      VARIANT_CAPTURE.hits = Object.keys(VARIANT_CAPTURE.map).length
+      return { map: VARIANT_CAPTURE.map, dim: VARIANT_CAPTURE.dim, prices: VARIANT_CAPTURE.prices }
     },
     push,
     // 暴露给测试/控制台：把 1688 小图 URL 归一成原图 URL
@@ -4601,9 +4730,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.42.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.43.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.42.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.43.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -5002,9 +5131,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.14.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.15.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.14.0'
+  const MIN_CORE = '4.15.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -5057,7 +5186,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.42.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.43.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
