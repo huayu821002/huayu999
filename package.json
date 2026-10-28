@@ -67,7 +67,9 @@
     "collector:test:singlespec": "node public/1688-core.single-spec.test.js",
     "collector:test:probegen": "node public/1688-core.probegen.test.js",
     "collector:test:gridprice": "node public/1688-core.gridprice.test.js",
-    "collector:test:probeprice": "node public/1688-core.probeprice.test.js"
+    "test:batchops": "node scripts/test-batch-ops.js",
+    "test:batchops:e2e": "node scripts/test-batch-ops-e2e.js",
+    "test:batchops:api": "node scripts/test-batch-ops-api.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",

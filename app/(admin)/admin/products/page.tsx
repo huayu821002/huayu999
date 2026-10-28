@@ -127,6 +127,22 @@ export default function AdminProductsPage() {
   // 批量选择 / 批量删除
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isBatchDeleting, setIsBatchDeleting] = useState(false)
+  // ★ 批量操作弹窗（2026-10-28）：inventory=加库存 / price=改价 / rename=改名
+  const [batchOp, setBatchOp] = useState<'inventory' | 'price' | 'rename' | null>(null)
+  const [batchRunning, setBatchRunning] = useState(false)
+  const [batchForm, setBatchForm] = useState({
+    invMode: 'add' as 'add' | 'set',
+    invValue: 100,
+    invScope: 'both' as 'variant' | 'product' | 'both',
+    priceMode: 'percent' as 'percent' | 'set',
+    priceValue: 10,
+    priceScope: 'both' as 'variant' | 'product' | 'both',
+    alsoCompare: false,
+    digits: 4,
+    sep: ' ',
+    prefix: '',
+    renameScope: 'variant' as 'variant' | 'product' | 'both',
+  })
   const [variantDims, setVariantDims] = useState<VariantDim[]>([])
   const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '', image: '' })
   const [isSaving, setIsSaving] = useState(false)
@@ -332,6 +348,50 @@ export default function AdminProductsPage() {
       alert('批量删除失败: ' + (e?.message || e))
     }
     setIsBatchDeleting(false)
+  }
+
+  /** ★ 批量操作：加库存 / 改价 / 改名 */
+  const runBatch = async () => {
+    if (!batchOp || !selectedIds.length) return
+    const f = batchForm
+    let params: any = {}
+    let title = ''
+    if (batchOp === 'inventory') {
+      title = f.invMode === 'add'
+        ? `给 ${selectedIds.length} 个商品${f.invScope === 'product' ? '的商品' : '的每个变体'}加 ${f.invValue} 件库存`
+        : `把 ${selectedIds.length} 个商品${f.invScope === 'product' ? '的商品' : '的每个变体'}库存设为 ${f.invValue}`
+      params = { mode: f.invMode, value: f.invValue, scope: f.invScope }
+    } else if (batchOp === 'price') {
+      title = f.priceMode === 'percent'
+        ? `把 ${selectedIds.length} 个商品${f.priceScope === 'product' ? '的主价' : '的主价和变体价'}调整 ${f.priceValue}%`
+        : `把 ${selectedIds.length} 个商品${f.priceScope === 'product' ? '的主价' : '的主价和变体价'}设为 ${f.priceValue}`
+      params = { mode: f.priceMode, value: f.priceValue, scope: f.priceScope, alsoCompare: f.alsoCompare }
+    } else {
+      title = `把 ${selectedIds.length} 个商品${f.renameScope === 'product' ? '的商品名' : '的变体名'}改成「颜色+随机数字」（${f.digits} 位）`
+      params = { digits: f.digits, sep: f.sep, prefix: f.prefix, scope: f.renameScope }
+    }
+    if (!confirm(`确定？\n\n${title}`)) return
+    setBatchRunning(true)
+    try {
+      const res = await adminFetch('/api/admin/products/batch', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: selectedIds, op: batchOp, params }),
+      })
+      const data = await res.json()
+      if (!res.ok) {
+        alert('批量操作失败: ' + (data?.error || res.status))
+      } else {
+        const extra = data.failedCount > 0 ? `\n${data.failedCount} 个失败：${data.failed.slice(0, 3).map((x: any) => x.name).join('，')}` : ''
+        alert(`✅ 已处理 ${data.updated} / ${data.total} 个商品${extra}`)
+        setBatchOp(null)
+        setSelectedIds([])
+        fetchProducts()
+      }
+    } catch (e: any) {
+      alert('批量操作失败: ' + (e?.message || e))
+    }
+    setBatchRunning(false)
   }
 
   const handleDelete = async (id: string) => {
@@ -603,13 +663,24 @@ export default function AdminProductsPage() {
                   取消选择
                 </button>
               </div>
-              <Button
-                onClick={handleBatchDelete}
-                isLoading={isBatchDeleting}
-                className="!bg-red-500 hover:!bg-red-600"
-              >
-                <Icons.Trash2 size={16} className="mr-2" />批量删除
-              </Button>
+              <div className="flex items-center gap-2">
+                <Button onClick={() => setBatchOp('inventory')} className="!bg-joy-orange hover:!bg-joy-orange/90">
+                  <Icons.Package size={16} className="mr-2" />批量加库存
+                </Button>
+                <Button onClick={() => setBatchOp('price')} className="!bg-joy-orange hover:!bg-joy-orange/90">
+                  <Icons.DollarSign size={16} className="mr-2" />批量改价
+                </Button>
+                <Button onClick={() => setBatchOp('rename')} className="!bg-joy-orange hover:!bg-joy-orange/90">
+                  <Icons.Edit3 size={16} className="mr-2" />批量改名
+                </Button>
+                <Button
+                  onClick={handleBatchDelete}
+                  isLoading={isBatchDeleting}
+                  className="!bg-red-500 hover:!bg-red-600"
+                >
+                  <Icons.Trash2 size={16} className="mr-2" />批量删除
+                </Button>
+              </div>
             </div>
           )}
           <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
@@ -1056,6 +1127,98 @@ export default function AdminProductsPage() {
             <div className="sticky bottom-0 bg-white border-t border-joy-gray-100 px-6 py-4 flex items-center justify-end gap-3">
               <Button variant="secondary" onClick={() => setShowProductModal(false)}>Cancel</Button>
               <Button onClick={handleProductSubmit} isLoading={isSaving}>{editingProduct ? 'Update Product' : 'Save Product'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ★ 批量操作弹窗（2026-10-28） */}
+      {batchOp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !batchRunning && setBatchOp(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+            <div className="border-b border-joy-gray-100 px-6 py-4 flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-joy-gray-900">
+                {batchOp === 'inventory' ? '批量加库存' : batchOp === 'price' ? '批量改价' : '批量改名'}
+                <span className="ml-2 text-sm font-normal text-joy-gray-500">已选 {selectedIds.length} 个商品</span>
+              </h2>
+              <button onClick={() => setBatchOp(null)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {batchOp === 'inventory' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">方式</label>
+                    <div className="flex gap-2">
+                      <button onClick={() => setBatchForm({ ...batchForm, invMode: 'add' })} className={`px-4 py-2 rounded-xl text-sm border-2 ${batchForm.invMode === 'add' ? 'border-joy-orange bg-joy-orange/10 text-joy-orange font-medium' : 'border-joy-gray-200'}`}>在现有基础上加</button>
+                      <button onClick={() => setBatchForm({ ...batchForm, invMode: 'set' })} className={`px-4 py-2 rounded-xl text-sm border-2 ${batchForm.invMode === 'set' ? 'border-joy-orange bg-joy-orange/10 text-joy-orange font-medium' : 'border-joy-gray-200'}`}>直接设为</button>
+                    </div>
+                  </div>
+                  <Input label="数量" type="number" value={String(batchForm.invValue)} onChange={(e) => setBatchForm({ ...batchForm, invValue: Number(e.target.value) || 0 })} />
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">作用范围</label>
+                    <select value={batchForm.invScope} onChange={(e) => setBatchForm({ ...batchForm, invScope: e.target.value as any })} className="w-full px-3 py-2.5 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none">
+                      <option value="both">商品总量 + 每个变体</option>
+                      <option value="variant">只改变体库存（前台按变体显示）</option>
+                      <option value="product">只改商品总库存</option>
+                    </select>
+                    <p className="mt-1 text-xs text-joy-gray-500">变体库存原本是「未知（null）」的，按 0 起算。</p>
+                  </div>
+                </>
+              )}
+
+              {batchOp === 'price' && (
+                <>
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">方式</label>
+                    <div className="flex gap-2">
+                      <button onClick={() => setBatchForm({ ...batchForm, priceMode: 'percent' })} className={`px-4 py-2 rounded-xl text-sm border-2 ${batchForm.priceMode === 'percent' ? 'border-joy-orange bg-joy-orange/10 text-joy-orange font-medium' : 'border-joy-gray-200'}`}>按百分比</button>
+                      <button onClick={() => setBatchForm({ ...batchForm, priceMode: 'set' })} className={`px-4 py-2 rounded-xl text-sm border-2 ${batchForm.priceMode === 'set' ? 'border-joy-orange bg-joy-orange/10 text-joy-orange font-medium' : 'border-joy-gray-200'}`}>设为固定值</button>
+                    </div>
+                  </div>
+                  <Input label={batchForm.priceMode === 'percent' ? '百分比（负数=降价，如 -20）' : '新价格（USD）'} type="number" value={String(batchForm.priceValue)} onChange={(e) => setBatchForm({ ...batchForm, priceValue: Number(e.target.value) || 0 })} />
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">作用范围</label>
+                    <select value={batchForm.priceScope} onChange={(e) => setBatchForm({ ...batchForm, priceScope: e.target.value as any })} className="w-full px-3 py-2.5 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none">
+                      <option value="both">主价 + 变体价</option>
+                      <option value="variant">只改变体价</option>
+                      <option value="product">只改主价</option>
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-joy-gray-700">
+                    <input type="checkbox" checked={batchForm.alsoCompare} onChange={(e) => setBatchForm({ ...batchForm, alsoCompare: e.target.checked })} />
+                    同时调整划线价（comparePrice）
+                  </label>
+                </>
+              )}
+
+              {batchOp === 'rename' && (
+                <>
+                  <div className="rounded-xl bg-joy-gray-50 p-3 text-sm text-joy-gray-700">
+                    规则：<b>颜色 + 空格 + 随机数字</b>，例如「粉色 4827」。
+                    同一商品内随机数字不重复；颜色维度之外的规格（尺码等）保持不变。
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="随机数字位数" type="number" value={String(batchForm.digits)} onChange={(e) => setBatchForm({ ...batchForm, digits: Number(e.target.value) || 4 })} />
+                    <Input label="前缀（可选）" value={batchForm.prefix} onChange={(e) => setBatchForm({ ...batchForm, prefix: e.target.value })} placeholder="例：F" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">作用范围</label>
+                    <select value={batchForm.renameScope} onChange={(e) => setBatchForm({ ...batchForm, renameScope: e.target.value as any })} className="w-full px-3 py-2.5 rounded-xl border-2 border-joy-gray-200 focus:border-joy-orange focus:outline-none">
+                      <option value="variant">只改变体名（前台选择器显示）</option>
+                      <option value="product">只改商品名</option>
+                      <option value="both">变体名 + 商品名</option>
+                    </select>
+                    <p className="mt-1 text-xs text-joy-gray-500">变体名会同步更新选择器（specs）和维度列表，前台三处显示一致。</p>
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-joy-gray-100 px-6 py-4 flex items-center justify-end gap-3">
+              <Button variant="secondary" onClick={() => setBatchOp(null)} disabled={batchRunning}>取消</Button>
+              <Button onClick={runBatch} isLoading={batchRunning}>确认执行</Button>
             </div>
           </div>
         </div>
