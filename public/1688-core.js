@@ -14,7 +14,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.12.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.13.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -556,14 +556,28 @@
 
   /* ---------------------------------------------------------------- 价格 */
 
+  /**
+   * priceText **整体就是价格**时的形状（2026-10-28）
+   *   「2.65」 「¥2.65」 「2.65元」 「¥2.65起」 「2.65-3.50」 → 合规
+   *   「1件价格」 「3层加厚」 「100%桑蚕丝」 → 不合规（含说明文字/量词）
+   */
+  const PRICE_TEXT_STRICT_RE = /^[¥￥]?\d+(\.\d+)?\s*[-~至]\s*[¥￥]?\d+(\.\d+)?\s*(元|起)?$|^[¥￥]?\d+(\.\d+)?\s*(元|起)?$/
+
   /** 数组项里的单价（priceText 优先，其次 price/skuPrice/...） */
   function priceOfItem(it) {
     if (!it || typeof it !== 'object') return null
     if (it.priceText && /[\d.]/.test(it.priceText)) {
-      const m = String(it.priceText).match(/(\d+(?:\.\d+)?)/)
-      if (m) {
-        const v = parseFloat(m[1])
-        if (v > 0.01 && v < 1000000) return v
+      // ★ 2026-10-28 修：「1件价格」这种**价格说明文字**不是价格。
+      //   老代码用 match(/(\d+)/) 直接抠出 1 → 变体价全变成 1（真实价 2.65）。
+      //   现在要求 priceText **整体就是价格**（可带 ¥ / 元 / 起 / 区间），
+      //   含量词（件/个/双份…）或其它说明文字 → 一律拒绝。
+      const pt = String(it.priceText).trim()
+      if (PRICE_TEXT_STRICT_RE.test(pt)) {
+        const m = pt.replace(/[¥￥,\s]/g, '').replace(/(元|起)/g, '').match(/(\d+(?:\.\d+)?)/)
+        if (m) {
+          const v = parseFloat(m[1])
+          if (v > 0.01 && v < 1000000) return v
+        }
       }
     }
     for (const k of ['price', 'skuPrice', 'salePrice', 'tradePrice', 'unitPrice', 'priceValue', 'minPrice', 'maxPrice']) {
@@ -987,8 +1001,9 @@
     }
     const pt = String(it.priceText || '').trim()
     // "2件起批" 不是价格 —— 含数量单位的一律不算
-    if (pt && !/[件起批个双份¥￥元\s]/.test(pt)) {
-      const n = num(pt)
+    // ★ 2026-10-28：「1件价格」这种说明文字也要拒（老代码的量词表没盖住「件价格」）
+    if (pt && PRICE_TEXT_STRICT_RE.test(pt.replace(/[\s]/g, ''))) {
+      const n = num(pt.replace(/[¥￥,\s]/g, '').replace(/(元|起)/g, ''))
       if (n !== null && n > 0.01 && n < 1000000) return { price: n, priceText: pt }
     }
     return null
@@ -1047,7 +1062,15 @@
     return out
   }
 
-  /** 路径里出现这些词 = 推荐位/别人家的货，不是本商品的变体 */
+  /**
+   * 路径里出现这些词 = 推荐位/别人家的货，不是本商品的变体
+   *
+   * ⚠️ **不能**在这里排除 offerlist：
+   *   1688 的 offerList 有时确实是本商品的 SKU 列表（每行含 priceTypeText/priceText），
+   *   有时是同店其它商品的推荐位。
+   *   区别在**条目内容**：推荐位的行带 offerId/offerUrl/isCurrentOffer，
+   *   本商品的 SKU 行没有 —— 所以改用条目级 isCardItem 排除（见 pickVariants A 路径）。
+   */
   const VARIANT_PATH_REJECT_RE = /(recommend|relation|major|similar|hotsale|shopcard|itemlist|hotrecommend)/i
 
   /** 抓到的 SKU 行里有没有「规格明细」—— 没有就说明变体没抓全 */
@@ -1134,9 +1157,27 @@
    *   variants: [{ skuId, specs:[{name,value}], color, size, specText, price, priceText, image }]
    *   dims:     [{ name, kind:'color'|'size'|'custom', values:[...] }]  ← 维度定义，够后台渲染选择器
    */
-  function pickVariants(payloads) {
+  function pickVariants(payloads, opts) {
     const rows = []
     const seenRow = new Set()
+    // ★ 2026-10-28：变体价合理性校验
+    //   变体价必须落在商品价附近的合理区间内（低 1/5，高 6 倍），
+    //   否则很可能是**同店其它商品**的价格被抓进来了
+    //   （offer 604497188808 真实价 2.65，抓到 1 元商品的价格）。
+    //   商品价未知时不做校验。
+    const gLo = opts && Number.isFinite(opts.lo) ? opts.lo : null
+    const gHi = opts && Number.isFinite(opts.hi) ? opts.hi : null
+    const variantPriceOK = p => {
+      if (p === null || p === undefined || !(p > 0.01) || p > 1000000) return false
+      if (gLo !== null && gHi !== null && gHi > 0) {
+        // 变体价容差比 DOM 宽的 priceOK 更严（0.5x ~ 2x）：
+        // 变体价和商品价**同源**，差太远就是抓错数据了。
+        const lo = Math.min(gLo, gHi) * 0.5
+        const hi = Math.max(gLo, gHi) * 2
+        if (p < lo || p > hi) return false
+      }
+      return true
+    }
 
     // ---- A. 自带规格的 SKU 行
     for (const p of payloads) {
@@ -1148,8 +1189,13 @@
         for (const it of v) {
           if (!it || typeof it !== 'object' || Array.isArray(it)) continue
           if (it.behaviorTag !== undefined) continue // 推荐位卡片
+          // ★ 2026-10-28：推荐位/别人家的货（带 offerId/offerUrl/isCurrentOffer）
+          //   必须排除 —— 否则会抓同店其它商品的价格当本商品变体价
+          //   （offer 604497188808 真实价 2.65，采集成 1）
+          if (isCardItem(it)) continue
           const pr = priceOfSkuItem(it)
           if (!pr) continue
+          if (!variantPriceOK(pr.price)) continue   // ★ 2026-10-28：离谱价不采信
           const specs = specsOfSkuItem(it)
           const id = skuIdOf(it)
           if (!specs.length && !id) continue
@@ -1188,6 +1234,7 @@
         if (typeof vv === 'number' && Number.isFinite(vv) && vv > 0.01) p = vv
         else if (typeof vv === 'string' && /^\d+(\.\d+)?$/.test(vv)) p = Number(vv)
         else if (vv && typeof vv === 'object') {
+          if (isCardItem(vv)) continue   // ★ 2026-10-28：排除推荐位卡片
           const pr = priceOfSkuItem(vv)
           if (pr) p = pr.price
         }
@@ -1213,6 +1260,7 @@
         if (typeof val === 'string' || typeof val === 'number') {
           id = String(val)
         } else if (val && typeof val === 'object') {
+          if (isCardItem(val)) continue   // ★ 2026-10-28：排除推荐位卡片
           id = skuIdOf(val)
           const pr = priceOfSkuItem(val)
           extra = {
@@ -1656,12 +1704,34 @@
       })
     }
 
+    // ★ 2026-10-28 诊断：offerList 的真实内容
+    //   offerList 有时是本商品 SKU 列表、有时是同店其它商品推荐位，
+    //   两者只能靠**条目内容**区分（offerId/offerUrl/isCurrentOffer）。
+    //   采集价不对时先看这里，确认推荐位的行到底带不带 offerId。
+    const offerListSamples = []
+    for (const p of payloads) {
+      walk(p.data, (k, v, parent, path) => {
+        if (!Array.isArray(v) || !v.length || v.length > 300) return
+        if (!/offerlist/i.test(String(k || ''))) return
+        for (const it of v.slice(0, 3)) {
+          if (!it || typeof it !== 'object') continue
+          offerListSamples.push({
+            path: (path || []).concat(String(k)).join('.'),
+            keys: Object.keys(it).slice(0, 24),
+            sample: JSON.stringify(it).slice(0, 400),
+          })
+        }
+      })
+      if (offerListSamples.length >= 6) break
+    }
+
     return {
       contentKeyUnion: contentUnion,
       allKeyUnion: allUnion,
       // ★ 变体容器嫌疑名单：所有层里名字像变体的 key
       //   （原来只有 deep 里的容器，内部结构被 5 条上限截断就看不到了）
       variantKeyUnion: variantKeys,
+      offerListSamples,
       payloads: out,
     }
   }
@@ -3534,7 +3604,7 @@
     const supplier = pickSupplier(payloads)
 
     // 变体（颜色 / 规格 / 自定义维度），每个变体带自己的价格和图
-    const variantRes = pickVariants(payloads)
+    const variantRes = pickVariants(payloads, { lo: pr.lo, hi: pr.hi })
     let variants = variantRes.variants
     let variantDims = variantRes.dims
     // DOM 规格表回填逐变体价格的诊断结果（见下方回填逻辑）
@@ -3731,6 +3801,9 @@
         })(),
         priceWhy: pr.why,
         variantPriceBackfill: priceBackfill || undefined,
+        // ★ 探测到的原始价格（诊断用）：key = 规格值，value = 抓到的价
+        //   用户报「采集价格不正确」时，先看这里确认抓到的是不是真价
+        probePrices: (VARIANT_CAPTURE && VARIANT_CAPTURE.prices) || undefined,
         priceCandidates: pr.candidates,
         skuCandidates: pr.skuCandidates,
         priceContainers: collectPriceContainers(payloads),
@@ -4301,7 +4374,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.12.0',
+    __v: '4.13.0',
     install,
     capture,
     collectAll,
