@@ -502,10 +502,8 @@ export default function ProductDetailPage() {
 
             {/* Product Info */}
             <div>
-              {/* SKU & Category */}
+              {/* ★ 2026-10-28：标题上方不再显示 SKU（用户要求） */}
               <div className="flex items-center gap-4 mb-2">
-                {product.sku && <span className="text-sm text-joy-gray-500">SKU: {product.sku}</span>}
-                {product.sku && <span className="text-sm text-joy-gray-400">|</span>}
                 {product.categories?.length ? (
                     <div className="flex flex-wrap gap-2">
                       {product.categories.map(cat => (
@@ -545,37 +543,54 @@ export default function ProductDetailPage() {
               )}
 
               {/* Price Display */}
-              <div className="bg-joy-gray-50 rounded-2xl p-6 mb-6">
-                <div className="flex items-baseline gap-3 mb-4">
-                  <span className="text-4xl font-bold text-joy-orange">
-                    {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
-                  </span>
-                  {product.comparePrice && (
-                    <span className="text-xl text-joy-gray-400 line-through">
-                      {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
-                    </span>
-                  )}
-                </div>
+              {/* ★ 2026-10-28 价格段视觉升级（用户：不要白底，用颜色底色 + 高级特效）
+                  · 暖橙渐变底 + 边框 + 投影
+                  · 两枚模糊光斑（装饰性，做深度感）
+                  · 价格用渐变文字（bg-clip-text）
+              */}
+              <div className="relative overflow-hidden rounded-3xl mb-6 p-6
+                              bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50
+                              border border-orange-200/70 shadow-xl shadow-orange-300/25">
+                {/* 装饰光斑 */}
+                <div className="pointer-events-none absolute -top-20 -right-14 h-52 w-52 rounded-full bg-orange-400/25 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-24 -left-12 h-44 w-44 rounded-full bg-pink-300/20 blur-3xl" />
 
-                {/* Tier Prices */}
-                <div className="grid grid-cols-3 gap-2 text-sm">
-                  {tiers.map((tier, idx) => (
-                    <div key={idx} className={cn(
-                      "text-center p-3 rounded-xl",
-                      idx === 1 ? "bg-joy-orange/10 rounded-xl border-2 border-joy-orange" : "bg-white"
-                    )}>
-                      <div className={cn(
-                        "font-semibold mb-1",
-                        idx === 1 ? "text-joy-orange" : idx === 2 ? "text-joy-green" : "text-joy-gray-500"
+                <div className="relative">
+                  <div className="flex items-baseline gap-3 mb-4">
+                    <span className="text-4xl font-extrabold tracking-tight
+                                     bg-gradient-to-r from-orange-600 via-orange-500 to-rose-500
+                                     bg-clip-text text-transparent drop-shadow-sm">
+                      {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
+                    </span>
+                    {product.comparePrice && (
+                      <span className="text-xl text-joy-gray-400 line-through">
+                        {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Tier Prices */}
+                  <div className="grid grid-cols-3 gap-2 text-sm">
+                    {tiers.map((tier, idx) => (
+                      <div key={idx} className={cn(
+                        "text-center p-3 rounded-xl transition-all",
+                        idx === 1
+                          ? "bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-lg shadow-orange-500/30 scale-[1.03]"
+                          : "bg-white/70 border border-orange-200/70 text-joy-gray-700 backdrop-blur"
                       )}>
-                        {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
+                        <div className={cn(
+                          "font-semibold mb-1",
+                          idx === 1 ? "text-white/90" : idx === 2 ? "text-joy-green" : "text-joy-gray-500"
+                        )}>
+                          {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
+                        </div>
+                        <div className={cn(
+                          "font-semibold",
+                          idx === 1 ? "text-white" : idx === 2 ? "text-joy-green" : "text-joy-gray-800"
+                        )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
                       </div>
-                      <div className={cn(
-                        "font-semibold",
-                        idx === 1 ? "text-joy-orange" : idx === 2 ? "text-joy-green" : ""
-                      )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
 
@@ -583,7 +598,9 @@ export default function ProductDetailPage() {
               {product.variants && product.variants.length > 0 && (
                 // ★ 变体选择器移进价格卡片后，规格按钮（灰底）落在灰卡片上会看不见
                 //   → 内嵌一层白底子卡片
-                <div className="mb-6 space-y-4 bg-white rounded-2xl p-4">
+                <div className="relative overflow-hidden mb-6 space-y-4 rounded-3xl p-5
+                                bg-gradient-to-br from-orange-50/90 via-amber-50/80 to-rose-50/70
+                                border border-orange-200/60 shadow-lg shadow-orange-200/30 backdrop-blur-sm">
                   {variantRows.length > 0 ? variantRows.map((row) => {
                     const isFirstRow = row === variantRows[0]
                     const currentVal = variantSelection[row.name] || ''
@@ -610,10 +627,10 @@ export default function ProductDetailPage() {
                                   if (m) setSelectedVariant(m.id)
                                 }}
                                 className={cn(
-                                  'px-4 py-2 rounded-lg font-medium text-sm transition-all',
+                                  'px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200',
                                   isActive
-                                    ? 'bg-joy-orange text-white'
-                                    : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200',
+                                    ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/30 scale-[1.03]'
+                                    : 'bg-white/70 border border-orange-200/70 text-joy-gray-700 hover:border-orange-400 hover:shadow-md hover:-translate-y-0.5',
                                   disabled && 'opacity-40 cursor-not-allowed'
                                 )}
                               >
@@ -639,10 +656,10 @@ export default function ProductDetailPage() {
                             key={variant.id}
                             onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
                             className={cn(
-                              'px-4 py-2 rounded-lg font-medium text-sm transition-all',
+                              'px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200',
                               selectedVariant === variant.id
-                                ? 'bg-joy-orange text-white'
-                                : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200'
+                                ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/30 scale-[1.03]'
+                                : 'bg-white/70 border border-orange-200/70 text-joy-gray-700 hover:border-orange-400 hover:shadow-md hover:-translate-y-0.5'
                             )}
                           >
                             {variant.value}
