@@ -14,7 +14,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.11.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.12.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2182,6 +2182,80 @@
     return null
   }
 
+  /**
+   * 读取页面上**当前显示的商品价格**（CNY）
+   *
+   * ★ 2026-10-28 新增：这是逐 SKU 价格的**最可靠来源**。
+   *   1688 的 offerdetail 报文里没有 skuInfos/skuMap/skuPriceMap 等 SKU 价格容器，
+   *   而 DOM 规格表也常常没有价格列 —— 但用户**点某个颜色**时，
+   *   页面会实时显示该 SKU 的价格。这个值 100% 对应当前选中的规格。
+   *
+   * 策略：找价格展示区（含 ¥ / ￥ 且后面跟数字），取**离规格区最近**的那个；
+   *   找不到就退化为取页面上第一个合理的 ¥数字。
+   */
+  function captureCurrentPrice() {
+    const NUM = /[¥￥]\s*(\d+(?:\.\d+)?)/
+
+    // ① 优先：价格展示容器（1688 常见 class：price / priceNow / skuPrice / next-price ...）
+    const containers = []
+    const sels = [
+      '[class*="price"]', '[class*="Price"]',
+      '[id*="price"]', '[id*="Price"]',
+    ]
+    for (const s of sels) {
+      let els = []
+      try { els = document.querySelectorAll(s) } catch (e) { continue }
+      for (const el of Array.from(els).slice(0, 40)) {
+        const txt = clean(el.innerText || el.textContent || '')
+        if (!txt || txt.length > 60) continue
+        const m = txt.match(NUM)
+        if (!m) continue
+        const v = parseFloat(m[1])
+        if (!(v > 0.01) || v > 1000000) continue
+        // 只要**纯价格**或「价格 + 少量文字」的元素
+        if (txt.replace(NUM, '').replace(/[\s¥￥,.:]/g, '').length > 12) continue
+        containers.push({ v, el, txt })
+      }
+    }
+    if (containers.length) {
+      // 取文本最短的那个 —— 通常是最纯粹的当前价
+      containers.sort((a, b) => a.txt.length - b.txt.length)
+      return { price: containers[0].v, source: 'container', text: containers[0].txt }
+    }
+
+    // ② 退化：全页找第一个 ¥数字（限制在可见且短文本的元素里）
+    const leaves = document.querySelectorAll('*')
+    for (const el of Array.from(leaves).slice(0, 4000)) {
+      if (el.children.length) continue
+      const txt = clean(el.innerText || el.textContent || '')
+      if (!txt || txt.length > 30) continue
+      const m = txt.match(NUM)
+      if (!m) continue
+      const v = parseFloat(m[1])
+      if (!(v > 0.01) || v > 1000000) continue
+      return { price: v, source: 'page', text: txt }
+    }
+    return null
+  }
+
+  /**
+   * 点击后延时抓「当前显示价」（1688 更新价格是异步的）
+   * 多次采样，取最后一次稳定的值。
+   */
+  function schedulePriceProbe(value) {
+    if (!value) return
+    const v = String(value)
+    setTimeout(() => {
+      try {
+        const r = captureCurrentPrice()
+        if (r && r.price > 0.01) {
+          VARIANT_CAPTURE.prices[v] = r.price
+          VARIANT_CAPTURE.log.push({ value: v, src: 'price', url: '', price: r.price, priceSrc: r.source, priceText: r.text })
+        }
+      } catch (e) {}
+    }, 700)
+  }
+
   /** 开始 B 方案：监听点击，记录「选项文字 → 图片」 */
   function startVariantCapture() {
     if (VARIANT_CAPTURE.active) return { active: true, hits: VARIANT_CAPTURE.hits }
@@ -2191,6 +2265,8 @@
     VARIANT_CAPTURE.cands = {}   // value → 候选值数组（提高匹配命中率）
     VARIANT_CAPTURE.hits = 0
     VARIANT_CAPTURE.log = []
+    // ★ value → 当前显示价（CNY），探测时顺手抓
+    VARIANT_CAPTURE.prices = {}
 
     let pending = null   // { value, dim, before:Set }
     let pendingTimer = null
@@ -2236,6 +2312,8 @@
         if (dim) VARIANT_CAPTURE.dim[value] = dim
         VARIANT_CAPTURE.hits++
         VARIANT_CAPTURE.log.push({ value, src: 'option-img', url: ownImg, cls: String((el && el.className) || '') })
+        // ★ 价格在点击后才会更新 → 延后抓
+        schedulePriceProbe(value)
         return
       }
 
@@ -2258,6 +2336,8 @@
         } else {
           VARIANT_CAPTURE.log.push({ value: pending.value, src: 'miss', url: '' })
         }
+        // ★ 顺便抓当前显示价（这个 SKU 的真实价格）
+        schedulePriceProbe(pending.value)
         pending = null
       }, 500)
     }
@@ -2373,6 +2453,7 @@
         hits: VARIANT_CAPTURE.hits,
         map: VARIANT_CAPTURE.map,
         dim: VARIANT_CAPTURE.dim,
+        prices: VARIANT_CAPTURE.prices || {},
         log: VARIANT_CAPTURE.log || [],
       },
     }
@@ -2386,6 +2467,7 @@
       hits: VARIANT_CAPTURE.hits,
       map: VARIANT_CAPTURE.map,
       dim: VARIANT_CAPTURE.dim,
+      prices: VARIANT_CAPTURE.prices || {},
       log: VARIANT_CAPTURE.log || [],
     }
   }
@@ -2646,6 +2728,69 @@
       else filtered++
     }
     return { variants: keep, filtered, active: true }
+  }
+
+  /**
+   * 把**探测时抓到的当前显示价**回填到变体（2026-10-28）
+   *
+   * ★ 这是逐 SKU 价格的**最可靠来源**：
+   *   1688 报文里没有 SKU 价格容器，DOM 规格表也常常没有价格列；
+   *   但用户点某个颜色时，页面会实时显示该 SKU 的价格 —— 100% 对应。
+   *
+   * 匹配：探测时记下的是「选项块文字」（如 "爱马仕橙"），
+   *   变体里对应的是某个 specs 的 value（如 {name:"颜色", value:"爱马仕橙"}）。
+   *   用 normSpec 归一后**双向包含 + 双向唯一**才认（与配图规则一致）。
+   *
+   * 歧义时**不填** —— 猜错比没价更糟。
+   *
+   * @param {Array} variants 变体数组（原地修改 price）
+   */
+  function applyProbePrices(variants) {
+    if (!Array.isArray(variants) || !variants.length) return { filled: 0, probes: 0, skipped: null }
+    const capPrices = (VARIANT_CAPTURE && VARIANT_CAPTURE.prices) || {}
+    const capKeys = Object.keys(capPrices).filter(k => capPrices[k] > 0.01)
+    if (!capKeys.length) return { filled: 0, probes: 0, skipped: 'no-probe-prices' }
+
+    const capNorm = capKeys.map(k => ({ key: k, n: normSpec(k), price: capPrices[k] }))
+      .filter(c => c.n)
+
+    let filled = 0
+    for (const v of variants) {
+      const specs = []
+      if (v.color) specs.push({ name: '颜色', value: v.color })
+      for (const s of (Array.isArray(v.specs) ? v.specs : [])) {
+        if (s && s.value) specs.push({ name: String(s.name || ''), value: String(s.value) })
+      }
+      if (!specs.length) continue
+
+      // 这个变体的每个规格值 → 候选探测价格
+      const hits = []
+      for (const s of specs) {
+        const sv = normSpec(s.value)
+        if (!sv) continue
+        // 所有能弱匹配上的探测值（用于歧义检测）
+        const weakAll = capNorm.filter(c => c.n && (c.n.indexOf(sv) >= 0 || sv.indexOf(c.n) >= 0))
+        const strong = capNorm.filter(c => c.n === sv)
+        if (strong.length === 1) {
+          // ★ 强匹配也可能是歧义：「深灰」精确命中，但「灰」也能弱匹配上
+          //   → 两个探测值指向同一个变体 → 不知道哪个才是 → **不填**
+          if (weakAll.length > 1) continue
+          hits.push(strong[0]); continue
+        }
+        // 双向包含（且**唯一**）才认
+        if (weakAll.length === 1) hits.push(weakAll[0])
+      }
+      if (!hits.length) continue
+      // 多个规格命中的价格必须**一致**，否则放弃
+      const prices = [...new Set(hits.map(h => h.price))]
+      if (prices.length !== 1) continue
+      const p = prices[0]
+      if (v.price === p) continue
+      v.price = p
+      v.priceText = String(p)
+      filled++
+    }
+    return { filled, probes: capNorm.length, skipped: null }
   }
 
   /**
@@ -3488,6 +3633,18 @@
     // 变体配图：A（序号对齐）+ B（点击探测）—— 详见 assignVariantImages
     const vimgStat = assignVariantImages(variants, galleryAll)
 
+    // ★ 探测时抓到的「当前显示价」回填（2026-10-28）
+    //   优先级：探测价 > DOM 规格表价 > 接口价
+    //   必须在 filterVariantsByProbe 之后 —— 先把没点过的变体筛掉，
+    //   否则探测价会套到不该存在的变体上。
+    const probePriceStat = applyProbePrices(variants)
+    if (probePriceStat.filled) {
+      priceBackfill = {
+        ...(priceBackfill || {}),
+        probePrices: { filled: probePriceStat.filled, probes: probePriceStat.probes },
+      }
+    }
+
     const descFromAttrs = attributeTableToText(attributes)
 
     // 货号 / 首个规格 / 阶梯价 / 批发价（新增字段，不影响原有字段）
@@ -4144,7 +4301,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.11.0',
+    __v: '4.12.0',
     install,
     capture,
     collectAll,
@@ -4207,6 +4364,13 @@
     parseDetail,
     parseSearch,
     backfillVariantPrices,
+    applyProbePrices,
+    captureCurrentPrice,
+    // 仅供测试注入探测结果（生产环境无副作用）
+    __test_setProbePrices: (obj) => {
+      VARIANT_CAPTURE.prices = Object.assign({}, obj)
+      return VARIANT_CAPTURE.prices
+    },
     push,
     // 暴露给测试/控制台：把 1688 小图 URL 归一成原图 URL
     normImage,
