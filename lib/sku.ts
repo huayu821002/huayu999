@@ -91,3 +91,22 @@ export function buildUniqueSkus(
     return `${base}-${Date.now().toString(36)}`
   })
 }
+
+/**
+ * 发布商品时决定最终 SKU。
+ *
+ * 坑（2026-10-28 用户报「商品 SKU 还是 1688-xxx 旧格式」）：
+ *   后台发布弹窗以前会**预填** `1688-{sourceId}` 或 sourceSkuId，
+ *   提交时 body.sku 非空 → 服务端 `body.sku || buildSku(...)` 直接用了旧值，
+ *   新规则被完全盖掉。
+ *   现在：这两类「旧版自动预填值」视为**没填**，按新规则重新生成；
+ *   用户真正手填的其它值照旧优先。
+ */
+export function pickPublishSku(
+  userSku: string | null | undefined,
+  item: { sourceSkuId?: string | null; sourceId: string }
+): string {
+  const u = userSku ? String(userSku).trim() : ''
+  const legacyAuto = !u || u === item.sourceSkuId || u === `1688-${item.sourceId}`
+  return legacyAuto ? buildSku(item.sourceSkuId) : u
+}

@@ -10,6 +10,10 @@ execSync(
   `npx tsc lib/sku.ts --outDir ${OUT} --module commonjs --target es2019 --esModuleInterop --skipLibCheck`,
   { cwd: path.join(__dirname, '..'), stdio: 'inherit' }
 )
+execSync(
+  `npx tsc lib/batchOps.ts --outDir ${OUT} --module commonjs --target es2019 --esModuleInterop --skipLibCheck`,
+  { cwd: path.join(__dirname, '..'), stdio: 'inherit' }
+)
 const S = require(path.join(OUT, 'sku.js'))
 
 let pass = 0, fail = 0
@@ -62,6 +66,48 @@ console.log('\n[⑤ 变体批量：必须互不重复]')
   t('第三个重复再加后缀', /^FCY0910A1-3$/.test(list[2]), list[2])
   t('无货号的是随机 5 位', /^FCY0910\d{5}$/.test(list[3]), list[3])
   t('有货号的正常', list[5] === 'FCY0910B2', list[5])
+}
+
+console.log('\n[⑥ 发布时选 SKU：旧版自动预填值要被忽略]')
+{
+  const item = { sourceSkuId: '1083056771985', sourceId: '1083056771985' }
+  t('不填 → 新规则生成', /^FCY\d{4}1083056771985$/.test(S.pickPublishSku(undefined, item)), S.pickPublishSku(undefined, item))
+  t('空串 → 新规则生成', /^FCY\d{4}1083056771985$/.test(S.pickPublishSku('', item)), S.pickPublishSku('', item))
+  t('预填 1688-{sourceId} → 忽略并重新生成',
+    /^FCY\d{4}1083056771985$/.test(S.pickPublishSku('1688-1083056771985', item)),
+    S.pickPublishSku('1688-1083056771985', item))
+  t('预填 sourceSkuId 本身 → 忽略并重新生成',
+    /^FCY\d{4}1083056771985$/.test(S.pickPublishSku('1083056771985', item)),
+    S.pickPublishSku('1083056771985', item))
+  t('用户手填的其它值 → 保留', S.pickPublishSku('MY-CUSTOM-SKU', item) === 'MY-CUSTOM-SKU', S.pickPublishSku('MY-CUSTOM-SKU', item))
+  t('无原货号 → 随机 5 位',
+    /^FCY\d{4}\d{5}$/.test(S.pickPublishSku('', { sourceSkuId: null, sourceId: '999' })),
+    S.pickPublishSku('', { sourceSkuId: null, sourceId: '999' }))
+}
+
+console.log('\n[⑦ 批量重生成 SKU（batchSku）]')
+{
+  const { batchSku, parseVariants } = require(path.join(OUT, 'batchOps.js'))
+  const product = {
+    sku: '1688-1083056771985',
+    sourceSkuId: '1083056771985',
+    variants: JSON.stringify([
+      { id: 'v1', name: 'Color', value: '红色', sku: null },
+      { id: 'v2', name: 'Color', value: '蓝色', sku: null },
+    ]),
+  }
+  const r = batchSku(product, { variants: true, date: sep10 }, { buildSku: S.buildSku, buildUniqueSkus: S.buildUniqueSkus })
+  t('商品 SKU 按新规则', /^FCY0910\d+$/.test(r.sku), r.sku)
+  t('用上了原货号', r.sku === 'FCY09101083056771985', r.sku)
+  t('变体 SKU 也生成了', r.variantSkus.length === 2, JSON.stringify(r.variantSkus))
+  t('变体 SKU 互不相同', new Set(r.variantSkus).size === 2, JSON.stringify(r.variantSkus))
+  t('变体 SKU 格式对', r.variantSkus.every(x => /^FCY0910\d{5}$/.test(x)), JSON.stringify(r.variantSkus))
+  t('changed = true', r.changed === true)
+
+  // 无原货号 → 随机 5 位
+  const r2 = batchSku({ sku: 'x', sourceSkuId: null, variants: null }, { variants: false, date: sep10 }, { buildSku: S.buildSku, buildUniqueSkus: S.buildUniqueSkus })
+  t('无原货号 → 随机 5 位', /^FCY0910\d{5}$/.test(r2.sku), r2.sku)
+  t('variants=false 不生成变体 SKU', r2.variantSkus.length === 0, JSON.stringify(r2.variantSkus))
 }
 
 console.log(`\n通过 ${pass} / 失败 ${fail}`)

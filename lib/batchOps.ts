@@ -31,6 +31,8 @@ export type BatchVariant = {
 export type BatchProduct = {
   id?: string
   name?: string
+  sku?: string | null
+  sourceSkuId?: string | null
   price?: number
   comparePrice?: number | null
   inventory?: number
@@ -352,4 +354,35 @@ export function batchRename(
   }
 
   return { product: out, variantCount: variants.length, changed, names }
+}
+
+/* ------------------------------------------------------------------ *
+ * 批量重生成 SKU（2026-10-28）
+ *
+ * 规则与 lib/sku.ts 一致：FCY + MMDD + 1688 原货号；无原货号 → 随机 5 位。
+ * 商品级用 product.sourceSkuId；变体级用变体自己的 sku / skuId。
+ * ------------------------------------------------------------------ */
+export type SkuParams = {
+  /** 变体是否也一起重新生成 */
+  variants?: boolean
+  /** 生成时的日期（测试用） */
+  date?: Date
+}
+
+export function batchSku(
+  product: BatchProduct & { sku?: string | null; sourceSkuId?: string | null },
+  params: SkuParams = {},
+  deps: { buildSku: (src: unknown, opts?: any) => string; buildUniqueSkus: (srcs: unknown[], opts?: any) => string[] } = 
+    { buildSku: () => '', buildUniqueSkus: () => [] }
+): { product: BatchProduct & { sku?: string | null }; sku: string; variantSkus: string[]; changed: boolean } {
+  const opts = { date: params.date }
+  const sku = deps.buildSku(product.sourceSkuId || null, opts)
+  const variantSkus = params.variants
+    ? deps.buildUniqueSkus(
+        (parseVariants(product.variants) || []).map((v: any) => v.sku || null),
+        opts
+      )
+    : []
+  const changed = sku !== product.sku
+  return { product: { ...product, sku }, sku, variantSkus, changed }
 }

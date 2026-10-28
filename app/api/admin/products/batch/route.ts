@@ -5,8 +5,11 @@ import {
   batchInventory,
   batchPrice,
   batchRename,
+  batchSku,
+  parseVariants,
   type BatchProduct,
 } from '@/lib/batchOps'
+import { buildSku, buildUniqueSkus } from '@/lib/sku'
 
 /**
  * POST /api/admin/products/batch
@@ -42,7 +45,7 @@ export async function POST(req: NextRequest) {
   if (!ids.length) {
     return NextResponse.json({ error: '没有选中商品' }, { status: 400 })
   }
-  if (!['inventory', 'price', 'rename'].includes(op)) {
+  if (!['inventory', 'price', 'rename', 'sku'].includes(op)) {
     return NextResponse.json({ error: '未知操作: ' + op }, { status: 400 })
   }
 
@@ -56,6 +59,8 @@ export async function POST(req: NextRequest) {
       inventory: true,
       variants: true,
       variantDims: true,
+      sku: true,
+      sourceSkuId: true,
     },
   })
 
@@ -73,6 +78,8 @@ export async function POST(req: NextRequest) {
         inventory: p.inventory,
         variants: p.variants,
         variantDims: p.variantDims,
+        sku: p.sku,
+        sourceSkuId: p.sourceSkuId,
       }
 
       let result: { product: BatchProduct; variantCount: number; changed: boolean }
@@ -89,13 +96,28 @@ export async function POST(req: NextRequest) {
           scope: params.scope || 'both',
           alsoCompare: !!params.alsoCompare,
         })
-      } else {
+      } else if (op === 'rename') {
         result = batchRename(base, {
           digits: Number(params.digits) || 4,
           sep: params.sep === undefined ? ' ' : String(params.sep),
           prefix: params.prefix ? String(params.prefix) : '',
           scope: params.scope || 'variant',
         })
+      } else {
+        // op === 'sku'：按「FCY+日期+原货号」重新生成商品与变体 SKU
+        const sk = batchSku(base, { variants: params.variants !== false }, { buildSku, buildUniqueSkus })
+        result = {
+          product: {
+            ...sk.product,
+            variants: params.variants !== false
+              ? JSON.stringify(
+                  (parseVariants(base.variants) || []).map((v: any, i: number) => ({ ...v, sku: sk.variantSkus[i] || v.sku }))
+                )
+              : base.variants,
+          } as BatchProduct,
+          variantCount: sk.variantSkus.length,
+          changed: sk.changed,
+        }
       }
 
       if (!result.changed) {
@@ -108,6 +130,7 @@ export async function POST(req: NextRequest) {
       if (result.product.comparePrice !== undefined) data.comparePrice = result.product.comparePrice
       if (result.product.name !== undefined) data.name = result.product.name
       if (result.product.variants !== undefined) data.variants = result.product.variants
+      if ((result.product as any).sku !== undefined) data.sku = (result.product as any).sku
       if (result.product.variantDims !== undefined) data.variantDims = result.product.variantDims
 
       await prisma.product.update({

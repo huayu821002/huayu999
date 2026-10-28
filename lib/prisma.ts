@@ -50,6 +50,7 @@ export async function ensureColumn(
 /** 启动时自动补齐的列清单 */
 const STARTUP_COLUMNS: Array<[string, string, string]> = [
   ['Product', 'sourceUrl', 'TEXT'],
+  ['Product', 'sourceSkuId', 'TEXT'],
 ]
 
 let startupEnsured: Promise<void> | null = null

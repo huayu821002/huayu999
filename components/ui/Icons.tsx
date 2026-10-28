@@ -60,6 +60,7 @@ export const Icons = {
   Minus: LucideIcons.Minus,
   Trash2: LucideIcons.Trash2,
   Edit3: LucideIcons.Edit3,
+  Tag: LucideIcons.Tag,
   Copy: LucideIcons.Copy,
   ExternalLink: LucideIcons.ExternalLink,
   Instagram: LucideIcons.Instagram,

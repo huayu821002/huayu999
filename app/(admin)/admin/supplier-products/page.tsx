@@ -318,7 +318,9 @@ export default function SupplierProductsPage() {
         body: JSON.stringify({
           isActive,
           name: form.productName || form.titleEn || form.title || undefined,
-          sku: form.productSku || form.sourceSkuId || undefined,
+          // ★ 留空 → 服务端按「FCY+日期+原货号」规则自动生成
+          //   （以前这里兜底成 sourceSkuId，会把旧格式当作用户填的值传过去）
+          sku: form.productSku || undefined,
           price: form.sale || undefined,
           costPrice: form.cost || undefined,
           comparePrice: form.comparePrice || undefined,
@@ -921,7 +923,8 @@ export default function SupplierProductsPage() {
                 <label className="block">
                   <span className="text-sm text-gray-600">SKU</span>
                   <input
-                    defaultValue={selected.sourceSkuId || `1688-${selected.sourceId}`}
+                    defaultValue=""
+                    placeholder="留空自动生成 FCY+MMDD+货号（如 FCY1028ABC123）"
                     id="edit-p-sku"
                     className="mt-1 w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
                   />

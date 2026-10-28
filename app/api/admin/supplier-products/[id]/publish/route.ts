@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { buildSku, randomSkuDigits } from '@/lib/sku'
+import { buildSku, randomSkuDigits, pickPublishSku } from '@/lib/sku'
 import { prisma } from '@/lib/prisma'
 import { ensureSupplierProductTable, parseImagesField, parseJsonField } from '@/lib/supplier'
 import { toProductVariants } from '@/lib/variants'
@@ -46,8 +46,10 @@ export async function POST(
     // ★ 2026-10-28 SKU 规则：FCY + MMDD + 1688 原货号；没有原货号 → 随机 5 位数
     //   例：FCY0910ABC123 / FCY0910XXXXX
     //   用户手填的 sku 优先（body.sku）
+    //   用户手填的 sku 优先；但如果填的是**旧版自动预填的格式**
+    //   （sourceSkuId 本身 或 1688-{sourceId}），视为「没填」→ 按新规则生成。
     const sku = await ensureUniqueSku(
-      body.sku || buildSku(item.sourceSkuId),
+      pickPublishSku(body.sku, { sourceSkuId: item.sourceSkuId, sourceId: item.sourceId }),
       item.sourceId
     )
 
@@ -113,6 +115,8 @@ export async function POST(
         sku,
         // 来源网址：采集品自动带 1688 链接（用户 2026-10-28 需求）
         sourceUrl: body.sourceUrl || item.sourceUrl || null,
+        // 1688 原货号 —— 批量重生成 SKU 时要用
+        sourceSkuId: item.sourceSkuId || null,
         description,
         shortDesc: body.shortDesc || description.replace(/<[^>]+>/g, '').trim().slice(0, 160) || null,
         price: finalPrice,

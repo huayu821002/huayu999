@@ -129,7 +129,7 @@ export default function AdminProductsPage() {
   const [selectedIds, setSelectedIds] = useState<string[]>([])
   const [isBatchDeleting, setIsBatchDeleting] = useState(false)
   // ★ 批量操作弹窗（2026-10-28）：inventory=加库存 / price=改价 / rename=改名
-  const [batchOp, setBatchOp] = useState<'inventory' | 'price' | 'rename' | null>(null)
+  const [batchOp, setBatchOp] = useState<'inventory' | 'price' | 'rename' | 'sku' | null>(null)
   const [batchRunning, setBatchRunning] = useState(false)
   const [batchForm, setBatchForm] = useState({
     invMode: 'add' as 'add' | 'set',
@@ -468,9 +468,12 @@ export default function AdminProductsPage() {
         ? `把 ${selectedIds.length} 个商品${f.priceScope === 'product' ? '的主价' : '的主价和变体价'}调整 ${f.priceValue}%`
         : `把 ${selectedIds.length} 个商品${f.priceScope === 'product' ? '的主价' : '的主价和变体价'}设为 ${f.priceValue}`
       params = { mode: f.priceMode, value: f.priceValue, scope: f.priceScope, alsoCompare: f.alsoCompare }
-    } else {
+    } else if (batchOp === 'rename') {
       title = `把 ${selectedIds.length} 个商品${f.renameScope === 'product' ? '的商品名' : '的变体名'}改成「颜色+随机数字」（${f.digits} 位）`
       params = { digits: f.digits, sep: f.sep, prefix: f.prefix, scope: f.renameScope }
+    } else {
+      title = `把 ${selectedIds.length} 个商品的 SKU 重新生成为「FCY+日期+原货号」（没有原货号的用随机 5 位数）`
+      params = { variants: true }
     }
     if (!confirm(`确定？\n\n${title}`)) return
     setBatchRunning(true)
@@ -774,6 +777,9 @@ export default function AdminProductsPage() {
                 </Button>
                 <Button onClick={() => setBatchOp('rename')} className="!bg-joy-orange hover:!bg-joy-orange/90">
                   <Icons.Edit3 size={16} className="mr-2" />批量改名
+                <Button onClick={() => setBatchOp('sku')} className="!bg-joy-orange hover:!bg-joy-orange/90">
+                  <Icons.Tag size={16} className="mr-2" />批量重生成 SKU
+                </Button>
                 </Button>
                 <Button
                   onClick={handleBatchDelete}
@@ -1383,7 +1389,7 @@ export default function AdminProductsPage() {
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg">
             <div className="border-b border-joy-gray-100 px-6 py-4 flex items-center justify-between">
               <h2 className="font-display text-lg font-bold text-joy-gray-900">
-                {batchOp === 'inventory' ? '批量加库存' : batchOp === 'price' ? '批量改价' : '批量改名'}
+                {batchOp === 'inventory' ? '批量加库存' : batchOp === 'price' ? '批量改价' : batchOp === 'rename' ? '批量改名' : '批量重生成 SKU'}
                 <span className="ml-2 text-sm font-normal text-joy-gray-500">已选 {selectedIds.length} 个商品</span>
               </h2>
               <button onClick={() => setBatchOp(null)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>

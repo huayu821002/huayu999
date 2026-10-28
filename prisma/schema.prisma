@@ -77,6 +77,7 @@ model Product {
   sku         String      @unique
   barcode     String?
   sourceUrl   String?     // 来源网址（采集源，如 1688 商品链接）—— 只在后台可见，前台不显示
+  sourceSkuId String?     // 1688 原货号（supplierProduct.sourceSkuId）—— 批量重生成 SKU 时用
   weight      Float?
   dimensions  String?
   images      String?
