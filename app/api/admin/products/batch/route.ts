@@ -9,7 +9,7 @@ import {
   parseVariants,
   type BatchProduct,
 } from '@/lib/batchOps'
-import { buildSku, buildUniqueSkus } from '@/lib/sku'
+import { buildSku, buildUniqueSkus, buildVariantSkus } from '@/lib/sku'
 
 /**
  * POST /api/admin/products/batch
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
         })
       } else {
         // op === 'sku'：按「FCY+日期+原货号」重新生成商品与变体 SKU
-        const sk = batchSku(base, { variants: params.variants !== false }, { buildSku, buildUniqueSkus })
+        const sk = batchSku(base, { variants: params.variants !== false }, { buildSku, buildUniqueSkus, buildVariantSkus })
         result = {
           product: {
             ...sk.product,

@@ -372,16 +372,23 @@ export type SkuParams = {
 export function batchSku(
   product: BatchProduct & { sku?: string | null; sourceSkuId?: string | null },
   params: SkuParams = {},
-  deps: { buildSku: (src: unknown, opts?: any) => string; buildUniqueSkus: (srcs: unknown[], opts?: any) => string[] } = 
-    { buildSku: () => '', buildUniqueSkus: () => [] }
+  deps: {
+    buildSku: (src: unknown, opts?: any) => string
+    buildUniqueSkus: (srcs: unknown[], opts?: any) => string[]
+    buildVariantSkus?: (productSku: string, count: number) => string[]
+  } = { buildSku: () => '', buildUniqueSkus: () => [] }
 ): { product: BatchProduct & { sku?: string | null }; sku: string; variantSkus: string[]; changed: boolean } {
   const opts = { date: params.date }
   const sku = deps.buildSku(product.sourceSkuId || null, opts)
+  // ★ 变体 SKU = 商品SKU-01/-02...（与发布时同一规则）
+  const variantCount = (parseVariants(product.variants) || []).length
   const variantSkus = params.variants
-    ? deps.buildUniqueSkus(
-        (parseVariants(product.variants) || []).map((v: any) => v.sku || null),
-        opts
-      )
+    ? (deps.buildVariantSkus
+        ? deps.buildVariantSkus(sku, variantCount)
+        : deps.buildUniqueSkus(
+            (parseVariants(product.variants) || []).map((v: any) => v.sku || null),
+            opts
+          ))
     : []
   const changed = sku !== product.sku
   return { product: { ...product, sku }, sku, variantSkus, changed }

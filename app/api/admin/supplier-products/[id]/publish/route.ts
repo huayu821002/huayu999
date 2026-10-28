@@ -92,7 +92,11 @@ export async function POST(
     // 采集变体的价格是 CNY → 沿用商品同样的加价/汇率换算
     const supplierVariants = parseJsonField<any[]>(item.variants) || []
     const variantDims = parseJsonField<any[]>(item.variantDims) || []
-    const variants = toProductVariants(supplierVariants, variantDims, { markup, rate: 7.2 })
+    // ★ 变体 SKU = 商品SKU-01/-02...（用户 2026-10-28 18:27 规则）
+    //   → 必须等商品 sku 算出来之后再转变体
+    const variants = toProductVariants(supplierVariants, variantDims, {
+      markup, rate: 7.2, productSku: sku,
+    })
 
     // ★ 变体图也下载到本地（每个变体一张）
     const variantImgIdx = variants.map((v: any, i: number) => (v.image ? i : -1)).filter((i: number) => i >= 0)

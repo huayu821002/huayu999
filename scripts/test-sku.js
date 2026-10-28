@@ -96,18 +96,29 @@ console.log('\n[⑦ 批量重生成 SKU（batchSku）]')
       { id: 'v2', name: 'Color', value: '蓝色', sku: null },
     ]),
   }
-  const r = batchSku(product, { variants: true, date: sep10 }, { buildSku: S.buildSku, buildUniqueSkus: S.buildUniqueSkus })
+  const deps = { buildSku: S.buildSku, buildUniqueSkus: S.buildUniqueSkus, buildVariantSkus: S.buildVariantSkus }
+  const r = batchSku(product, { variants: true, date: sep10 }, deps)
   t('商品 SKU 按新规则', /^FCY0910\d+$/.test(r.sku), r.sku)
   t('用上了原货号', r.sku === 'FCY09101083056771985', r.sku)
   t('变体 SKU 也生成了', r.variantSkus.length === 2, JSON.stringify(r.variantSkus))
-  t('变体 SKU 互不相同', new Set(r.variantSkus).size === 2, JSON.stringify(r.variantSkus))
-  t('变体 SKU 格式对', r.variantSkus.every(x => /^FCY0910\d{5}$/.test(x)), JSON.stringify(r.variantSkus))
+  t('变体 SKU = 商品SKU-01/-02', r.variantSkus[0] === r.sku + '-01' && r.variantSkus[1] === r.sku + '-02', JSON.stringify(r.variantSkus))
   t('changed = true', r.changed === true)
 
   // 无原货号 → 随机 5 位
   const r2 = batchSku({ sku: 'x', sourceSkuId: null, variants: null }, { variants: false, date: sep10 }, { buildSku: S.buildSku, buildUniqueSkus: S.buildUniqueSkus })
   t('无原货号 → 随机 5 位', /^FCY0910\d{5}$/.test(r2.sku), r2.sku)
   t('variants=false 不生成变体 SKU', r2.variantSkus.length === 0, JSON.stringify(r2.variantSkus))
+}
+
+console.log('\n[⑧ 变体 SKU = 商品SKU-2位序号（用户 18:27 规则）]')
+{
+  t('商品SKU-01', S.buildVariantSkus('FCY102840148', 3)[0] === 'FCY102840148-01', S.buildVariantSkus('FCY102840148', 3)[0])
+  t('商品SKU-02', S.buildVariantSkus('FCY102840148', 3)[1] === 'FCY102840148-02', S.buildVariantSkus('FCY102840148', 3)[1])
+  t('商品SKU-03', S.buildVariantSkus('FCY102840148', 3)[2] === 'FCY102840148-03', S.buildVariantSkus('FCY102840148', 3)[2])
+  t('序号是 2 位补零', /^FCY102840148-0\d$/.test(S.buildVariantSkus('FCY102840148', 9)[8]), S.buildVariantSkus('FCY102840148', 9)[8])
+  t('第 10 个变体 → -10', S.buildVariantSkus('FCY102840148', 10)[9] === 'FCY102840148-10', S.buildVariantSkus('FCY102840148', 10)[9])
+  t('0 个变体 → 空数组', S.buildVariantSkus('FCY102840148', 0).length === 0)
+  t('商品SKU 为空时兜底生成', S.buildVariantSkus('', 1)[0].startsWith('FCY'), S.buildVariantSkus('', 1)[0])
 }
 
 console.log(`\n通过 ${pass} / 失败 ${fail}`)

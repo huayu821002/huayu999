@@ -110,3 +110,20 @@ export function pickPublishSku(
   const legacyAuto = !u || u === item.sourceSkuId || u === `1688-${item.sourceId}`
   return legacyAuto ? buildSku(item.sourceSkuId) : u
 }
+
+/**
+ * 变体 SKU：**商品SKU + '-' + 2 位顺序号**
+ *
+ * 用户（2026-10-28 18:27）原话：
+ *   「采集 变体SKU规则：商品SKU-(2位顺序数子)，
+ *     某SKU 商品SKU为 FCY102840148，那么红色就是 FCY102840148-01，
+ *     绿色：FCY102840148-02」
+ *
+ * 变体 SKU 挂在商品 SKU 下面，所以必须在**商品 SKU 定下来之后**生成
+ * （发布时 / 批量重生成时），而不是采集时。
+ */
+export function buildVariantSkus(productSku: string | null | undefined, count: number): string[] {
+  const base = String(productSku || '').trim() || buildSku(null)
+  const n = Math.max(0, Number(count) || 0)
+  return Array.from({ length: n }, (_, i) => `${base}-${String(i + 1).padStart(2, '0')}`)
+}

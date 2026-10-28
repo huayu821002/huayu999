@@ -14,53 +14,11 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.21.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.22.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
 
-  /* ============================================================
-   * SKU 生成（2026-10-28）
-   * 规则：FCY + MMDD + 1688 原货号；没有原货号 → 随机 5 位数
-   *   例：FCY0910ABC123 / FCY0910XXXXX
-   * 时区用 Asia/Shanghai（运营所在地），避免服务器/浏览器在 UTC 时差一天。
-   * ============================================================ */
-  function skuDatePart() {
-    try {
-      const s = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'Asia/Shanghai', year: 'numeric', month: '2-digit', day: '2-digit',
-      }).format(new Date())
-      const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(s)
-      if (m) return m[2] + m[3]
-    } catch (e) { /* 兜底 */ }
-    const d = new Date()
-    return String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0')
-  }
-  function buildSkuJs(sourceSku) {
-    const prefix = 'FCY' + skuDatePart()
-    const c = String(sourceSku == null ? '' : sourceSku).trim().replace(/[^0-9A-Za-z._-]/g, '').slice(0, 40)
-    if (c) return prefix + c
-    let n = ''
-    for (let i = 0; i < 5; i++) n += String(Math.floor(Math.random() * 10) % 10)
-    return prefix + n
-  }
-  /** 给变体补 SKU（已有的不动；保证互不重复） */
-  function assignVariantSkus(variants) {
-    const used = new Set()
-    const list = Array.isArray(variants) ? variants : []
-    return list.map(v => {
-      if (v && v.sku) { used.add(String(v.sku)); return v }
-      let base = buildSkuJs(v && (v.skuId || v.skuName))
-      if (used.has(base)) {
-        for (let i = 2; i < 1000; i++) {
-          const cand = base + '-' + i
-          if (!used.has(cand)) { base = cand; break }
-        }
-      }
-      used.add(base)
-      return Object.assign({}, v, { sku: base })
-    })
-  }
 
   // ★ 2026-10-28：**排除采集器自己的 UI**
   //   生产数据里 probePrices 混进了 "Fiestaflare 采集器 v2.47.0"、
@@ -4265,9 +4223,9 @@
       }
       variantDims = Array.from(dm.values())
     }
-    // ★ 2026-10-28：给每个变体生成 SKU（FCY+日期+原货号/随机5位）
-    //   在采集时就定下来 → 后续「发布商品」「复制变体」都不会变。
-    variants = assignVariantSkus(variants)
+    // ★ 2026-10-28 变体 SKU 规则改为「商品SKU-01/-02...」（用户 18:27）
+    //   → 采集时**不生成**变体 SKU：那时还不知道商品 SKU（商品 SKU 在发布时才定）。
+    //   发布时按商品 SKU + 2 位顺序号统一生成。
 
     if (probeFilter.active && variantDims.length) {
       // 维度定义里的「可选值」也要跟着过滤，否则前端仍会列出没点过的值
@@ -4987,7 +4945,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.21.0',
+    __v: '4.22.0',
     install,
     capture,
     collectAll,
@@ -5061,9 +5019,6 @@
     // 仅供测试：探测价（差分 + 几何）2026-10-28
     __test_parsePriceText: (txt) => parsePriceText(txt),
     __test_isCollectorUI: (node) => isCollectorUI(node),
-    __test_buildSkuJs: (src) => buildSkuJs(src),
-    __test_assignVariantSkus: (list) => assignVariantSkus(list),
-    __test_skuDatePart: () => skuDatePart(),
     __test_looksLikeSpecValue: (v) => looksLikeSpecValue(v),
     __test_priceSnapshot: () => priceSnapshot(),
     __test_captureCurrentPrice2: (before, pt) => captureCurrentPrice2(before, pt),

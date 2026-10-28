@@ -15,7 +15,7 @@
  */
 
 import { normalizeAlibabaImage } from '@/lib/imageNormalize'
-import { buildSku, buildUniqueSkus } from '@/lib/sku'
+import { buildSku, buildUniqueSkus, buildVariantSkus } from '@/lib/sku'
 
 export type SupplierVariant = {
   skuId?: string
@@ -66,7 +66,7 @@ export function cnyToUsd(cny: number | null, markup = 3, rate = 7.2): number | n
 export function toProductVariants(
   supplierVariants: SupplierVariant[],
   variantDims: VariantDim[] = [],
-  opts: { markup?: number; rate?: number } = {}
+  opts: { markup?: number; rate?: number; productSku?: string } = {}
 ): ProductVariant[] {
   const markup = opts.markup ?? 3
   const rate = opts.rate ?? 7.2
@@ -74,11 +74,13 @@ export function toProductVariants(
 
   const srcList = (supplierVariants || []).filter(v => v && typeof v === 'object')
 
-  // ★ 2026-10-28：变体 SKU 按「FCY+日期+原货号」规则生成，且**必须互不重复**。
-  //   优先级：采集时已生成的 sku → 1688 的 skuId → 随机 5 位数。
-  const skuList = buildUniqueSkus(
-    srcList.map((v: any) => v.sku || v.skuId || null)
-  )
+  // ★ 2026-10-28 变体 SKU 规则（用户 18:27）：
+  //   **商品SKU-01 / 商品SKU-02 / ...**（2 位顺序号）
+  //   → 传了 productSku 就按序号生成；没传（老路径）才回退到
+  //     「FCY+日期+变体原货号 / 随机 5 位」。
+  const skuList = opts.productSku
+    ? buildVariantSkus(opts.productSku, srcList.length)
+    : buildUniqueSkus(srcList.map((v: any) => v.sku || v.skuId || null))
 
   return srcList
     .map((v: any, i: number) => {
@@ -104,7 +106,8 @@ export function toProductVariants(
         id: `${String(v.skuId || 'v')}-${i}-${stamp}`,
         name: (dimNames.join(' / ') || '选项').slice(0, 40),
         value: (displayValue || `变体 ${i + 1}`).slice(0, 80),
-        sku: (v.sku ? String(v.sku).slice(0, 80) : skuList[i]) || null,
+        // 传了 productSku → 一律用「商品SKU-序号」，忽略采集时的 sku
+        sku: (opts.productSku ? skuList[i] : (v.sku ? String(v.sku).slice(0, 80) : skuList[i])) || null,
         price: cnyToUsd(cny, markup, rate),
         inventory: null,
         // ★ 变体图归一化成原图（剥掉 _sum 等缩略后缀，80x80 → 800x800）
