@@ -51,6 +51,10 @@ export async function GET(req: Request) {
       images: (() => { try { return JSON.parse(r.images || '[]') } catch { return r.images } })(),
       status: r.status,
       raw: r.raw,
+      // ★ 2026-10-28：变体明细单独存在列里（不在 raw 内）→ 必须单独返回，
+      //   否则只能看到诊断字段、看不到每个变体的真实价格。
+      variants: r.variants,
+      variantDims: r.variantDims,
     })),
   })
 }
