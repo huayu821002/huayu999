@@ -25,7 +25,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.15.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.16.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2313,6 +2313,10 @@
    */
   function captureCurrentPrice() {
     const NUM = /[¥￥]\s*(\d+(?:\.\d+)?)/
+    // ★ 2026-10-28：诊断用 —— 记录页面上所有「带 ¥ 的短文本」候选
+    //   用户报「变体价格都是一个价格」时，先看这里确认 1688 到底把
+    //   逐 SKU 价格渲染在哪个 class 里、文本长什么样。
+    const diag = []
 
     // ① 优先：价格展示容器（1688 常见 class：price / priceNow / skuPrice / next-price ...）
     const containers = []
@@ -2323,22 +2327,28 @@
     for (const s of sels) {
       let els = []
       try { els = document.querySelectorAll(s) } catch (e) { continue }
-      for (const el of Array.from(els).slice(0, 40)) {
+      for (const el of Array.from(els).slice(0, 60)) {
         const txt = clean(el.innerText || el.textContent || '')
-        if (!txt || txt.length > 60) continue
+        if (!txt || txt.length > 80) continue
         const m = txt.match(NUM)
         if (!m) continue
         const v = parseFloat(m[1])
         if (!(v > 0.01) || v > 1000000) continue
-        // 只要**纯价格**或「价格 + 少量文字」的元素
-        if (txt.replace(NUM, '').replace(/[\s¥￥,.:]/g, '').length > 12) continue
-        containers.push({ v, el, txt })
+        const cls = String(el.className || '').slice(0, 60)
+        diag.push({ v, txt: txt.slice(0, 40), cls, tag: el.tagName })
+        // 只要「价格 + 少量文字」的元素
+        // ★ 2026-10-28：12 → 40。老限制太紧，1688 常显示「券后价 ¥2.20」
+        //   或「2件起批 ¥2.20」→ 直接跳过 → 探测价抓不到 → 所有变体同价。
+        if (txt.replace(NUM, '').replace(/[\s¥￥,.:]/g, '').length > 40) continue
+        // 明确不是价格的文案
+        if (/起批|起订|已售|评价|浏览|库存|重量|评论/.test(txt.replace(NUM, ''))) continue
+        containers.push({ v, el, txt, cls })
       }
     }
     if (containers.length) {
       // 取文本最短的那个 —— 通常是最纯粹的当前价
       containers.sort((a, b) => a.txt.length - b.txt.length)
-      return { price: containers[0].v, source: 'container', text: containers[0].txt }
+      return { price: containers[0].v, source: 'container', text: containers[0].txt, diag }
     }
 
     // ② 退化：全页找第一个 ¥数字（限制在可见且短文本的元素里）
@@ -2351,9 +2361,10 @@
       if (!m) continue
       const v = parseFloat(m[1])
       if (!(v > 0.01) || v > 1000000) continue
-      return { price: v, source: 'page', text: txt }
+      diag.push({ v, txt: txt.slice(0, 40), cls: String(el.className || '').slice(0, 60), tag: el.tagName })
+      return { price: v, source: 'page', text: txt, diag }
     }
-    return null
+    return diag.length ? { price: null, source: 'none', text: '', diag } : null
   }
 
   /**
@@ -2366,9 +2377,18 @@
     setTimeout(() => {
       try {
         const r = captureCurrentPrice()
+        // ★ 2026-10-28：记录诊断候选（页面上所有带 ¥ 的短文本 + class）
+        //   用户报「变体价格都是一个价格」时，先看 priceProbeDiag 确认
+        //   1688 把逐 SKU 价格渲染在哪个 class 里。
+        if (r && r.diag && r.diag.length) {
+          VARIANT_CAPTURE.priceDiag = VARIANT_CAPTURE.priceDiag || []
+          VARIANT_CAPTURE.priceDiag.push({ value: v, diag: r.diag.slice(0, 12) })
+        }
         if (r && r.price > 0.01) {
           VARIANT_CAPTURE.prices[v] = r.price
           VARIANT_CAPTURE.log.push({ value: v, src: 'price', url: '', price: r.price, priceSrc: r.source, priceText: r.text })
+        } else if (r) {
+          VARIANT_CAPTURE.log.push({ value: v, src: 'price-miss', url: '', price: null, priceSrc: r.source, priceText: r.text })
         }
       } catch (e) {}
     }, 700)
@@ -3433,6 +3453,15 @@
       for (const it of skuRows.slice(0, 30)) add(it.spec, it.price)
       if (!out.length) for (const it of tierRows.slice(0, 30)) add(it.spec, it.price)
     } catch (e) {}
+
+    // ★ 2026-10-28：div 网格形态的规格价格表（不是 <table>）
+    //   1688 很多商品的逐 SKU 价格是 div 网格，上面两条路都抓不到。
+    try {
+      if (!out.length) {
+        const grid = domSkuPriceGrid(null)
+        for (const it of grid.slice(0, 60)) add(it.spec, it.price)
+      }
+    } catch (e) {}
     try {
       // 2) 非表格：带 sku-price / price-item 的元素
       if (!out.length) {
@@ -3450,6 +3479,68 @@
         }
       }
     } catch (e) {}
+    return out
+  }
+
+  /**
+   * 从 DOM 抽「规格 + 价格」同格的元素列表 → [{spec, price}]
+   *
+   * ★ 2026-10-28 新增（用户报「变体价格都是一个价格」）
+   *
+   * 为什么需要：
+   *   1688 的逐 SKU 价格表**很多商品不是 <table>**，而是 div 网格：
+   *     <div class="sku-item"><div>1 粉色</div><div>¥12.50</div></div>
+   *   domVariants / domSkuPrices 都只查 <table> → 抓不到 → 所有变体同价。
+   *
+   * 做法（不依赖任何 class 名）：
+   *   ① 找 innerText 形如「<规格><价格>」的元素（价格必须在**末尾**）
+   *   ② 去掉价格后的剩余文本当规格（必须非空、且不是纯数字）
+   *   ③ 只有当**同一个父容器下有 ≥2 个**这样的元素时，才认定是 SKU 列表
+   *      （单个元素多半是商品价/券后价，不是逐 SKU 价）
+   *
+   * @param {Object} guard {lo, hi} 商品价区间，用于剔除非价格数字
+   * @returns {Array<{spec:string, price:number}>}
+   */
+  function domSkuPriceGrid(guard) {
+    const gLo = guard && Number.isFinite(guard.lo) ? guard.lo : null
+    const gHi = guard && Number.isFinite(guard.hi) ? guard.hi : null
+    const priceOK = p => {
+      if (p === null || p === undefined || !(p > 0.01) || p > 1000000) return false
+      if (gLo !== null && gHi !== null && gHi > 0) {
+        if (p < Math.min(gLo, gHi) * 0.2 || p > Math.max(gLo, gHi) * 6) return false
+      }
+      return true
+    }
+    const out = []
+    let all = []
+    try { all = Array.from(document.querySelectorAll('div, li, td, span, a, p')).slice(0, 4000) } catch (e) { return out }
+
+    const groups = new Map()
+    for (const el of all) {
+      const txt = clean(el.innerText || el.textContent || '')
+      if (!txt || txt.length > 48) continue
+      // 形如「1 粉色 ¥12.50」/「粉色12.50」→ 价格必须在末尾
+      const m = txt.match(/^(.*?)[¥￥]?\s*(\d+(?:\.\d+)?)\s*(元|起)?$/)
+      if (!m) continue
+      const spec = String(m[1] || '').trim().replace(/[¥￥\s]+$/, '')
+      const price = parseFloat(m[2])
+      if (!spec || spec.length > 24) continue
+      // 规格部分不能是纯数字（那是阶梯价的数量列）
+      if (/^[\d.]+$/.test(spec)) continue
+      if (!priceOK(price)) continue
+      // 价格格本身不能带 件/起批/库存 等
+      if (/件|起批|起订|库存|已售|重量/.test(txt)) continue
+      const p = el.parentElement
+      if (!p) continue
+      if (!groups.has(p)) groups.set(p, [])
+      groups.get(p).push({ spec, price, el })
+    }
+
+    // 同一父容器下 ≥2 条 → 是 SKU 列表
+    for (const [, items] of groups) {
+      if (items.length < 2) continue
+      for (const it of items) out.push({ spec: it.spec, price: it.price })
+    }
     return out
   }
 
@@ -3602,6 +3693,27 @@
         }
       }
     } catch (e) {}
+
+    // ★ 2026-10-28：div 网格形态的规格价格表（不是 <table>）
+    //   1688 很多商品的逐 SKU 价格渲染成 div 网格，上面 <table> 那条路抓不到
+    //   → 所有变体只能共用一个兜底价（用户报「变体价格都是一个价格」）。
+    //   这里按「规格文本 + 价格同格」解析，并挂到默认维度「颜色」上。
+    if (!out.length) {
+      try {
+        const grid = domSkuPriceGrid(guard)
+        for (const it of grid.slice(0, 60)) {
+          out.push({
+            specs: [{ name: '规格', value: String(it.spec || '').slice(0, 60) }],
+            price: it.price,
+            image: '',
+            priceText: String(it.price),
+            priceCol: -1,
+            priceHead: '(div-grid)',
+            rowText: String(it.spec || '').slice(0, 200),
+          })
+        }
+      } catch (e) {}
+    }
     return out
   }
 
@@ -3643,6 +3755,17 @@
     const domRows = domWithPrice.map(v => ({
       price: v.price,
       keys: (v.specs || []).map(s => norm(s.name) + ':' + norm(s.value)),
+      // ★ 2026-10-28：只按**值**匹配的降级键
+      //   DOM 的 div 网格解析出来的维度名是「规格」，而变体维度名是「颜色」→
+      //   严格匹配对不上 → 退化成「规格值相同即同一个 SKU」。
+      //   安全性：两边都必须**唯一**（值不重复），否则不匹配（宁可少填也不配错）。
+      vals: (v.specs || []).map(s => norm(s.value)).filter(Boolean),
+      // ★ 只有维度名是**通用名「规格」**的才允许降级匹配。
+      //   「规格」是 div 网格解析时的兜底维度名（DOM 上本来就没写维度名），
+      //   所以 DOM「规格:红」↔ 变体「颜色:红」是同一个 SKU。
+      //   但「款式:红」↔「颜色:红」是**不同维度** → 不能降级（否则会配错）。
+      genericDim: (v.specs || []).length > 0 &&
+        (v.specs || []).every(s => norm(s.name) === '规格'),
     }))
 
     // 两个变体的规格集合相同 → 认为是同一个 SKU
@@ -3652,11 +3775,34 @@
       return a.every(x => sb.has(x))
     }
 
+    // 值唯一性统计（用于降级匹配的安全判断）
+    const countVals = arr => {
+      const m = new Map()
+      for (const r of arr) for (const x of r.vals) m.set(x, (m.get(x) || 0) + 1)
+      return m
+    }
+    const domValCount = countVals(domRows)
+    const varValCount = countVals(list.map(v => ({
+      vals: ((v && v.specs) || []).map(s => norm(s.value)).filter(Boolean),
+    })))
+
     let filled = 0
     const out = list.map(v => {
-      const keys = ((v && v.specs) || []).map(s => norm(s.name) + ':' + norm(s.value))
+      const specs = (v && v.specs) || []
+      const keys = specs.map(s => norm(s.name) + ':' + norm(s.value))
       if (!keys.length) return v
-      const hit = domRows.find(r => sameSpecSet(keys, r.keys))
+      let hit = domRows.find(r => sameSpecSet(keys, r.keys))
+      if (!hit) {
+        // 降级：只按规格值匹配（要求两边该值都唯一）
+        const vals = specs.map(s => norm(s.value)).filter(Boolean)
+        if (vals.length) {
+          const allUnique = vals.every(x => (domValCount.get(x) || 0) === 1 && (varValCount.get(x) || 0) === 1)
+          if (allUnique) {
+            // ★ 只在 DOM 侧维度名是通用名「规格」时降级（见 domRows.genericDim）
+            hit = domRows.find(r => r.genericDim && sameSpecSet(vals, r.vals))
+          }
+        }
+      }
       if (!hit) return v
       if (v.price === hit.price) return v
       filled++
@@ -3971,6 +4117,8 @@
         // ★ 探测到的原始价格（诊断用）：key = 规格值，value = 抓到的价
         //   用户报「采集价格不正确」时，先看这里确认抓到的是不是真价
         probePrices: (VARIANT_CAPTURE && VARIANT_CAPTURE.prices) || undefined,
+        // ★ 探测时页面上所有带 ¥ 的短文本候选（含 class）——定位 1688 逐 SKU 价的渲染位置
+        priceProbeDiag: (VARIANT_CAPTURE && VARIANT_CAPTURE.priceDiag) || undefined,
         priceCandidates: pr.candidates,
         skuCandidates: pr.skuCandidates,
         priceContainers: collectPriceContainers(payloads),
@@ -4541,7 +4689,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.15.0',
+    __v: '4.16.0',
     install,
     capture,
     collectAll,
@@ -4610,6 +4758,10 @@
     variantsFromProbe,
     // 仅供测试：直接拿 DOM 抓到的规格价（2026-10-28 单维度规格表回归用）
     __test_domSkuPrices: () => domSkuPrices(),
+    // 仅供测试：div 网格形态的规格价格表（2026-10-28）
+    __test_domSkuPriceGrid: (guard) => domSkuPriceGrid(guard),
+    // 仅供测试：DOM 规格表 → 变体
+    __test_domVariants: (guard) => domVariants(guard),
     // 仅供测试注入探测结果（生产环境无副作用）
     __test_setProbePrices: (obj) => {
       VARIANT_CAPTURE.prices = Object.assign({}, obj)
@@ -4658,7 +4810,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.43.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.44.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
