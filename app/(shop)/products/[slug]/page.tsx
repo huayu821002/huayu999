@@ -632,10 +632,10 @@ export default function ProductDetailPage() {
                                   if (m) setSelectedVariant(m.id)
                                 }}
                                 className={cn(
-                                  'px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200',
+                                  'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                                   isActive
                                     ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/40 scale-[1.03] ring-1 ring-white/25'
-                                    : 'bg-white/5 border border-white/15 text-slate-200 hover:bg-white/10 hover:border-indigo-400/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-900/40',
+                                    : 'bg-white/10 border border-white/20 text-slate-100 hover:bg-white/[0.16] hover:border-indigo-400/70 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-900/40',
                                   disabled && 'opacity-40 cursor-not-allowed'
                                 )}
                               >
@@ -661,10 +661,10 @@ export default function ProductDetailPage() {
                             key={variant.id}
                             onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
                             className={cn(
-                              'px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200',
+                              'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                               selectedVariant === variant.id
                                 ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/40 scale-[1.03] ring-1 ring-white/25'
-                                : 'bg-white/5 border border-white/15 text-slate-200 hover:bg-white/10 hover:border-indigo-400/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-900/40'
+                                : 'bg-white/10 border border-white/20 text-slate-100 hover:bg-white/[0.16] hover:border-indigo-400/70 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-900/40'
                             )}
                           >
                             {variant.value}
