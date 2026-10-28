@@ -124,5 +124,36 @@ console.log('\n[⑤ 无 specs 的老格式变体]')
   t('value 变成 颜色+数字', /^1 粉色 \d{4}$/.test(v.value), v.value)
 }
 
+console.log('\n[⑥ 真实场景：多个变体共享同一个颜色值]')
+{
+  // 生产真实数据：两个变体的颜色值都是 "Rhinestone Bow Hairpin…"（截断后同名），
+  // 旧实现用「旧值→新值」一对一 map，后写覆盖先写 →
+  // dims 里两个值都变成同一个新值，和变体 value 对不上。
+  const p = {
+    id: 'p6', name: 'Bow Hairpin', price: 3, inventory: 1,
+    variants: JSON.stringify([
+      { id: 'v0', name: 'Color', value: 'Rhinestone Bow Hairpin…', specs: [{ name: 'Color', value: 'Rhinestone Bow Hairpin…' }] },
+      { id: 'v1', name: 'Color', value: 'Rhinestone Bow Hairpin…', specs: [{ name: 'Color', value: 'Rhinestone Bow Hairpin…' }] },
+    ]),
+    variantDims: JSON.stringify([
+      { name: 'Material', kind: 'custom', values: ['Style', 'Hairpin Classification'] },
+      { name: 'Color', kind: 'color', values: ['Rhinestone Bow Hairpin…', 'Rhinestone Bow Hairpin…'] },
+    ]),
+  }
+  const r = B.batchRename(p, { digits: 4, scope: 'variant' }, rand)
+  const vs = B.parseVariants(r.product.variants)
+  const dims = JSON.parse(r.product.variantDims)
+
+  t('两个变体拿到不同数字', vs[0].value !== vs[1].value, JSON.stringify(vs.map(v => v.value)))
+  t('★ specs 各自同步', vs[0].specs[0].value === vs[0].value && vs[1].specs[0].value === vs[1].value,
+    JSON.stringify(vs.map(v => v.specs[0].value)))
+  const colorDim = dims.find(d => d.name === 'Color')
+  t('★ dims 用去重后的新值集合重建', JSON.stringify(colorDim.values) === JSON.stringify([vs[0].value, vs[1].value]),
+    JSON.stringify(colorDim.values))
+  const matDim = dims.find(d => d.name === 'Material')
+  t('非颜色维度不动', JSON.stringify(matDim.values) === JSON.stringify(['Style', 'Hairpin Classification']),
+    JSON.stringify(matDim.values))
+}
+
 console.log(`\n通过 ${pass} / 失败 ${fail}`)
 process.exit(fail ? 1 : 0)

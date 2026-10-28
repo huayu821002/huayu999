@@ -259,9 +259,6 @@ export function batchRename(
   }
 
   if (scope === 'variant' || scope === 'both') {
-    // 颜色值映射（旧颜色值 → 新颜色值），用于同步 variantDims
-    const colorMap = new Map<string, string>()
-
     const next = variants.map(v => {
       const specs = Array.isArray(v.specs) ? v.specs : []
       const colorIdx = colorIdxOf(v)
@@ -287,7 +284,6 @@ export function batchRename(
         const newSpecs = specs.length
           ? [{ ...specs[0], value: newColor }]
           : specs
-        if (oldColor !== newColor) colorMap.set(String(oldColor), newColor)
         if (newColor !== v.value) changed = true
         return { ...v, value: newColor, specs: newSpecs }
       }
@@ -307,18 +303,34 @@ export function batchRename(
     })
     if (next.length) out.variants = JSON.stringify(next)
 
-    // ★ variantDims 也要同步（维度面板显示用）
-    //   只在单维度时改 —— 多维度时维度值没变，改了反而错
+    // ★ variantDims 也要同步（后台维度面板 / 复制变体时用；前台不用这个字段）
+    //
+    //   注意：不能简单做「旧值 → 新值」一对一替换。
+    //   真实生产数据里存在**多个变体共享同一个颜色值**的情况
+    //   （如两个变体颜色都是 "Rhinestone Bow Hairpin…"），
+    //   一对一 map 会被后者覆盖 → dims 里两个值都变成同一个新值，
+    //   和变体的 value 对不上。
+    //   所以改成：**用变体新的颜色值集合重建**（去重、保序）。
+    //
+    //   只在「所有变体都是单规格」时重建 —— 多规格时维度值本来没变。
     const dims = parseDims(product.variantDims)
-    if (dims.length && colorMap.size) {
+    const allSingleSpec = variants.every(v => (Array.isArray(v.specs) ? v.specs.length : 0) <= 1)
+    if (dims.length && allSingleSpec && next.length) {
+      const oldColorSet = new Set(variants.map(v => String(colorValueOf(v) || '')))
       const newDims = dims.map(d => {
         const vals = Array.isArray(d.values) ? d.values : []
         const isColor = /颜色|色|color/i.test(String(d.name || ''))
         if (!isColor) return d
-        return {
-          ...d,
-          values: vals.map(x => colorMap.get(String(x)) || String(x)),
-        }
+        // 用变体新的颜色值重建（去重、保序）
+        const rebuilt: string[] = []
+        next.forEach(v => {
+          const c = String(v.value || '').trim()
+          if (c && !rebuilt.includes(c)) rebuilt.push(c)
+        })
+        if (!rebuilt.length) return d
+        // 变体没覆盖到的历史值保留在后面，不丢数据
+        const extra = vals.filter(x => !oldColorSet.has(String(x)))
+        return { ...d, values: [...rebuilt, ...extra] }
       })
       out.variantDims = JSON.stringify(newDims)
     }
