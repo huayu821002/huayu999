@@ -14,7 +14,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.9.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.10.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -3185,11 +3185,24 @@
           let priceCol = priceIdx
           // 单元格文本里**含件数/库存/重量等** → 一律不当价格
           const NOT_PRICE_CELL_RE = /件|起批|起订|库存|已售|销量|重量|克|kg|浏览|评论|排名|编号/
+          // ★ 2026-10-28 修：规格文本里的数字不能当价格。
+          //   典型翻车：「100%桑蚕丝面罩」被解析成 100 CNY → 41.67 USD，
+          //   而同款其它颜色才 12 CNY → 5 USD。
+          //   规则：整格**必须基本是价格** —— 只允许数字/小数点/区间符/货币符，
+          //   以及价格语境里的「元」「起」；出现百分号、汉字说明、字母 → 一律拒绝。
+          const PRICE_CELL_ALLOWED_RE = /^[¥￥]?\d+(\.\d+)?([-~至][¥￥]?\d+(\.\d+)?)?(元|起)?$/
           const cellPrice = i => {
             const rawTxt = String(cells[i] || '').trim()
             if (!rawTxt) return null
             if (NOT_PRICE_CELL_RE.test(rawTxt)) return null
-            const txt = rawTxt.replace(/[,¥￥\s]/g, '')
+            // 百分号 / 字母 → 不是价格
+            if (/[%％]/.test(rawTxt)) return null
+            if (/[A-Za-z]/.test(rawTxt)) return null
+            // 汉字说明（去掉价格语境里的「元/起」）→ 不是价格
+            if (/[一-龥]/.test(rawTxt.replace(/(元|起)/g, ''))) return null
+            // 整格形状必须是价格
+            if (!PRICE_CELL_ALLOWED_RE.test(rawTxt.replace(/\s/g, ''))) return null
+            const txt = rawTxt.replace(/[,¥￥\s]/g, '').replace(/(元|起)/g, '')
             if (!txt) return null
             // 整格是纯数字
             let m = txt.match(/^\d+(\.\d+)?$/)
@@ -3200,7 +3213,7 @@
               const lo = parseFloat(m[0])
               return priceOK(lo) ? lo : null
             }
-            // 带后缀/前缀 "¥13.50起" "13.50元" "￥13.5" → 取**第一个数字**
+            // 带后缀/前缀 "¥13.50起" "13.50元" → 取**第一个数字**
             m = txt.match(/\d+(\.\d+)?/)
             if (m) {
               const v = parseFloat(m[0])
@@ -3210,9 +3223,12 @@
           }
           if (priceCol >= 0 && !NON_PRICE_COL_RE.test(headCells[priceCol] || '')) {
             price = cellPrice(priceCol)
+            // ★ 2026-10-28：表头**已经指明**了价格列，但这一行取值不合法
+            //   → 说明这一行确实没有价格，**不要回退去扫其它列**
+            //   （回退扫描会扫到「100%桑蚕丝面罩」这种规格文本，把规格当价格）
             if (price === null) priceCol = -1
           }
-          if (price === null) {
+          if (price === null && priceIdx < 0) {
             for (let i = cells.length - 1; i >= 0; i--) {
               if (NON_PRICE_COL_RE.test(headCells[i] || '')) continue
               const v = cellPrice(i)
@@ -4045,7 +4061,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.9.0',
+    __v: '4.10.0',
     install,
     capture,
     collectAll,

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.37.0
+// @version      2.38.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.9.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.10.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -3207,11 +3207,24 @@
           let priceCol = priceIdx
           // 单元格文本里**含件数/库存/重量等** → 一律不当价格
           const NOT_PRICE_CELL_RE = /件|起批|起订|库存|已售|销量|重量|克|kg|浏览|评论|排名|编号/
+          // ★ 2026-10-28 修：规格文本里的数字不能当价格。
+          //   典型翻车：「100%桑蚕丝面罩」被解析成 100 CNY → 41.67 USD，
+          //   而同款其它颜色才 12 CNY → 5 USD。
+          //   规则：整格**必须基本是价格** —— 只允许数字/小数点/区间符/货币符，
+          //   以及价格语境里的「元」「起」；出现百分号、汉字说明、字母 → 一律拒绝。
+          const PRICE_CELL_ALLOWED_RE = /^[¥￥]?\d+(\.\d+)?([-~至][¥￥]?\d+(\.\d+)?)?(元|起)?$/
           const cellPrice = i => {
             const rawTxt = String(cells[i] || '').trim()
             if (!rawTxt) return null
             if (NOT_PRICE_CELL_RE.test(rawTxt)) return null
-            const txt = rawTxt.replace(/[,¥￥\s]/g, '')
+            // 百分号 / 字母 → 不是价格
+            if (/[%％]/.test(rawTxt)) return null
+            if (/[A-Za-z]/.test(rawTxt)) return null
+            // 汉字说明（去掉价格语境里的「元/起」）→ 不是价格
+            if (/[一-龥]/.test(rawTxt.replace(/(元|起)/g, ''))) return null
+            // 整格形状必须是价格
+            if (!PRICE_CELL_ALLOWED_RE.test(rawTxt.replace(/\s/g, ''))) return null
+            const txt = rawTxt.replace(/[,¥￥\s]/g, '').replace(/(元|起)/g, '')
             if (!txt) return null
             // 整格是纯数字
             let m = txt.match(/^\d+(\.\d+)?$/)
@@ -3222,7 +3235,7 @@
               const lo = parseFloat(m[0])
               return priceOK(lo) ? lo : null
             }
-            // 带后缀/前缀 "¥13.50起" "13.50元" "￥13.5" → 取**第一个数字**
+            // 带后缀/前缀 "¥13.50起" "13.50元" → 取**第一个数字**
             m = txt.match(/\d+(\.\d+)?/)
             if (m) {
               const v = parseFloat(m[0])
@@ -3232,9 +3245,12 @@
           }
           if (priceCol >= 0 && !NON_PRICE_COL_RE.test(headCells[priceCol] || '')) {
             price = cellPrice(priceCol)
+            // ★ 2026-10-28：表头**已经指明**了价格列，但这一行取值不合法
+            //   → 说明这一行确实没有价格，**不要回退去扫其它列**
+            //   （回退扫描会扫到「100%桑蚕丝面罩」这种规格文本，把规格当价格）
             if (price === null) priceCol = -1
           }
-          if (price === null) {
+          if (price === null && priceIdx < 0) {
             for (let i = cells.length - 1; i >= 0; i--) {
               if (NON_PRICE_COL_RE.test(headCells[i] || '')) continue
               const v = cellPrice(i)
@@ -4067,7 +4083,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.9.0',
+    __v: '4.10.0',
     install,
     capture,
     collectAll,
@@ -4223,9 +4239,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.37.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.38.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.37.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.38.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -4624,9 +4640,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.9.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.10.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.9.0'
+  const MIN_CORE = '4.10.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -4679,7 +4695,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.37.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.38.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
