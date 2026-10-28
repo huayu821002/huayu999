@@ -543,27 +543,29 @@ export default function ProductDetailPage() {
               )}
 
               {/* Price Display */}
-              {/* ★ 2026-10-28 价格段视觉升级（用户：不要白底，用颜色底色 + 高级特效）
-                  · 暖橙渐变底 + 边框 + 投影
-                  · 两枚模糊光斑（装饰性，做深度感）
-                  · 价格用渐变文字（bg-clip-text）
+              {/* ★ 2026-10-28 20:28 价格段视觉升级 —— 方案 1「深空曜黑 + 极光光晕」
+                  · 近黑 → 深靛蓝渐变底，细白边框，重投影
+                  · 两枚靛蓝/紫罗兰模糊光晕（极光感）
+                  · 顶部一道高光描边（玻璃质感）
+                  · 价格纯白 + 冷光晕
               */}
               <div className="relative overflow-hidden rounded-3xl mb-6 p-6
-                              bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50
-                              border border-orange-200/70 shadow-xl shadow-orange-300/25">
-                {/* 装饰光斑 */}
-                <div className="pointer-events-none absolute -top-20 -right-14 h-52 w-52 rounded-full bg-orange-400/25 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-24 -left-12 h-44 w-44 rounded-full bg-pink-300/20 blur-3xl" />
+                              bg-gradient-to-br from-slate-950 via-slate-900 to-indigo-950
+                              border border-white/10 shadow-2xl shadow-indigo-950/40">
+                {/* 极光光晕 */}
+                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-indigo-500/30 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-violet-500/25 blur-3xl" />
+                {/* 顶部高光描边 */}
+                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-white/40 to-transparent" />
 
                 <div className="relative">
                   <div className="flex items-baseline gap-3 mb-4">
-                    <span className="text-4xl font-extrabold tracking-tight
-                                     bg-gradient-to-r from-orange-600 via-orange-500 to-rose-500
-                                     bg-clip-text text-transparent drop-shadow-sm">
+                    <span className="text-4xl font-extrabold tracking-tight text-white
+                                     drop-shadow-[0_0_28px_rgba(129,140,248,0.55)]">
                       {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
                     </span>
                     {product.comparePrice && (
-                      <span className="text-xl text-joy-gray-400 line-through">
+                      <span className="text-xl text-white/40 line-through">
                         {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
                       </span>
                     )}
@@ -573,20 +575,20 @@ export default function ProductDetailPage() {
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     {tiers.map((tier, idx) => (
                       <div key={idx} className={cn(
-                        "text-center p-3 rounded-xl transition-all",
+                        "text-center p-3 rounded-xl transition-all duration-200",
                         idx === 1
-                          ? "bg-gradient-to-br from-orange-500 to-rose-500 text-white shadow-lg shadow-orange-500/30 scale-[1.03]"
-                          : "bg-white/70 border border-orange-200/70 text-joy-gray-700 backdrop-blur"
+                          ? "bg-gradient-to-br from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/40 scale-[1.03] ring-1 ring-white/20"
+                          : "bg-white/5 border border-white/10 text-slate-200 backdrop-blur-md"
                       )}>
                         <div className={cn(
                           "font-semibold mb-1",
-                          idx === 1 ? "text-white/90" : idx === 2 ? "text-joy-green" : "text-joy-gray-500"
+                          idx === 1 ? "text-white/90" : idx === 2 ? "text-emerald-300" : "text-slate-400"
                         )}>
                           {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
                         </div>
                         <div className={cn(
                           "font-semibold",
-                          idx === 1 ? "text-white" : idx === 2 ? "text-joy-green" : "text-joy-gray-800"
+                          idx === 1 ? "text-white" : idx === 2 ? "text-emerald-300" : "text-slate-100"
                         )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
                       </div>
                     ))}
@@ -598,15 +600,18 @@ export default function ProductDetailPage() {
               {product.variants && product.variants.length > 0 && (
                 // ★ 变体选择器移进价格卡片后，规格按钮（灰底）落在灰卡片上会看不见
                 //   → 内嵌一层白底子卡片
+                // ★ 方案 1：深色玻璃卡片（与价格段同一套语言）
                 <div className="relative overflow-hidden mb-6 space-y-4 rounded-3xl p-5
-                                bg-gradient-to-br from-orange-50/90 via-amber-50/80 to-rose-50/70
-                                border border-orange-200/60 shadow-lg shadow-orange-200/30 backdrop-blur-sm">
+                                bg-slate-900/70 backdrop-blur-xl
+                                border border-white/10 shadow-2xl shadow-slate-950/30">
+                  {/* 卡内微弱光晕 */}
+                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-indigo-500/15 blur-3xl" />
                   {variantRows.length > 0 ? variantRows.map((row) => {
                     const isFirstRow = row === variantRows[0]
                     const currentVal = variantSelection[row.name] || ''
                     return (
                       <div key={row.name}>
-                        <label className="block text-sm font-medium text-joy-gray-700 mb-2">
+                        <label className="block text-sm font-medium text-slate-300 mb-2">
                           {row.name}
                         </label>
                         <div className="flex flex-wrap gap-2">
@@ -629,8 +634,8 @@ export default function ProductDetailPage() {
                                 className={cn(
                                   'px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200',
                                   isActive
-                                    ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/30 scale-[1.03]'
-                                    : 'bg-white/70 border border-orange-200/70 text-joy-gray-700 hover:border-orange-400 hover:shadow-md hover:-translate-y-0.5',
+                                    ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/40 scale-[1.03] ring-1 ring-white/25'
+                                    : 'bg-white/5 border border-white/15 text-slate-200 hover:bg-white/10 hover:border-indigo-400/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-900/40',
                                   disabled && 'opacity-40 cursor-not-allowed'
                                 )}
                               >
@@ -647,7 +652,7 @@ export default function ProductDetailPage() {
                     )
                   }) : (
                     <div>
-                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">
+                      <label className="block text-sm font-medium text-slate-300 mb-2">
                         {product.variants[0].name}
                       </label>
                       <div className="flex flex-wrap gap-2">
@@ -658,8 +663,8 @@ export default function ProductDetailPage() {
                             className={cn(
                               'px-4 py-2 rounded-xl font-medium text-sm transition-all duration-200',
                               selectedVariant === variant.id
-                                ? 'bg-gradient-to-r from-orange-500 to-rose-500 text-white shadow-md shadow-orange-500/30 scale-[1.03]'
-                                : 'bg-white/70 border border-orange-200/70 text-joy-gray-700 hover:border-orange-400 hover:shadow-md hover:-translate-y-0.5'
+                                ? 'bg-gradient-to-r from-indigo-500 to-violet-600 text-white shadow-lg shadow-indigo-600/40 scale-[1.03] ring-1 ring-white/25'
+                                : 'bg-white/5 border border-white/15 text-slate-200 hover:bg-white/10 hover:border-indigo-400/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-indigo-900/40'
                             )}
                           >
                             {variant.value}
