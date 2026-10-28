@@ -72,7 +72,8 @@
     "test:batchops:api": "node scripts/test-batch-ops-api.js",
     "collector:test:realpath": "node public/1688-core.realpath.test.js",
     "check:shape": "node scripts/check-real-shape.js",
-    "test:batchrename": "node scripts/test-batch-rename.js"
+    "test:batchrename": "node scripts/test-batch-rename.js",
+    "collector:test:pricerange": "node public/1688-core.price-range.test.js"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",

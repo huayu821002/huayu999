@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.46.1
+// @version      2.47.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.18.1') return
+  if (window.FF1688 && window.FF1688.__v === '4.19.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2343,6 +2343,29 @@
     const t = String(txt || '').trim()
     if (!t || t.length > 24) return null
     if (/件|起批|起订|已售|评价|评论|浏览|库存|重量|克|kg|折|券|返现|运费|包邮|编号|型号/.test(t)) return null
+
+    // ★ 2026-10-28：**区间价（阶梯价）必须取上限，不能取下限**
+    //   1688 阶梯价显示成 "¥2.50-7.31"：左边是大数量档的便宜价，
+    //   右边是 1 件价。采购 1 件实付的是右边。
+    //   旧实现直接取第一个数字 → 拿到 2.50（便宜的那个）→ 变体价格全错。
+    //   症状：点**第一个**色卡时价格区还是区间价 → 只有第一个变体价格偏低。
+    //   带货币符号 → 区间成立
+    //   不带符号 → 只认「整体就是两个小数」的形式（避免把 "10-20个" 当价格）
+    let rng = null
+    if (/[¥￥]/.test(t)) {
+      rng = t.match(/(\d+(?:\.\d+)?)\s*[-~～—–至]\s*(\d+(?:\.\d+)?)/)
+    } else {
+      rng = t.match(/^(\d{1,7}\.\d{1,2})\s*[-~～—–]\s*(\d{1,7}\.\d{1,2})$/)
+    }
+    if (rng) {
+      const lo = parseFloat(rng[1])
+      const hi = parseFloat(rng[2])
+      if (hi > 0.01 && hi < 1000000 && hi >= lo) {
+        return { v: hi, symbol: /[¥￥]/.test(t), range: true, rangeLo: lo, rangeHi: hi }
+      }
+      return null
+    }
+
     let m = t.match(/[¥￥]\s*(\d+(?:\.\d+)?)/)
     if (m) {
       const v = parseFloat(m[1])
@@ -2382,7 +2405,7 @@
         const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null
         if (r) { x = r.x + r.width / 2; y = r.y + r.height / 2 }
       } catch (e) {}
-      out.set(txt + '@' + cls, { v: p.v, symbol: p.symbol, txt, cls, x, y })
+      out.set(txt + '@' + cls, { v: p.v, symbol: p.symbol, range: !!p.range, txt, cls, x, y })
     }
     return out
   }
@@ -2429,7 +2452,7 @@
         if (d > 1500) fresh.length = 0
       }
       if (fresh.length) {
-        return { price: fresh[0].v, source: 'diff', text: fresh[0].txt, diag }
+        return { price: fresh[0].v, source: 'diff', text: fresh[0].txt, range: !!fresh[0].range, diag }
       }
     }
 
@@ -2446,7 +2469,7 @@
       if (arr.length && arr[0].x) {
         const d = Math.abs(arr[0].x - clickPt.x) + Math.abs(arr[0].y - clickPt.y)
         if (d <= 1500) {
-          return { price: arr[0].v, source: 'near', text: arr[0].txt, diag }
+          return { price: arr[0].v, source: 'near', text: arr[0].txt, range: !!arr[0].range, diag }
         }
       }
     }
@@ -2531,6 +2554,20 @@
     //   第二次采样（1600ms）以上一次的快照当 before 再差分一次，
     //   此时价格区已渲染 → 能抓到。
     let lastSnapshot = beforePrices
+    // ★ 2026-10-28：**区间价（阶梯价）不当场定稿**
+    //   第一次点色卡时价格区可能还是商品级的阶梯价区间（"¥2.50-7.31"），
+    //   真实 SKU 价要等页面刷新成单值才出现。
+    //   所以：拿到区间价 → 先存着等下一轮；拿到单值 → 立刻定稿。
+    let settled = false
+    let pending = null
+    const commit = (r) => {
+      settled = true
+      VARIANT_CAPTURE.prices[v] = r.price
+      VARIANT_CAPTURE.log.push({
+        value: v, src: 'price', url: '', price: r.price,
+        priceSrc: r.source, priceText: r.text, range: !!r.range,
+      })
+    }
     const shoot = delay => setTimeout(() => {
       try {
         const r = captureCurrentPrice2(lastSnapshot, clickPt)
@@ -2542,9 +2579,14 @@
           VARIANT_CAPTURE.priceDiag.push({ value: v, diag: r.diag.slice(0, 12) })
         }
         if (r && r.price > 0.01) {
-          VARIANT_CAPTURE.prices[v] = r.price
-          VARIANT_CAPTURE.log.push({ value: v, src: 'price', url: '', price: r.price, priceSrc: r.source, priceText: r.text })
-        } else if (r) {
+          if (r.range && !settled) {
+            // 区间价 → 先记着，等后面可能的单值
+            pending = { price: r.price, source: r.source, text: r.text, range: true }
+            if (delay === 2600) commit(pending)   // 最后一轮还没单值 → 用区间上限定稿
+          } else if (!settled) {
+            commit({ price: r.price, source: r.source, text: r.text, range: !!r.range })
+          }
+        } else if (r && !settled) {
           VARIANT_CAPTURE.log.push({ value: v, src: 'price-miss', url: '', price: null, priceSrc: r.source, priceText: r.text })
         }
         // 把这次快照留作下一次的 before（形成连续差分链）
@@ -2553,6 +2595,7 @@
     }, delay)
     shoot(700)
     shoot(1600)
+    shoot(2600)
   }
 
   /** 开始 B 方案：监听点击，记录「选项文字 → 图片」 */
@@ -4884,7 +4927,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.18.1',
+    __v: '4.19.0',
     install,
     capture,
     collectAll,
@@ -5070,9 +5113,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.46.1</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.47.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.46.1 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.47.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -5498,9 +5541,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.18.1 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.19.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.18.1'
+  const MIN_CORE = '4.19.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -5553,7 +5596,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.46.1，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.47.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
