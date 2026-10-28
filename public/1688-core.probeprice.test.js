@@ -1,19 +1,21 @@
-/* 回归：探测时抓「当前显示价」回填逐变体价格（2026-10-28）
+/* 回归：探测价差分 + 几何距离（2026-10-28 15:40）
  *
- * 为什么需要这个：
- *   1688 的 offerdetail 报文里**没有**逐 SKU 价格容器
- *   （skuInfos / skuModel / skuMap / skuPriceMap / skuList / skuProps / saleProp 全都没有），
- *   DOM 规格表也常常没有价格列 —— 于是所有变体被统一兜底成同一个商品价。
+ * 用户报障：「变体价格还是统一了。没有根据规格采集准确的不同价格。」
  *
- *   但用户**点某个颜色**时，页面会实时显示该 SKU 的价格。
- *   采集器在探测（点击）时顺手把那个价抓下来，采集结束时回填到变体上。
+ * 根因（生产库实证）：
+ *   skuCount: 0              → 接口里没有 SKU 容器
+ *   variantImageCapture.hits: 32 → 探测抓到了 32 个色卡（变体来源正常）
+ *   probePrices: null        → 但探测价一个都没抓到 → 所有变体共用商品价
  *
- * 测试点：
- *   ① 价格元素能被读到
- *   ② 探测价按规格值回填到对应变体
- *   ③ 匹配歧义 → 不填（猜错比没价更糟）
- *   ④ 多个规格命中不同价 → 放弃
- *   ⑤ 没有探测记录 → 不动
+ * 旧 captureCurrentPrice 的致命限制：
+ *   NUM = /[¥￥]\s*(\d+...)/ —— 要求文本里**必须**有 ¥/￥
+ *   但 1688 常把 ¥ 和数字拆成两个 <span>，叶子元素 textContent 只有 "2.65"
+ *   → 一个价格都抓不到
+ *
+ * 新方案（captureCurrentPrice2）：
+ *   ① 差分：点击前后价格集合对比 → 新出现/变了的那个 = 当前 SKU 价
+ *   ② 几何：离被点击色卡最近的价格元素
+ *   ③ 退回旧的带 ¥ 逻辑
  */
 const fs = require('fs')
 const path = require('path')
@@ -27,40 +29,25 @@ const t = (n, ok, extra) => {
   if (ok) { pass++; console.log('  ✓', n) } else { fail++; console.log('  ✗', n, extra ?? '') }
 }
 
-/** 造一个带价格显示的页面 */
-function makeDoc(priceText, extra = {}) {
-  const priceEl = {
+/** 造 DOM：leafs = [{txt, cls, x, y}] */
+function makeDom(leafs) {
+  const els = leafs.map(l => ({
+    innerText: l.txt,
+    textContent: l.txt,
+    className: l.cls || 'x',
     children: [],
-    innerText: priceText,
-    textContent: priceText,
-    className: 'price',
-  }
-  const body = {
-    innerText: priceText,
-    textContent: priceText,
-    className: 'detail-price',
-  }
+    getBoundingClientRect: () => ({ x: l.x || 0, y: l.y || 0, width: l.w || 10, height: l.h || 10 }),
+  }))
   return {
-    body,
-    priceEl,
-    doc: {
-      querySelectorAll: sel => {
-        if (sel === '[class*="price"]' || sel === '[id*="price"]') {
-          return extra.noPrice ? [] : [priceEl, body]
-        }
-        if (sel === '*') return extra.leaves || []
-        return []
-      },
-      querySelector: () => null,
-      addEventListener: () => {},
-    },
+    querySelectorAll: sel => (sel === '*' ? els : []),
+    querySelector: () => null,
   }
 }
 
-function loadKernel(doc) {
+function loadKernel(dom) {
   const sandbox = {
-    document: doc,
-    location: { href: 'https://detail.1688.com/offer/1053718496164.html' },
+    document: dom,
+    location: { href: 'https://detail.1688.com/offer/x.html' },
     console, setTimeout, clearTimeout,
     fetch: async () => ({ ok: false, json: async () => ({}) }),
     XMLHttpRequest: function () { this.open = () => {}; this.send = () => {}; this.setHeader = () => {} },
@@ -72,98 +59,79 @@ function loadKernel(doc) {
   return sandbox.FF1688
 }
 
-console.log('\n[① 读取页面当前显示价]')
+console.log('\n[① parsePriceText：无 ¥ 的纯数字（小数）也要能解析]')
 {
-  const { doc } = makeDoc('¥12.80')
-  const K = loadKernel(doc)
-  const r = K.captureCurrentPrice()
-  t('读到 ¥12.80', r && r.price === 12.8, JSON.stringify(r))
-  t('来源标记为 container', r && r.source === 'container', JSON.stringify(r))
-}
-{
-  const { doc } = makeDoc('￥  8.50 起')
-  const K = loadKernel(doc)
-  const r = K.captureCurrentPrice()
-  t('全角￥ + 空格 + 「起」也能读', r && r.price === 8.5, JSON.stringify(r))
-}
-{
-  const { doc } = makeDoc('no price here')
-  const K = loadKernel(doc)
-  const r = K.captureCurrentPrice()
-  t('没有价格 → 返回 null', r === null, JSON.stringify(r))
+  const K = loadKernel(makeDom([]))
+  const p = K.__test_parsePriceText
+  t('¥2.65 → 2.65', p('¥2.65').v === 2.65, JSON.stringify(p('¥2.65')))
+  t('￥2.65 → 2.65', p('￥2.65').v === 2.65, JSON.stringify(p('￥2.65')))
+  t('2.65（无符号）→ 2.65', p('2.65').v === 2.65, JSON.stringify(p('2.65')))
+  t('2.65元 → 2.65', p('2.65元').v === 2.65, JSON.stringify(p('2.65元')))
+  t('132（整数）→ 拒绝', p('132') === null, JSON.stringify(p('132')))
+  t('2件 → 拒绝', p('2件') === null, JSON.stringify(p('2件')))
+  t('券后价2.65 → 拒绝', p('券后价2.65') === null, JSON.stringify(p('券后价2.65')))
 }
 
-console.log('\n[② 探测价回填到变体]')
+console.log('\n[② 差分：点击后新出现的价 = 当前 SKU 价]')
 {
-  const { doc } = makeDoc('¥12.80')
-  const K = loadKernel(doc)
-  // 模拟探测结果
-  K.api // noop
-  const variants = [
-    { color: '爱马仕橙', specs: [{ name: '颜色', value: '爱马仕橙' }], price: 5.83 },
-    { color: '丁香紫', specs: [{ name: '颜色', value: '丁香紫' }], price: 5.83 },
-  ]
-  // 模拟探测结果：直接注入 VARIANT_CAPTURE.prices
-  const injected = K.__test_setProbePrices
-    ? K.__test_setProbePrices({ 爱马仕橙: 12, 丁香紫: 18 })
-    : null
-  if (!injected) {
-    console.log('  (跳过：无测试注入钩子)')
-  } else {
-    const st = K.applyProbePrices(variants)
-    t('回填了 2 个变体', st.filled === 2, JSON.stringify(st))
-    t('价格逐个不同', variants[0].price === 12 && variants[1].price === 18,
-      JSON.stringify(variants.map(v => v.price)))
-  }
+  // 点击前：商品价 2.65 在 (600,300)
+  const domBefore = makeDom([
+    { txt: '¥2.65', cls: 'price', x: 600, y: 300 },
+    { txt: '¥3.50', cls: 'other', x: 900, y: 700 },
+  ])
+  const K1 = loadKernel(domBefore)
+  const before = K1.__test_priceSnapshot()
+
+  // 点击后：色卡旁的价格变成 12.50
+  const domAfter = makeDom([
+    { txt: '¥12.50', cls: 'price', x: 600, y: 300 },
+    { txt: '¥3.50', cls: 'other', x: 900, y: 700 },
+  ])
+  const K2 = loadKernel(domAfter)
+  const r = K2.__test_captureCurrentPrice2(before, { x: 620, y: 320 })
+  t('抓到 12.50', r && r.price === 12.5, JSON.stringify(r))
+  t('来源是 diff', r && r.source === 'diff', JSON.stringify(r))
 }
 
-console.log('\n[③ 匹配歧义 → 不填]')
+console.log('\n[③ 无变化时 → 几何最近（离点击点最近的那个）]')
 {
-  const { doc } = makeDoc('¥12.80')
-  const K = loadKernel(doc)
-  K.__test_setProbePrices({ 深灰: 12, 灰: 18 })
-  const variants = [
-    { color: '深灰', specs: [{ name: '颜色', value: '深灰' }], price: 5.83 },
-  ]
-  const st = K.applyProbePrices(variants)
-  t('两个探测值都弱匹配 → 不填', st.filled === 0, JSON.stringify(st))
-  t('价格保持原样', variants[0].price === 5.83, JSON.stringify(variants))
+  const domBefore = makeDom([
+    { txt: '¥2.65', cls: 'price', x: 600, y: 300 },
+    { txt: '¥99.00', cls: 'far', x: 1900, y: 1600 },
+  ])
+  const K1 = loadKernel(domBefore)
+  const before = K1.__test_priceSnapshot()
+
+  const domAfter = makeDom([
+    { txt: '¥2.65', cls: 'price', x: 600, y: 300 },
+    { txt: '¥99.00', cls: 'far', x: 1900, y: 1600 },
+  ])
+  const K2 = loadKernel(domAfter)
+  const r = K2.__test_captureCurrentPrice2(before, { x: 600, y: 300 })
+  t('取到近处的 2.65', r && r.price === 2.65, JSON.stringify(r))
+  t('来源是 near', r && r.source === 'near', JSON.stringify(r))
 }
 
-console.log('\n[④ 多个规格命中不同价 → 放弃]')
+console.log('\n[④ 远到离谱的价格不会被选（>600px）]')
 {
-  const { doc } = makeDoc('¥12.80')
-  const K = loadKernel(doc)
-  K.__test_setProbePrices({ 红: 12, 大: 18 })
-  const variants = [
-    { color: '红', specs: [{ name: '颜色', value: '红' }, { name: '尺码', value: '大' }], price: 5.83 },
-  ]
-  const st = K.applyProbePrices(variants)
-  t('命中两个不同价 → 不填', st.filled === 0, JSON.stringify(st))
+  const dom = makeDom([
+    { txt: '¥2.65', cls: 'price', x: 3000, y: 3000 },
+  ])
+  const K = loadKernel(dom)
+  const r = K.__test_captureCurrentPrice2(new Map(), { x: 0, y: 0 })
+  t('不返回 2.65（太远）', !r || r.price !== 2.65, JSON.stringify(r))
 }
 
-console.log('\n[⑤ 没有探测记录 → 不动]')
+console.log('\n[⑤ 无符号价格也能被差分抓到]')
 {
-  const { doc } = makeDoc('¥12.80')
-  const K = loadKernel(doc)
-  K.__test_setProbePrices({})
-  const variants = [{ color: '红', specs: [{ name: '颜色', value: '红' }], price: 5.83 }]
-  const st = K.applyProbePrices(variants)
-  t('没有探测价 → skipped=no-probe-prices', st.skipped === 'no-probe-prices', JSON.stringify(st))
-  t('价格不变', variants[0].price === 5.83)
-}
+  const domBefore = makeDom([{ txt: '2.65', cls: 'price', x: 600, y: 300 }])
+  const K1 = loadKernel(domBefore)
+  const before = K1.__test_priceSnapshot()
 
-console.log('\n[⑥ 双向唯一时才填]')
-{
-  const { doc } = makeDoc('¥12.80')
-  const K = loadKernel(doc)
-  K.__test_setProbePrices({ 'P064 深灰': 12 })
-  const variants = [
-    { color: 'P064深灰', specs: [{ name: '颜色', value: 'P064深灰' }], price: 5.83 },
-  ]
-  const st = K.applyProbePrices(variants)
-  t('包含关系且唯一 → 填上', st.filled === 1, JSON.stringify(st))
-  t('价格正确', variants[0].price === 12, JSON.stringify(variants))
+  const domAfter = makeDom([{ txt: '12.50', cls: 'price', x: 600, y: 300 }])
+  const K2 = loadKernel(domAfter)
+  const r = K2.__test_captureCurrentPrice2(before, { x: 600, y: 300 })
+  t('抓到 12.50（无 ¥）', r && r.price === 12.5, JSON.stringify(r))
 }
 
 console.log(`\n通过 ${pass} / 失败 ${fail}`)

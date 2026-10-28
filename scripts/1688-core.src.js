@@ -14,7 +14,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.16.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.17.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2300,6 +2300,143 @@
    * 策略：找价格展示区（含 ¥ / ￥ 且后面跟数字），取**离规格区最近**的那个；
    *   找不到就退化为取页面上第一个合理的 ¥数字。
    */
+  /**
+   * 从一段短文本里解析价格（允许没有 ¥ 符号）。
+   *
+   * ★ 2026-10-28 用户报障「变体价格还是一个价」的根因：
+   *   旧版 captureCurrentPrice 要求文本里**必须有 ¥/￥**
+   *   （NUM = /[¥￥]\s*(\d+...)/），
+   *   但 1688 经常把 ¥ 和数字拆成两个 <span>（<span>¥</span><span>2.65</span>），
+   *   叶子元素的 textContent 就只有 "2.65" → **一个价格都抓不到**
+   *   → probePrices 全空 → 所有变体共用商品价。
+   *
+   * 规则：
+   *   ① 带 ¥/￥/元 → 直接取数字（最可信）
+   *   ② 纯数字 → 必须**带小数点**（"2.65"），且长度 ≤ 12
+   *      （整数 "132" 更可能是库存/编号/尺码，不采）
+   *   ③ 含 件/起/折/券/已售/评/库存/重量 等 → 拒绝
+   *   ④ 返回 {v, symbol}，symbol=true 的优先
+   */
+  function parsePriceText(txt) {
+    const t = String(txt || '').trim()
+    if (!t || t.length > 24) return null
+    if (/件|起批|起订|已售|评价|评论|浏览|库存|重量|克|kg|折|券|返现|运费|包邮|编号|型号/.test(t)) return null
+    let m = t.match(/[¥￥]\s*(\d+(?:\.\d+)?)/)
+    if (m) {
+      const v = parseFloat(m[1])
+      if (v > 0.01 && v < 1000000) return { v, symbol: true }
+      return null
+    }
+    // 无符号：必须带小数点
+    m = t.match(/^(\d{1,7}\.\d{1,2})\s*(元|起)?$/)
+    if (m) {
+      const v = parseFloat(m[1])
+      if (v > 0.01 && v < 1000000) return { v, symbol: false }
+    }
+    return null
+  }
+
+  /**
+   * 拍一张「页面上所有价格」的快照。
+   * key = 文本 + class（同一个文本可能出现多次，用 class 区分）
+   * value = { v, txt, cls, x, y }（x/y = 元素中心坐标，用于几何距离）
+   */
+  function priceSnapshot() {
+    const out = new Map()
+    let all = []
+    try { all = Array.from(document.querySelectorAll('*')).slice(0, 6000) } catch (e) { return out }
+    for (const el of all) {
+      if (el.children && el.children.length) continue // 只看叶子
+      const txt = clean(el.innerText || el.textContent || '')
+      if (!txt || txt.length > 24) continue
+      const p = parsePriceText(txt)
+      if (!p) continue
+      const cls = String(el.className || '').slice(0, 40)
+      let x = 0, y = 0
+      try {
+        const r = el.getBoundingClientRect ? el.getBoundingClientRect() : null
+        if (r) { x = r.x + r.width / 2; y = r.y + r.height / 2 }
+      } catch (e) {}
+      out.set(txt + '@' + cls, { v: p.v, symbol: p.symbol, txt, cls, x, y })
+    }
+    return out
+  }
+
+  /**
+   * 点击后的价格探测（2026-10-28 重写）。
+   *
+   * 两个强信号，按可靠性排序：
+   *   ① **差分**：点击前后的价格集合对比 → 只有「刚出现/刚变化」的那个价格
+   *      才是当前 SKU 的价。几乎 100% 准。
+   *   ② **几何距离**：离被点击的色卡最近的价格元素。
+   *      1688 的当前价就显示在色卡区旁边/下方 → 最近的那个。
+   *
+   * 都拿不到时，才退回旧的「带 ¥ 的容器」逻辑。
+   *
+   * @param {Map}    before  点击前的价格快照
+   * @param {Object} clickPt {x, y} 被点击元素中心坐标
+   */
+  function captureCurrentPrice2(before, clickPt) {
+    const after = priceSnapshot()
+    const diag = []
+    for (const [k, v] of after) diag.push({ v: v.v, txt: v.txt, cls: v.cls })
+
+    // ① 差分：点击后新出现的（或价格变了的）
+    const fresh = []
+    for (const [k, v] of after) {
+      const b = before ? before.get(k) : null
+      if (!b) { fresh.push(v); continue }
+      if (Math.abs(b.v - v.v) > 0.001) fresh.push(v)
+    }
+    if (fresh.length) {
+      // 多个新价时，取离点击点最近的
+      fresh.sort((a, b) => {
+        if (clickPt) {
+          const da = Math.abs(a.x - clickPt.x) + Math.abs(a.y - clickPt.y)
+          const db = Math.abs(b.x - clickPt.x) + Math.abs(b.y - clickPt.y)
+          if (Math.abs(da - db) > 1) return da - db
+        }
+        return (b.symbol ? 1 : 0) - (a.symbol ? 1 : 0)
+      })
+      // ★ 离点击点太远 → 不可信（那是推荐位/别的区域的价格）
+      if (clickPt && fresh[0].x) {
+        const d = Math.abs(fresh[0].x - clickPt.x) + Math.abs(fresh[0].y - clickPt.y)
+        if (d > 600) fresh.length = 0
+      }
+      if (fresh.length) {
+        return { price: fresh[0].v, source: 'diff', text: fresh[0].txt, diag }
+      }
+    }
+
+    // ② 几何距离：离点击点最近的价格
+    if (clickPt) {
+      const arr = Array.from(after.values())
+      arr.sort((a, b) => {
+        const da = Math.abs(a.x - clickPt.x) + Math.abs(a.y - clickPt.y)
+        const db = Math.abs(b.x - clickPt.x) + Math.abs(b.y - clickPt.y)
+        if (Math.abs(da - db) > 1) return da - db
+        return (b.symbol ? 1 : 0) - (a.symbol ? 1 : 0)
+      })
+      // 距离太远（>600px）说明不是当前价
+      if (arr.length && arr[0].x) {
+        const d = Math.abs(arr[0].x - clickPt.x) + Math.abs(arr[0].y - clickPt.y)
+        if (d <= 600) {
+          return { price: arr[0].v, source: 'near', text: arr[0].txt, diag }
+        }
+      }
+    }
+
+    // ③ 退回旧逻辑
+    //    ⚠️ 但如果快照里**有**价格却都离点击点太远 → 说明页面上这些价格
+    //    都不是当前 SKU 的价（推荐位/其它区域）→ 不许回落，否则会抓到错的。
+    if (clickPt && after.size) {
+      return { price: null, source: 'too-far', text: '', diag }
+    }
+    const old = captureCurrentPrice()
+    if (old) return { ...old, diag: old.diag || diag }
+    return { price: null, source: 'none', text: '', diag }
+  }
+
   function captureCurrentPrice() {
     const NUM = /[¥￥]\s*(\d+(?:\.\d+)?)/
     // ★ 2026-10-28：诊断用 —— 记录页面上所有「带 ¥ 的短文本」候选
@@ -2360,12 +2497,12 @@
    * 点击后延时抓「当前显示价」（1688 更新价格是异步的）
    * 多次采样，取最后一次稳定的值。
    */
-  function schedulePriceProbe(value) {
+  function schedulePriceProbe(value, beforePrices, clickPt) {
     if (!value) return
     const v = String(value)
     setTimeout(() => {
       try {
-        const r = captureCurrentPrice()
+        const r = captureCurrentPrice2(beforePrices, clickPt)
         // ★ 2026-10-28：记录诊断候选（页面上所有带 ¥ 的短文本 + class）
         //   用户报「变体价格都是一个价格」时，先看 priceProbeDiag 确认
         //   1688 把逐 SKU 价格渲染在哪个 class 里。
@@ -2401,6 +2538,18 @@
     const onClick = ev => {
       // 点击前的全页图片快照（用于识别「新出现」的那张）
       const before = new Set(captureAllImages().map(x => x.url))
+      // ★ 2026-10-28：点击前的**价格快照** —— 点色卡后价格会变，
+      //   差分出来的就是当前 SKU 的真实价。
+      const beforePrices = priceSnapshot()
+      // 被点击元素的中心坐标（用于「离点击点最近的价格」）
+      let clickPt = null
+      try {
+        const tgt = (ev.target && ev.target.getBoundingClientRect) ? ev.target : null
+        if (tgt) {
+          const r = tgt.getBoundingClientRect()
+          if (r && (r.width || r.height)) clickPt = { x: r.x + r.width / 2, y: r.y + r.height / 2 }
+        }
+      } catch (e) {}
       const el = findOptionEl(ev.target)
 
       // 值的来源优先级：① 认出选项块 ② 页面上「已选中」的规格 ③ 点击目标的短文字
@@ -2440,7 +2589,7 @@
         VARIANT_CAPTURE.hits++
         VARIANT_CAPTURE.log.push({ value, src: 'option-img', url: ownImg, cls: String((el && el.className) || '') })
         // ★ 价格在点击后才会更新 → 延后抓
-        schedulePriceProbe(value)
+        schedulePriceProbe(value, beforePrices, clickPt)
         return
       }
 
@@ -2464,7 +2613,7 @@
           VARIANT_CAPTURE.log.push({ value: pending.value, src: 'miss', url: '' })
         }
         // ★ 顺便抓当前显示价（这个 SKU 的真实价格）
-        schedulePriceProbe(pending.value)
+        schedulePriceProbe(pending.value, beforePrices, clickPt)
         pending = null
       }, 500)
     }
@@ -2983,8 +3132,10 @@
       if (prices.length !== 1) continue
       const p = prices[0]
       if (v.price === p) continue
+      // ★ 标记价格来源：probe=用户点色卡抓到的真实 SKU 价（2026-10-28 诊断用）
       v.price = p
       v.priceText = String(p)
+      v.priceSource = 'probe'   // 探测价 = 当前 SKU 的真实价
       filled++
     }
     return { filled, probes: capNorm.length, skipped: null }
@@ -3795,7 +3946,7 @@
       if (!hit) return v
       if (v.price === hit.price) return v
       filled++
-      return { ...v, price: hit.price, priceText: String(hit.price) }
+      return { ...v, price: hit.price, priceText: String(hit.price), priceSource: 'dom' }
     })
 
     return { variants: out, filled, domRows: domRows.length, skipped: null }
@@ -4678,7 +4829,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.16.0',
+    __v: '4.17.0',
     install,
     capture,
     collectAll,
@@ -4749,6 +4900,10 @@
     __test_domSkuPrices: () => domSkuPrices(),
     // 仅供测试：div 网格形态的规格价格表（2026-10-28）
     __test_domSkuPriceGrid: (guard) => domSkuPriceGrid(guard),
+    // 仅供测试：探测价（差分 + 几何）2026-10-28
+    __test_parsePriceText: (txt) => parsePriceText(txt),
+    __test_priceSnapshot: () => priceSnapshot(),
+    __test_captureCurrentPrice2: (before, pt) => captureCurrentPrice2(before, pt),
     // 仅供测试：DOM 规格表 → 变体
     __test_domVariants: (guard) => domVariants(guard),
     // 仅供测试注入探测结果（生产环境无副作用）
