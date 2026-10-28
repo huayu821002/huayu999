@@ -57,7 +57,9 @@ export async function GET(request: Request) {
     const productsWithCategory = products.map((p: any) => {
       const catIds = p.categoryIds ? JSON.parse(p.categoryIds) : []
       const cats = catIds.map((id: string) => categoryMap.get(id)).filter(Boolean)
-      return withProxiedImages({ ...p, categories: cats })
+      // ★ sourceUrl 是**后台专用**字段（采集源链接），前台 API 不返回
+      const { sourceUrl: _omit, ...pub } = p
+      return withProxiedImages({ ...pub, categories: cats })
     })
 
     return NextResponse.json({ success: true, data: productsWithCategory })

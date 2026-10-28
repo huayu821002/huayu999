@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { buildSku, randomSkuDigits } from '@/lib/sku'
 import { prisma } from '@/lib/prisma'
 import { ensureSupplierProductTable, parseImagesField, parseJsonField } from '@/lib/supplier'
 import { toProductVariants } from '@/lib/variants'
@@ -42,8 +43,13 @@ export async function POST(
       (body.slug || slugify(name)).slice(0, 80),
       item.sourceId
     )
-    // 货号优先用采集到的供应商货号
-    const sku = body.sku || item.sourceSkuId || `1688-${item.sourceId}`
+    // ★ 2026-10-28 SKU 规则：FCY + MMDD + 1688 原货号；没有原货号 → 随机 5 位数
+    //   例：FCY0910ABC123 / FCY0910XXXXX
+    //   用户手填的 sku 优先（body.sku）
+    const sku = await ensureUniqueSku(
+      body.sku || buildSku(item.sourceSkuId),
+      item.sourceId
+    )
 
     // 采集价（CNY）→ 售价（USD）：默认加价 3 倍、汇率 7.2（与后台编辑器一致）
     const cny = numOrNull(body.cnyPrice) ?? numOrNull(item.wholesalePrice) ?? numOrNull(item.priceMin)
@@ -105,6 +111,8 @@ export async function POST(
         name,
         slug,
         sku,
+        // 来源网址：采集品自动带 1688 链接（用户 2026-10-28 需求）
+        sourceUrl: body.sourceUrl || item.sourceUrl || null,
         description,
         shortDesc: body.shortDesc || description.replace(/<[^>]+>/g, '').trim().slice(0, 160) || null,
         price: finalPrice,
@@ -197,4 +205,22 @@ function extractTiers(raw: string | null): any[] | null {
   const tiers = parsed?.priceTiers || parsed?.tiers || parsed?.skuPrices
   if (Array.isArray(tiers) && tiers.length > 0) return tiers
   return null
+}
+
+/**
+ * 保证 SKU 唯一（Product.sku 是 @unique）。
+ * 撞了就追加随机后缀重试。
+ */
+async function ensureUniqueSku(base: string, sourceId: string): Promise<string> {
+  const clean = String(base || '').trim() || `FCY${randomSkuDigits(5)}`
+  const exists = async (s: string) => {
+    const hit = await prisma.product.findUnique({ where: { sku: s }, select: { id: true } })
+    return !!hit
+  }
+  if (!(await exists(clean))) return clean
+  for (let i = 0; i < 20; i++) {
+    const cand = `${clean.slice(0, 70)}-${randomSkuDigits(4)}`
+    if (!(await exists(cand))) return cand
+  }
+  return `${clean.slice(0, 60)}-${Date.now().toString(36)}`
 }

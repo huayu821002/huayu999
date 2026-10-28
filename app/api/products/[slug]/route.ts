@@ -32,6 +32,10 @@ export async function GET(
       return NextResponse.json({ success: false, error: 'Product not found' }, { status: 404 })
     }
 
+    // ★ sourceUrl 是**后台专用**字段（采集源链接），前台 API 不返回
+    //   （用 delete 而不是解构，避免后续把 product 传给别的逻辑时报未使用变量）
+    delete (product as any).sourceUrl
+
     // 变体：存在 Product.variants（JSON），需要给每项补一个稳定 id
     let variants: any[] = []
     try {

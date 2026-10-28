@@ -23,7 +23,7 @@ export async function PUT(request: Request, { params }: { params: { productId: s
     const {
       name, slug, description, shortDesc,
       price, comparePrice, costPrice, wholesalePrice, vipPrice,
-      weight, images, sku, barcode, inventory,
+      weight, images, sku, barcode, inventory, sourceUrl,
       categoryIds, isActive, isFeatured, isTrending,
       minOrderQty, lowStockAlert, tieredPricing
     } = body
@@ -47,6 +47,8 @@ export async function PUT(request: Request, { params }: { params: { productId: s
           return norm ?? ''
         })(),
         sku, barcode,
+        // 来源网址（采集源）—— 只后台可见，前台不显示；非必填
+        sourceUrl: sourceUrl === undefined ? undefined : (sourceUrl ? String(sourceUrl).trim() : null),
         inventory: parseInt(inventory) || 0,
         categoryIds: categoryIds ? JSON.stringify(categoryIds) : null,
         isActive,

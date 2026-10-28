@@ -178,11 +178,12 @@ export default function AdminProductsPage() {
     costPrice: string; minOrderQty: string;
     inventory: string; lowStockAlert: string; weight: string; categoryIds: string[]; images: string;
     isActive: boolean; isFeatured: boolean; isTrending: boolean; tieredPricing: string;
+    sourceUrl: string;
   }>({
     name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '',
     costPrice: '', minOrderQty: '1',
     inventory: '0', lowStockAlert: '10', weight: '', categoryIds: [], images: '',
-    isActive: true, isFeatured: false, isTrending: false, tieredPricing: '',
+    isActive: true, isFeatured: false, isTrending: false, tieredPricing: '', sourceUrl: '',
   })
 
   useEffect(() => {
@@ -382,7 +383,7 @@ export default function AdminProductsPage() {
     setShowCopyPanel(false)
     setEditingVariantId(null)
     setWarehouseInventory({})
-    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryIds: [], images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: '' })
+    setForm({ name: '', sku: '', description: '', shortDesc: '', price: '', comparePrice: '', costPrice: '', minOrderQty: '1', inventory: '0', lowStockAlert: '10', weight: '', categoryIds: [], images: '', isActive: true, isFeatured: false, isTrending: false, tieredPricing: '', sourceUrl: '' })
     setShowProductModal(true)
   }
 
@@ -396,7 +397,7 @@ export default function AdminProductsPage() {
     setEditingVariantId(null)
     setWarehouseInventory({})
     setForm({
-      name: product.name, sku: product.sku, description: product.description, shortDesc: product.shortDesc || '',
+      name: product.name, sku: product.sku, sourceUrl: (product as any).sourceUrl || '', description: product.description, shortDesc: product.shortDesc || '',
       price: String(product.price), comparePrice: product.comparePrice ? String(product.comparePrice) : '',
       costPrice: product.costPrice ? String(product.costPrice) : '', minOrderQty: String(product.minOrderQty),
       inventory: String(product.inventory), lowStockAlert: String(product.lowStockAlert), weight: product.weight ? String(product.weight) : '',
@@ -834,7 +835,22 @@ export default function AdminProductsPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-4 font-mono text-sm text-joy-gray-600">{product.sku}</td>
+                      <td className="px-6 py-4">
+                        <div className="font-mono text-sm text-joy-gray-600">{product.sku}</div>
+                        {/* 来源网址 —— 只后台可见，前台不显示 */}
+                        {(product as any).sourceUrl && (
+                          <a
+                            href={(product as any).sourceUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="text-xs text-joy-orange hover:underline inline-flex items-center gap-1 mt-0.5"
+                            title={(product as any).sourceUrl}
+                          >
+                            <Icons.ExternalLink size={11} />
+                            来源
+                          </a>
+                        )}
+                      </td>
                       <td className="px-6 py-4 font-semibold text-joy-orange">${product.price.toFixed(2)}</td>
                       <td className="px-6 py-4"><span className={`font-medium ${product.inventory < 20 ? 'text-red-500' : 'text-joy-gray-700'}`}>{product.inventory}</span></td>
                       <td className="px-6 py-4">
@@ -882,6 +898,16 @@ export default function AdminProductsPage() {
                 <div className="grid grid-cols-3 gap-4">
                   <Input label="Min Order Qty" type="number" placeholder="1" value={form.minOrderQty} onChange={(e) => setForm({...form, minOrderQty: e.target.value})} />
                 </div>
+                {/* 来源网址 —— 采集源链接，只在后台可见，前台不显示；非必填 */}
+                <Input
+                  label="Source URL"
+                  placeholder="e.g., https://detail.1688.com/offer/123456789.html"
+                  value={form.sourceUrl}
+                  onChange={(e) => setForm({...form, sourceUrl: e.target.value})}
+                />
+                <p className="text-xs text-joy-gray-400 -mt-2">
+                  采集来源网址（1688 链接等），仅后台可见，前台不显示。采集上架时自动填写，也可手动修改。
+                </p>
                 <div className="grid grid-cols-3 gap-4">
                   <Input label="Inventory *" type="number" placeholder="0" value={form.inventory} readOnly className="bg-joy-gray-50" />
                   <Input label="Low Stock Alert" type="number" placeholder="10" value={form.lowStockAlert} onChange={(e) => setForm({...form, lowStockAlert: e.target.value})} />
