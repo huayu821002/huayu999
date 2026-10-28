@@ -72,6 +72,11 @@ export default function ProductDetailPage() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [selectedImage, setSelectedImage] = useState(0)
+  // ★ 2026-10-28：图集点击没反应的原因 ——
+  //   主图 src 写的是 `currentVariant?.image || images[selectedImage]`，
+  //   只要商品有变体，currentVariant.image 永远存在 → 点缩略图完全没反应。
+  //   改成两种模式：variant=跟随选中的变体图；manual=用户手动点开的图。
+  const [imageMode, setImageMode] = useState<'variant' | 'manual'>('variant')
   const [selectedVariant, setSelectedVariant] = useState<string | null>(null)
   // 多维度选择：{ '颜色': '红色', '尺码': 'M' }
   const [variantSelection, setVariantSelection] = useState<Record<string, string>>({})
@@ -427,7 +432,11 @@ export default function ProductDetailPage() {
             <div>
               <div className="relative aspect-square rounded-2xl overflow-hidden bg-joy-gray-100 mb-4">
                 <img
-                  src={currentVariant?.image || images[selectedImage] || '/placeholder.png'}
+                  src={
+                    imageMode === 'manual'
+                      ? (images[selectedImage] || currentVariant?.image || '/placeholder.png')
+                      : (currentVariant?.image || images[selectedImage] || '/placeholder.png')
+                  }
                   alt={displayProduct?.name || product.name}
                   className="w-full h-full object-cover"
                 />
@@ -466,7 +475,7 @@ export default function ProductDetailPage() {
                 {images.map((img, i) => (
                   <button
                     key={i}
-                    onClick={() => setSelectedImage(i)}
+                    onClick={() => { setSelectedImage(i); setImageMode('manual') }}
                     className={cn(
                       'w-20 h-20 rounded-xl overflow-hidden border-2 transition-all',
                       selectedImage === i ? 'border-joy-orange' : 'border-transparent hover:border-joy-gray-300'
@@ -477,7 +486,7 @@ export default function ProductDetailPage() {
                 ))}
                 {product.modelImage && (
                   <button
-                    onClick={() => setSelectedImage(images.length)}
+                    onClick={() => { setSelectedImage(images.length); setImageMode('manual') }}
                     className={cn(
                       'w-20 h-20 rounded-xl overflow-hidden border-2 transition-all flex items-center justify-center text-xs font-medium',
                       selectedImage === images.length 
@@ -548,81 +557,6 @@ export default function ProductDetailPage() {
                   )}
                 </div>
 
-            {/* Variants —— 多维度：每个维度一行；单维度：保持原样 */}
-            {product.variants && product.variants.length > 0 && (
-              // ★ 变体选择器移进价格卡片后，规格按钮（灰底）落在灰卡片上会看不见
-              //   → 内嵌一层白底子卡片
-              <div className="mb-5 space-y-4 bg-white rounded-xl p-4">
-                {variantRows.length > 0 ? variantRows.map((row) => {
-                  const isFirstRow = row === variantRows[0]
-                  const currentVal = variantSelection[row.name] || ''
-                  return (
-                    <div key={row.name}>
-                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                        {row.name}
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {row.values.map((val) => {
-                          // 选中该值后能否匹配到变体
-                          const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
-                          const disabled = !probe
-                          const isActive = currentVal === val
-                          return (
-                            <button
-                              key={val}
-                              disabled={disabled}
-                              onClick={() => {
-                                const next = { ...variantSelection, [row.name]: val }
-                                setVariantSelection(next)
-                                const m = matchVariant(product.variants, next)
-                                if (m) setSelectedVariant(m.id)
-                              }}
-                              className={cn(
-                                'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-                                isActive
-                                  ? 'bg-joy-orange text-white'
-                                  : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200',
-                                disabled && 'opacity-40 cursor-not-allowed'
-                              )}
-                            >
-                              {val}
-                              {(() => {
-                                const inv = probe?.inventory
-                                return inv != null && inv < 10 ? ` (${inv} left)` : ''
-                              })()}
-                            </button>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                }) : (
-                  <div>
-                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                      {product.variants[0].name}
-                    </label>
-                    <div className="flex flex-wrap gap-2">
-                      {product.variants.map((variant) => (
-                        <button
-                          key={variant.id}
-                          onClick={() => setSelectedVariant(variant.id)}
-                          className={cn(
-                            'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-                            selectedVariant === variant.id
-                              ? 'bg-joy-orange text-white'
-                              : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200'
-                          )}
-                        >
-                          {variant.value}
-                          {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
                 {/* Tier Prices */}
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   {tiers.map((tier, idx) => (
@@ -644,6 +578,82 @@ export default function ProductDetailPage() {
                   ))}
                 </div>
               </div>
+
+              {/* Variants —— 多维度：每个维度一行；单维度：保持原样 */}
+              {product.variants && product.variants.length > 0 && (
+                // ★ 变体选择器移进价格卡片后，规格按钮（灰底）落在灰卡片上会看不见
+                //   → 内嵌一层白底子卡片
+                <div className="mb-6 space-y-4 bg-white rounded-2xl p-4">
+                  {variantRows.length > 0 ? variantRows.map((row) => {
+                    const isFirstRow = row === variantRows[0]
+                    const currentVal = variantSelection[row.name] || ''
+                    return (
+                      <div key={row.name}>
+                        <label className="block text-sm font-medium text-joy-gray-700 mb-2">
+                          {row.name}
+                        </label>
+                        <div className="flex flex-wrap gap-2">
+                          {row.values.map((val) => {
+                            // 选中该值后能否匹配到变体
+                            const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
+                            const disabled = !probe
+                            const isActive = currentVal === val
+                            return (
+                              <button
+                                key={val}
+                                disabled={disabled}
+                                onClick={() => {
+                                  const next = { ...variantSelection, [row.name]: val }
+                                  setVariantSelection(next)
+                                  setImageMode('variant')
+                                  const m = matchVariant(product.variants, next)
+                                  if (m) setSelectedVariant(m.id)
+                                }}
+                                className={cn(
+                                  'px-4 py-2 rounded-lg font-medium text-sm transition-all',
+                                  isActive
+                                    ? 'bg-joy-orange text-white'
+                                    : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200',
+                                  disabled && 'opacity-40 cursor-not-allowed'
+                                )}
+                              >
+                                {val}
+                                {(() => {
+                                  const inv = probe?.inventory
+                                  return inv != null && inv < 10 ? ` (${inv} left)` : ''
+                                })()}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  }) : (
+                    <div>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">
+                        {product.variants[0].name}
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {product.variants.map((variant) => (
+                          <button
+                            key={variant.id}
+                            onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
+                            className={cn(
+                              'px-4 py-2 rounded-lg font-medium text-sm transition-all',
+                              selectedVariant === variant.id
+                                ? 'bg-joy-orange text-white'
+                                : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200'
+                            )}
+                          >
+                            {variant.value}
+                            {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Warehouse Selection */}
               {warehouseInventories.length > 0 && (
@@ -710,7 +720,9 @@ export default function ProductDetailPage() {
                   <span className={`text-sm ${product.inventory < 20 ? 'text-red-500 font-medium' : 'text-joy-gray-500'}`}>
                     {warehouseInventories.length > 0 && selectedWarehouseId
                       ? (warehouseInventories.find(i => i.warehouseId === selectedWarehouseId)?.quantity || 0) + ' available'
-                      : product.inventory + ' in stock'}
+                      : (currentVariant?.inventory != null
+                          ? currentVariant.inventory + ' in stock'
+                          : product.inventory + ' in stock')}
                   </span>
                 </div>
               </div>
