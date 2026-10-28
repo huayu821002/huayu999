@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.46.0
+// @version      2.46.1
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.18.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.18.1') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -4291,7 +4291,7 @@
         probeVariants: probeVariantsStat || undefined,
         // ★ 探测到的原始价格（诊断用）：key = 规格值，value = 抓到的价
         //   用户报「采集价格不正确」时，先看这里确认抓到的是不是真价
-        probePrices: (VARIANT_CAPTURE && VARIARIANT_CAPTURE.prices) || undefined,
+        probePrices: (VARIANT_CAPTURE && VARIANT_CAPTURE.prices) || undefined,
         // ★ 探测命中/未命中统计：第一个变体价格错的直接原因
         probePriceStat: (() => {
           const log = (VARIANT_CAPTURE && VARIANT_CAPTURE.log) || []
@@ -4884,7 +4884,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.18.0',
+    __v: '4.18.1',
     install,
     capture,
     collectAll,
@@ -5070,9 +5070,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.46.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.46.1</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.46.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.46.1 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -5498,9 +5498,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.18.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.18.1 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.18.0'
+  const MIN_CORE = '4.18.1'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -5553,7 +5553,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.46.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.46.1，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }

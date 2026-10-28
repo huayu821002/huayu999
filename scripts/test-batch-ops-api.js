@@ -88,7 +88,7 @@ async function main() {
   console.log('\n[③ 真实调用：对一个存在的商品做「加 0 库存」（幂等、不改变数据）]')
   const listRes = await api('/api/admin/products?limit=1')
   const list = listRes.json
-  const items = Array.isArray(list) ? list : list?.products || list?.items || []
+  const items = Array.isArray(list) ? list : list?.data || list?.products || list?.items || []
   if (!items.length) {
     console.log('  ⚠️ 拿不到商品列表（响应结构未知），跳过真实调用')
     console.log('  响应：' + listRes.text.slice(0, 200))
@@ -106,6 +106,26 @@ async function main() {
     const after = await api(`/api/admin/products/${pid}`)
     t('库存没被改变（加 0）', after.json?.inventory === invBefore,
       `${invBefore} → ${after.json?.inventory}`)
+  }
+
+  console.log('\n[④ 真实调用：改价 0%（幂等，不改变数据）]')
+  {
+    const listRes2 = await api('/api/admin/products?limit=1')
+    const items2 = listRes2.json?.data || []
+    if (items2.length) {
+      const pid = items2[0].id
+      const before = await api(`/api/admin/products/${pid}`)
+      const priceBefore = before.json?.price
+      const r = await api('/api/admin/products/batch', {
+        method: 'POST',
+        body: JSON.stringify({ ids: [pid], op: 'price', params: { mode: 'percent', value: 0, scope: 'both' } }),
+      })
+      t('返回 200', r.status === 200, r.text.slice(0, 200))
+      const after = await api(`/api/admin/products/${pid}`)
+      t('价格没变（0%）', after.json?.price === priceBefore, `${priceBefore} → ${after.json?.price}`)
+    } else {
+      console.log('  ⚠️ 拿不到商品，跳过')
+    }
   }
 
   console.log(`\n通过 ${pass} / 失败 ${fail}`)
