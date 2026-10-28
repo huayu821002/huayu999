@@ -60,7 +60,7 @@ export default function CartPage() {
               <div className="bg-white rounded-2xl shadow-sm divide-y divide-joy-gray-100">
                 {items.map((item) => {
                   const images = parseProductImages(item.product.images)
-                  const itemPrice = convertPrice(item.product.price * item.quantity, currency)
+                  const itemPrice = convertPrice((item.variant?.price ?? item.product.price) * item.quantity, currency)
                   return (
                     <div key={item.id} className="p-4 sm:p-6 flex gap-4">
                       {/* Product Image */}

@@ -131,7 +131,7 @@ export function CartDrawer() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         <span className="font-semibold text-joy-orange">
-                          {formatCurrency(convertPrice(item.product.price, currency), currency)}
+                          {formatCurrency(convertPrice(item.variant?.price ?? item.product.price, currency), currency)}
                         </span>
                         {item.product.comparePrice && (
                           <span className="text-xs text-joy-gray-400 line-through">

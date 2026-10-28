@@ -215,5 +215,68 @@ console.log('\n[domVariants 价格列识别]')
     JSON.stringify(dump))
 }
 
+console.log('\n[规格文本里的数字 ≠ 价格]（2026-10-28）')
+
+// ⑫ 真实 bug：珍珠银「100%桑蚕丝面罩」被当成 100 CNY → 41.67 USD
+//     同款其它颜色只要 12 CNY → 5 USD，差 8 倍。
+{
+  const tbl = makeTable(
+    ['颜色', '规格', '价格'],
+    [
+      ['深灰', '均码【双面锦纶】', '12'],
+      ['珍珠银', '100%桑蚕丝面罩', '12'],
+    ]
+  )
+  const vs = runDomVariants([tbl], { lo: 12, hi: 12 })
+  t('规格文本里的「100%」不被当成价格',
+    vs.length === 2 && vs.every(v => v.price === 12),
+    JSON.stringify(vs.map(v => ({ p: v.price, s: v.specs }))))
+}
+
+// ⑬ 无「价格」列时，规格列的百分数不能被右扫命中
+{
+  const tbl = makeTable(
+    ['颜色', '规格'],
+    [
+      ['深灰', '均码【双面锦纶】'],
+      ['珍珠银', '100%桑蚕丝面罩'],
+    ]
+  )
+  const vs = runDomVariants([tbl], { lo: 12, hi: 12 })
+  t('无价格列时规格文本数字也不当价格',
+    vs.length === 2 && vs.every(v => v.price === null),
+    JSON.stringify(vs.map(v => v.price)))
+}
+
+// ⑭ 汉字说明列（含数字）不当价格
+{
+  const tbl = makeTable(
+    ['颜色', '备注', '价格'],
+    [
+      ['红色', '3层加厚', '13.2'],
+      ['蓝色', '5层加厚', '15.5'],
+    ]
+  )
+  const vs = runDomVariants([tbl], { lo: 14.49, hi: 14.49 })
+  t('汉字说明列的「3层」「5层」不当价格',
+    vs.length === 2 && vs[0].price === 13.2 && vs[1].price === 15.5,
+    JSON.stringify(vs.map(v => v.price)))
+}
+
+// ⑮ 表头有「价格」列但该格是规格文本 → 不回退去扫别的列
+{
+  const tbl = makeTable(
+    ['颜色', '价格'],
+    [
+      ['红色', '100%纯棉'],
+      ['蓝色', '13.2'],
+    ]
+  )
+  const vs = runDomVariants([tbl], { lo: 13.2, hi: 13.2 })
+  t('价格列取到的是合法值那一行',
+    vs.length === 2 && vs[0].price === null && vs[1].price === 13.2,
+    JSON.stringify(vs.map(v => v.price)))
+}
+
 console.log(`\n通过 ${pass} / 失败 ${fail}`)
 process.exit(fail ? 1 : 0)

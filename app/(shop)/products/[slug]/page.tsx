@@ -10,7 +10,7 @@ import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { ProductCard } from '@/components/shop/ProductCard'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { cn, formatCurrency, getPriceByTier, convertPrice, getTieredPricing, getPriceFromTieredPricing, parseTags } from '@/lib/utils'
+import { cn, formatCurrency, getPriceByTier, convertPrice, getTieredPricing, getPriceFromTieredPricing, getVariantAwareTiers, parseTags } from '@/lib/utils'
 import { useCartStore, useWishlistStore } from '@/lib/store'
 import { parseProductImages, parseImageUrl } from '@/lib/imageUtils'
 import { useLocale, useTranslation } from '@/lib/translation/client'
@@ -374,7 +374,11 @@ export default function ProductDetailPage() {
   const images = parseProductImages(product.images)
   const currentVariant = resolveCurrentVariant()
   const displayPrice = currentVariant?.price || product.price
-  const tiers = getTieredPricing(product.tieredPricing, displayPrice)
+  // ★ 2026-10-28 修：阶梯价必须感知变体。
+  //   原来用 getTieredPricing(product.tieredPricing, displayPrice) —— 数据库里的
+  //   tieredPricing 是**商品级**固定价（tiers[0].price = 商品价），直接把变体价盖掉了，
+  //   于是「选哪个变体价格都一样」。现在改成按变体价缩放各档。
+  const tiers = getVariantAwareTiers(product.tieredPricing, product.price, currentVariant?.price ?? null)
   const priceByQty = getPriceFromTieredPricing(tiers, quantity)
 
   // ★ 安全解析（之前 JSON.parse 遇到逗号串直接抛异常 → 整页 Application error）

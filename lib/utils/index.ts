@@ -124,27 +124,98 @@ export function getPriceFromTieredPricing(
   tieredPricing: TierPrice[],
   quantity: number
 ): { tier: string; price: number; total: number } {
-  const tier = tieredPricing.find(t => {
-    if (t.maxQty === null) {
-      return quantity >= t.minQty
-    }
-    return quantity >= t.minQty && quantity <= t.maxQty
-  })
+  // ★ 2026-10-28 修：档位匹配必须**优先选区间明确包含数量的那档**。
+  //   采集写入的阶梯价形状是 {minQty:1,maxQty:null} / {minQty:5,maxQty:null} / {minQty:10,maxQty:null}
+  //   —— 每一档 maxQty 都是 null（旧 find 逻辑下 minQty:1 那档永远命中，
+  //   于是「买 10 件」和「买 1 件」显示同一个价，量价折扣完全失效）。
+  //   正确语义：maxQty=null 表示「直到下一档的 minQty - 1」。
+  const qty = Math.max(1, Math.floor(Number(quantity) || 1))
+  const sorted = [...(tieredPricing || [])].sort((a, b) => a.minQty - b.minQty)
+
+  // 1) 区间明确包含数量的档（maxQty 有值）
+  const ranged = sorted.find(
+    t => t.maxQty !== null && qty >= t.minQty && qty <= t.maxQty
+  )
+  // 2) 否则取「minQty <= qty 的最后一档」（maxQty=null 的开区间档）
+  const openEnded = [...sorted].reverse().find(t => qty >= t.minQty)
+
+  const tier = ranged || openEnded || sorted[0]
 
   if (!tier) {
-    // Fallback to first tier
-    return {
-      tier: 'RETAIL',
-      price: tieredPricing[0]?.price ?? 0,
-      total: (tieredPricing[0]?.price ?? 0) * quantity,
-    }
+    return { tier: 'RETAIL', price: 0, total: 0 }
   }
 
   return {
     tier: tier.minQty >= 101 ? 'VIP' : tier.minQty >= 11 ? 'WHOLESALE' : 'RETAIL',
     price: tier.price,
-    total: tier.price * quantity,
+    total: tier.price * qty,
   }
+}
+
+/**
+ * 变体感知的阶梯价（2026-10-28）
+ *
+ * 背景：发布时写入的 tieredPricing 是**商品级**阶梯价
+ *   {"tiers":[{"minQty":1,"maxQty":null,"price":5.83}]}
+ * 前台主价格取的是 tiers[0].price → 选任何变体都是 5.83，
+ * 变体价（currentVariant.price）虽然算出来了却没参与显示。
+ *
+ * 修复思路：阶梯价的**档位结构**（minQty/maxQty 和相对折扣比例）来自数据库，
+ * 但**每档的绝对价格**要跟着当前变体价走。
+ *   ratio = 变体价 / 商品基准价（tieredPricing 里 minQty 最小那档的价格）
+ *   每档新价 = 原价 × ratio
+ * 这样：
+ *   - 单档商品（minQty:1 一个档）→ 新价 = 变体价，完全跟随变体
+ *   - 多档商品 → 各档按同比例缩放，保留量价折扣结构
+ *
+ * @param tieredPricingStr  数据库里的阶梯价 JSON
+ * @param basePrice         商品基准价（product.price）
+ * @param variantPrice      当前选中变体的价（没有变体时传 null）
+ */
+export function getVariantAwareTiers(
+  tieredPricingStr: string | null | undefined,
+  basePrice: number,
+  variantPrice: number | null | undefined
+): TierPrice[] {
+  const base = Number(basePrice)
+  const vp = Number(variantPrice)
+
+  // 没变体 / 变体价无效 → 用商品基准价算（保持原行为）
+  if (!Number.isFinite(vp) || vp <= 0) {
+    return getTieredPricing(tieredPricingStr, base)
+  }
+
+  // 先按商品基准价拿到「原始档位结构」
+  const tiers = getTieredPricing(tieredPricingStr, base)
+  if (!tiers.length) return tiers
+
+  // 缩放基准 = 档位里最小 minQty 那档的价格（发布时它就是商品基准价）
+  const anchorTier = tiers.reduce((a, b) => (b.minQty < a.minQty ? b : a))
+  const anchorPrice = Number(anchorTier?.price)
+
+  // 基准不可用（0 / NaN）→ 退化成「变体价作为第一档，其余按原比例」
+  if (!Number.isFinite(anchorPrice) || anchorPrice <= 0) {
+    return tiers.map(t => ({
+      ...t,
+      price:
+        t.minQty === anchorTier.minQty
+          ? Math.round(vp * 100) / 100
+          : Math.round(Number(t.price) * 100) / 100,
+    }))
+  }
+
+  const ratio = vp / anchorPrice
+  // 比例几乎为 1 → 不动，避免无意义的浮点扰动
+  if (Math.abs(ratio - 1) < 1e-9) return tiers
+
+  return tiers.map(t => ({
+    ...t,
+    // 第一档（minQty 最小）直接等于变体价，避免四舍五入误差
+    price:
+      t.minQty === anchorTier.minQty
+        ? Math.round(vp * 100) / 100
+        : Math.round(t.price * ratio * 100) / 100,
+  }))
 }
 
 export function getCurrencyFromTimezone(timezone: string): Currency {

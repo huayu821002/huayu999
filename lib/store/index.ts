@@ -82,7 +82,10 @@ export const useCartStore = create<CartState>()(
       getSubtotal: () => {
         const { items, currency } = get()
         return items.reduce((total, item) => {
-          return total + convertPrice(item.product.price, currency) * item.quantity
+          // ★ 2026-10-28 修：优先用**变体价**，没有变体才用商品价。
+          //   原来只看 item.product.price → 选了贵/便宜的变体，小计都一样。
+          const unit = item.variant?.price ?? item.product.price
+          return total + convertPrice(unit, currency) * item.quantity
         }, 0)
       },
 

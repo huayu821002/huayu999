@@ -127,7 +127,7 @@ export default function CheckoutPage() {
         warehouseId: warehouseId === 'default' ? null : warehouseId,
         warehouseName: firstItem?.warehouseName || 'Standard Warehouse',
         items: whItems,
-        subtotal: whItems.reduce((sum, item) => sum + convertPrice(item.product.price, currency) * item.quantity, 0),
+        subtotal: whItems.reduce((sum, item) => sum + convertPrice(item.variant?.price ?? item.product.price, currency) * item.quantity, 0),
         totalWeight: whItems.reduce((sum, item) => sum + (item.product.weight || 0) * item.quantity, 0),
         shippingOptions: [],
         selectedShipping: '',
@@ -460,7 +460,7 @@ export default function CheckoutPage() {
             productId: item.product.id,
             name: item.product.name,
             sku: item.product.sku,
-            price: item.product.price,
+            price: item.variant?.price ?? item.product.price,
             quantity: item.quantity,
             variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
           }))
@@ -503,7 +503,7 @@ export default function CheckoutPage() {
           productId: item.product.id,
           name: item.product.name,
           sku: item.product.sku,
-          price: item.product.price,
+          price: item.variant?.price ?? item.product.price,
           quantity: item.quantity,
           variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
         }))
@@ -577,7 +577,7 @@ export default function CheckoutPage() {
             productId: item.product.id,
             name: item.product.name,
             sku: item.product.sku,
-            price: item.product.price,
+            price: item.variant?.price ?? item.product.price,
             quantity: item.quantity,
             variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
           }))
@@ -621,7 +621,7 @@ export default function CheckoutPage() {
           productId: item.product.id,
           name: item.product.name,
           sku: item.product.sku,
-          price: item.product.price,
+          price: item.variant?.price ?? item.product.price,
           quantity: item.quantity,
           variant: item.variant ? `${item.variant.name}: ${item.variant.value}` : null,
         }))
@@ -797,7 +797,7 @@ export default function CheckoutPage() {
                           {item.variant && <p className="text-xs sm:text-sm text-joy-gray-500">{item.variant.name}: {item.variant.value}</p>}
                           <div className="flex items-center justify-between mt-1 sm:mt-2">
                             <span className="text-xs sm:text-sm text-joy-gray-500">Qty: {item.quantity}{item.product.weight ? ` | ${item.product.weight}kg` : ''}</span>
-                            <span className="font-semibold text-joy-orange text-sm sm:text-base">{formatCurrency(convertPrice(item.product.price * item.quantity, currency), currency)}</span>
+                            <span className="font-semibold text-joy-orange text-sm sm:text-base">{formatCurrency(convertPrice((item.variant?.price ?? item.product.price) * item.quantity, currency), currency)}</span>
                           </div>
                         </div>
                       </div>
@@ -1115,7 +1115,7 @@ export default function CheckoutPage() {
                         <p className="text-sm font-medium text-joy-gray-900 truncate">{item.product.name}</p>
                         <p className="text-xs text-joy-gray-500">Qty: {item.quantity}</p>
                       </div>
-                      <p className="text-sm font-semibold text-joy-gray-900">{formatCurrency(convertPrice(item.product.price * item.quantity, currency), currency)}</p>
+                      <p className="text-sm font-semibold text-joy-gray-900">{formatCurrency(convertPrice((item.variant?.price ?? item.product.price) * item.quantity, currency), currency)}</p>
                     </div>
                   ))}
                   {items.length > 3 && <p className="text-xs sm:text-sm text-joy-gray-500 text-center">+ {items.length - 3} more items</p>}

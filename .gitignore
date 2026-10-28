@@ -9,3 +9,6 @@ coverage
 
 # 本地上传的图片（运行时产物，不入库）
 public/uploads/
+
+# TypeScript 增量构建产物（不该进仓库）
+tsconfig.tsbuildinfo
