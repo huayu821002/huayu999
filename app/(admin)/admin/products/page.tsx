@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { RichTextEditor } from '@/components/editor/RichTextEditor'
 import { adminFetch } from '@/lib/adminFetch'
+import { batchInventory, batchPrice, batchRename, parseVariants, parseDims } from '@/lib/batchOps'
 
 interface Variant {
   id: string
@@ -144,6 +145,20 @@ export default function AdminProductsPage() {
     renameScope: 'variant' as 'variant' | 'product' | 'both',
   })
   const [variantDims, setVariantDims] = useState<VariantDim[]>([])
+  // ★ 变体面板内的批量操作（2026-10-28）：对**选中的变体**批量改
+  //   注意：这是「单个商品内」的变体批量，和商品列表页的跨商品批量是两码事。
+  const [selectedVariantIds, setSelectedVariantIds] = useState<string[]>([])
+  const [vBatchOp, setVBatchOp] = useState<'inventory' | 'price' | 'rename' | null>(null)
+  const [vBatchRunning, setVBatchRunning] = useState(false)
+  const [vBatchForm, setVBatchForm] = useState({
+    invMode: 'add' as 'add' | 'set',
+    invValue: 100,
+    priceMode: 'percent' as 'percent' | 'set',
+    priceValue: 10,
+    digits: 4,
+    sep: ' ',
+    prefix: '',
+  })
   const [variantForm, setVariantForm] = useState({ name: '', value: '', sku: '', price: '', inventory: '', image: '' })
   const [isSaving, setIsSaving] = useState(false)
 
@@ -252,6 +267,92 @@ export default function AdminProductsPage() {
   }
 
   /** 变体落库：新建时（无 id）先在本地存着，保存商品后补 PUT */
+  /* ============================================================
+   * 变体批量操作（对**选中的变体**）
+   * ============================================================ */
+  const toggleVariantSel = (id: string) => {
+    setSelectedVariantIds(prev => prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id])
+  }
+  const allVariantsSelected = productVariants.length > 0 && selectedVariantIds.length === productVariants.length
+
+  /** 跑一次批量：只把选中的变体喂给 batchOps，跑完再合并回去 */
+  const runVariantBatch = async () => {
+    if (!vBatchOp) return
+    const picked = productVariants.filter(v => selectedVariantIds.includes(v.id))
+    if (!picked.length) { alert('请先勾选要批量修改的变体'); return }
+    setVBatchRunning(true)
+    try {
+      // batchOps 吃的是「商品」形状，这里只把选中的变体塞进去
+      const fake: any = {
+        id: editingProduct?.id || 'draft',
+        name: editingProduct?.name || form.name || '',
+        price: Number(form.price) || 0,
+        inventory: Number(form.inventory) || 0,
+        variants: JSON.stringify(picked),
+        variantDims: JSON.stringify(variantDims),
+      }
+      let nextPicked: Variant[] = picked
+      let nextDims: VariantDim[] | null = null
+
+      if (vBatchOp === 'inventory') {
+        const r = batchInventory(fake, { mode: vBatchForm.invMode, value: vBatchForm.invValue, scope: 'variant' })
+        nextPicked = parseVariants(r.product.variants) as Variant[]
+      } else if (vBatchOp === 'price') {
+        const r = batchPrice(fake, { mode: vBatchForm.priceMode, value: vBatchForm.priceValue, scope: 'variant' })
+        nextPicked = parseVariants(r.product.variants) as Variant[]
+      } else {
+        const r = batchRename(fake, { digits: vBatchForm.digits, sep: vBatchForm.sep, prefix: vBatchForm.prefix, scope: 'variant' })
+        nextPicked = parseVariants(r.product.variants) as Variant[]
+
+        // ★ dims 不能直接用 batchOps 的结果 —— 它只看到了**选中的**变体，
+        //   重建出来的维度值集合会把未选中变体的值挤掉。
+        //   改为：以原 dims 为基础，按**位置**把选中变体的值替换成新值。
+        //   （位置对得上时才这么干；对不上就退回「旧值→新值」映射）
+        const oldDims = parseDims(JSON.stringify(variantDims))
+        const colorDim = oldDims.find(d => /颜色|色|color/i.test(String(d.name || '')))
+        if (colorDim && Array.isArray(colorDim.values)) {
+          const pickedIdx = picked.map(p => productVariants.findIndex(v => v.id === p.id))
+          const vals = [...colorDim.values]
+          if (vals.length === productVariants.length) {
+            pickedIdx.forEach((vi, k) => {
+              const nv = nextPicked[k]?.value
+              if (vi >= 0 && nv && vi < vals.length) vals[vi] = nv
+            })
+            nextDims = oldDims.map(d => (d === colorDim ? { ...d, values: vals } : d)) as VariantDim[]
+          } else {
+            const map = new Map<string, string>()
+            picked.forEach((p, k) => {
+              const nv = nextPicked[k]?.value
+              if (p.value && nv) map.set(String(p.value), String(nv))
+            })
+            nextDims = oldDims.map(d => {
+              if (d !== colorDim || !Array.isArray(d.values)) return d
+              return { ...d, values: d.values.map(x => map.get(String(x)) || String(x)) }
+            }) as VariantDim[]
+          }
+        }
+      }
+
+      // 合并回完整列表（按 id 对应）
+      const map = new Map(nextPicked.map(v => [v.id, v]))
+      const merged = productVariants.map(v => (map.has(v.id) ? { ...v, ...map.get(v.id)! } : v))
+      setProductVariants(merged)
+      if (nextDims) setVariantDims(nextDims)
+
+      // 编辑已有商品 → 直接落库；新建商品 → 变体在本地，保存商品时会落库
+      if (editingProduct) {
+        await persistVariants(editingProduct.id, merged)
+      }
+      setVBatchOp(null)
+      setSelectedVariantIds([])
+      alert(`✅ 已批量修改 ${merged.filter(v => map.has(v.id)).length} 个变体`)
+    } catch (e: any) {
+      alert('批量修改失败：' + (e?.message || e))
+    } finally {
+      setVBatchRunning(false)
+    }
+  }
+
   const persistVariants = async (productId: string, list: Variant[]) => {
     const res = await adminFetch(`/api/admin/products/${productId}/variants`, {
       method: 'PUT',
@@ -990,6 +1091,31 @@ export default function AdminProductsPage() {
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="font-semibold text-joy-gray-900">Product Variants</h3>
                     <div className="flex gap-1.5">
+                      {productVariants.length > 0 && (
+                        <>
+                          <Button
+                            variant="secondary" size="sm"
+                            onClick={() => setVBatchOp('inventory')}
+                            title="对勾选的变体批量加库存"
+                          >
+                            📦 库存
+                          </Button>
+                          <Button
+                            variant="secondary" size="sm"
+                            onClick={() => setVBatchOp('price')}
+                            title="对勾选的变体批量改价"
+                          >
+                            💲 价格
+                          </Button>
+                          <Button
+                            variant="secondary" size="sm"
+                            onClick={() => setVBatchOp('rename')}
+                            title="对勾选的变体批量改名（颜色+随机数字）"
+                          >
+                            ✏️ 改名
+                          </Button>
+                        </>
+                      )}
                       <Button variant="secondary" size="sm" onClick={() => {
                         setShowCopyPanel(!showCopyPanel)
                         if (!showCopyPanel && !supplierList.length) fetchSupplierList()
@@ -1064,6 +1190,26 @@ export default function AdminProductsPage() {
                   </div>
 
                   {/* Variant List */}
+                  {productVariants.length > 0 && (
+                    <div className="flex items-center justify-between mb-2 px-1">
+                      <label className="flex items-center gap-1.5 text-xs text-joy-gray-600 cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={allVariantsSelected}
+                          onChange={(e) => setSelectedVariantIds(e.target.checked ? productVariants.map(v => v.id) : [])}
+                        />
+                        全选（{selectedVariantIds.length}/{productVariants.length}）
+                      </label>
+                      {selectedVariantIds.length > 0 && (
+                        <button
+                          className="text-xs text-joy-orange hover:underline"
+                          onClick={() => setSelectedVariantIds([])}
+                        >
+                          取消选择
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <div className="space-y-2">
                     {productVariants.length === 0 ? (
                       <p className="text-sm text-joy-gray-400 text-center py-4">No variants yet</p>
@@ -1085,6 +1231,13 @@ export default function AdminProductsPage() {
                           </div>
                         ) : (
                           <div className="flex items-start justify-between gap-2">
+                            <input
+                              type="checkbox"
+                              className="mt-0.5 shrink-0"
+                              checked={selectedVariantIds.includes(v.id)}
+                              onChange={() => toggleVariantSel(v.id)}
+                              title="勾选后可批量修改"
+                            />
                             {v.image && (
                               <img src={v.image} alt="" className="w-9 h-9 rounded object-cover border border-joy-gray-200 shrink-0" />
                             )}
@@ -1127,6 +1280,71 @@ export default function AdminProductsPage() {
             <div className="sticky bottom-0 bg-white border-t border-joy-gray-100 px-6 py-4 flex items-center justify-end gap-3">
               <Button variant="secondary" onClick={() => setShowProductModal(false)}>Cancel</Button>
               <Button onClick={handleProductSubmit} isLoading={isSaving}>{editingProduct ? 'Update Product' : 'Save Product'}</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ★ 变体批量操作弹窗（对勾选的变体） */}
+      {vBatchOp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => !vBatchRunning && setVBatchOp(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
+            <div className="border-b border-joy-gray-100 px-6 py-4 flex items-center justify-between">
+              <h2 className="font-display text-lg font-bold text-joy-gray-900">
+                {vBatchOp === 'inventory' ? '批量加变体库存' : vBatchOp === 'price' ? '批量改变体价格' : '批量改变体名称'}
+                <span className="ml-2 text-sm font-normal text-joy-gray-500">已选 {selectedVariantIds.length} 个变体</span>
+              </h2>
+              <button onClick={() => setVBatchOp(null)} className="p-2 hover:bg-joy-gray-100 rounded-lg"><Icons.X size={20} /></button>
+            </div>
+
+            <div className="p-6 space-y-4">
+              {vBatchOp === 'inventory' && (
+                <>
+                  <div className="flex gap-2">
+                    <button onClick={() => setVBatchForm({ ...vBatchForm, invMode: 'add' })} className={`px-4 py-2 rounded-xl text-sm border-2 ${vBatchForm.invMode === 'add' ? 'border-joy-orange bg-joy-orange/10 text-joy-orange font-medium' : 'border-joy-gray-200'}`}>在现有基础上加</button>
+                    <button onClick={() => setVBatchForm({ ...vBatchForm, invMode: 'set' })} className={`px-4 py-2 rounded-xl text-sm border-2 ${vBatchForm.invMode === 'set' ? 'border-joy-orange bg-joy-orange/10 text-joy-orange font-medium' : 'border-joy-gray-200'}`}>直接设为</button>
+                  </div>
+                  <Input label="数量" type="number" value={String(vBatchForm.invValue)} onChange={(e) => setVBatchForm({ ...vBatchForm, invValue: Number(e.target.value) || 0 })} />
+                  <p className="text-xs text-joy-gray-500">变体库存原本是「未知（null）」的，按 0 起算。</p>
+                </>
+              )}
+
+              {vBatchOp === 'price' && (
+                <>
+                  <div className="flex gap-2">
+                    <button onClick={() => setVBatchForm({ ...vBatchForm, priceMode: 'percent' })} className={`px-4 py-2 rounded-xl text-sm border-2 ${vBatchForm.priceMode === 'percent' ? 'border-joy-orange bg-joy-orange/10 text-joy-orange font-medium' : 'border-joy-gray-200'}`}>按百分比</button>
+                    <button onClick={() => setVBatchForm({ ...vBatchForm, priceMode: 'set' })} className={`px-4 py-2 rounded-xl text-sm border-2 ${vBatchForm.priceMode === 'set' ? 'border-joy-orange bg-joy-orange/10 text-joy-orange font-medium' : 'border-joy-gray-200'}`}>设为固定值</button>
+                  </div>
+                  <Input label={vBatchForm.priceMode === 'percent' ? '百分比（负数=降价，如 -20）' : '新价格（USD）'} type="number" value={String(vBatchForm.priceValue)} onChange={(e) => setVBatchForm({ ...vBatchForm, priceValue: Number(e.target.value) || 0 })} />
+                </>
+              )}
+
+              {vBatchOp === 'rename' && (
+                <>
+                  <div className="rounded-xl bg-joy-gray-50 p-3 text-sm text-joy-gray-700 space-y-1">
+                    <div>规则：<b>颜色 + 空格 + 随机数字</b>，例如「粉色 4827」。选中的变体之间数字不重复。</div>
+                    <div className="text-xs text-joy-gray-500">
+                      变体名、规格明细（specs）、维度列表会一起同步，前台三处显示一致。
+                      多规格商品只改完整名称，尺码等维度值保持原样。
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input label="随机数字位数" type="number" value={String(vBatchForm.digits)} onChange={(e) => setVBatchForm({ ...vBatchForm, digits: Number(e.target.value) || 4 })} />
+                    <Input label="前缀（可选）" value={vBatchForm.prefix} onChange={(e) => setVBatchForm({ ...vBatchForm, prefix: e.target.value })} placeholder="例：F" />
+                  </div>
+                </>
+              )}
+            </div>
+
+            <div className="border-t border-joy-gray-100 px-6 py-4 flex items-center justify-between gap-3">
+              <span className="text-xs text-joy-gray-500">
+                {selectedVariantIds.length === 0 ? '⚠️ 还没勾选变体' : `将修改 ${selectedVariantIds.length} 个变体`}
+              </span>
+              <div className="flex gap-3">
+                <Button variant="secondary" onClick={() => setVBatchOp(null)} disabled={vBatchRunning}>取消</Button>
+                <Button onClick={runVariantBatch} isLoading={vBatchRunning} disabled={selectedVariantIds.length === 0}>确认执行</Button>
+              </div>
             </div>
           </div>
         </div>
