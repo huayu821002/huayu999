@@ -1,8 +1,11 @@
 /**
  * 变体规格中→英（采集品 + 商品都共用）
  *
- * 用户需求（2026-10-26 第 4 条）：「一键翻译英文包括 变体规格名称。
- * 如果太长截取保留精简。」
+ * 用户需求（2026-10-26 18:27 最新）：「一键翻译，变体规格名称 还是全部翻译，
+ * 不要截取字节。整个都输出。前面是让你截取精简，我现在是让你不要省略，全部输出来。」
+ *
+ * ★ 所以：**变体规格名和值一律完整输出，不砍括号、不截断**。
+ *   "均码【双面锦纶】" → "One Size Fits All [Double-Sided Nylon]"（完整，不截）
  *
  * 采集到的变体长这样：
  *   variants:    [{ specs:[{name:'颜色', value:'P064深灰'}, {name:'规格', value:'均码【双面锦纶】'}],
@@ -14,7 +17,7 @@
  *   dims:   [{ name:'Color', kind:'color', values:['P064 Dark Gray', ...] }]
  *
  * ★ 值里的「型号前缀」（P064）必须保留 —— 那是货号的一部分，砍了客户对不上。
- * ★ 括号里的补充说明（【双面锦纶】）砍掉 —— 按钮上显示太长。
+ * ★ 括号里的补充说明（【双面锦纶】）**也保留** —— 用户要「整个都输出」。
  */
 
 import {
@@ -26,7 +29,7 @@ import {
   translateDimValue,
   translateSpecs,
 } from './variantI18n'
-import { compactVariantName, compactVariantValue } from './compact'
+import { titleCase } from './compact'
 
 export type Translator = (s: string) => Promise<string>
 
@@ -45,7 +48,7 @@ export function splitCodePrefix(value: string): { prefix: string; rest: string }
 }
 
 /**
- * 翻译一个变体值：保留型号前缀 + 精简截断
+ * 翻译一个变体值：**完整输出**（保留型号前缀、保留括号说明、不截断）
  */
 export async function translateVariantValue(
   value: string,
@@ -53,7 +56,7 @@ export async function translateVariantValue(
 ): Promise<string> {
   const t = String(value || '').trim()
   if (!t) return ''
-  if (!hasCjk(t)) return compactVariantValue(t)
+  if (!hasCjk(t)) return titleCase(t)
 
   // 整串命中字典（如 "红色"）
   if (VALUE_EN[t]) return VALUE_EN[t]
@@ -63,9 +66,9 @@ export async function translateVariantValue(
   if (prefix) {
     // 只翻中文部分
     const en = await translateValueCore(rest, translate)
-    return compactVariantValue(prefix + (en ? ' ' + en : ''))
+    return titleCase(prefix + (en ? ' ' + en : ''))
   }
-  return compactVariantValue(await translateValueCore(t, translate))
+  return titleCase(await translateValueCore(t, translate))
 }
 
 /** 值翻译核心（字典 → 尺码保留 → API） */
@@ -92,15 +95,15 @@ export async function translateVariantName(
 ): Promise<string> {
   const t = String(name || '').trim()
   if (!t) return ''
-  if (!hasCjk(t)) return compactVariantName(t)
+  if (!hasCjk(t)) return titleCase(t)
   const dict = translateDimName(t)
-  if (dict !== t) return compactVariantName(dict)   // 字典命中
+  if (dict !== t) return titleCase(dict)   // 字典命中
   // 字典没命中 → 走 API
   try {
     const en = await translate(t)
-    return compactVariantName((en || t).trim() || t)
+    return titleCase((en || t).trim() || t)
   } catch {
-    return compactVariantName(t)
+    return titleCase(t)
   }
 }
 

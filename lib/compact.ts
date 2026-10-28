@@ -55,10 +55,19 @@ const ABBREVIATIONS = new Set([
   'oz', 'lb', 'ac', 'dc', 'pp', 'pe', 'pu', 'rf', 'ir', 'hdmi',
 ])
 
+/** 词里第一个**字母**大写（词首可能是标点，如 "[double-sided" → "[Double-sided"） */
+function capFirstLetter(w: string): string {
+  const m = w.match(/[A-Za-z]/)
+  if (!m) return w
+  const i = w.indexOf(m[0])
+  return w.slice(0, i) + w[i].toUpperCase() + w.slice(i + 1)
+}
+
 /**
  * 首字母大写（每个词），但保留：
  *   - 全大写缩写（PVC / UV / LED / XL）不拆
  *   - 含数字的编号（P064 / 3M）保持原样
+ *   - 连字符也分词（double-sided → Double-Sided）
  */
 export function titleCase(text: string): string {
   const t = String(text || '').trim()
@@ -67,14 +76,22 @@ export function titleCase(text: string): string {
     .split(' ')
     .map(w => {
       if (!w) return w
-      // 全大写缩写（≤4 字母）保持不变：PVC / UV / LED / XL
-      if (/^[A-Z]{1,4}$/.test(w)) return w
-      // 常见缩写 → 全大写（翻译接口返回小写 "uv" → "UV"）
-      const bare = w.replace(/[^A-Za-z]/g, '').toLowerCase()
-      if (bare && bare.length <= 4 && ABBREVIATIONS.has(bare)) return w.toUpperCase()
-      // 含数字的编号段保持原样：P064 / 3M / A200
-      if (/^[A-Za-z]*\d+[A-Za-z]*$/.test(w)) return w.toUpperCase()
-      return w.charAt(0).toUpperCase() + w.slice(1)
+      // 连字符/短横线也当分词符：non-slip → Non-Slip
+      return w
+        .split(/([-–—])/)
+        .map((seg, idx) => {
+          if (idx % 2 === 1) return seg // 分隔符原样
+          if (!seg) return seg
+          // 全大写缩写（≤4 字母）保持不变：PVC / UV / LED / XL
+          if (/^[A-Z]{1,4}$/.test(seg)) return seg
+          // 常见缩写 → 全大写（翻译接口返回小写 "uv" → "UV"）
+          const bare = seg.replace(/[^A-Za-z]/g, '').toLowerCase()
+          if (bare && bare.length <= 4 && ABBREVIATIONS.has(bare)) return seg.toUpperCase()
+          // 含数字的编号段保持原样：P064 / 3M / A200
+          if (/^[A-Za-z]*\d+[A-Za-z]*$/.test(seg)) return seg.toUpperCase()
+          return capFirstLetter(seg)
+        })
+        .join('')
     })
     .join(' ')
 }
