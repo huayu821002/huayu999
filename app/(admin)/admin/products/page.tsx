@@ -1195,9 +1195,14 @@ export default function AdminProductsPage() {
 
               {batchOp === 'rename' && (
                 <>
-                  <div className="rounded-xl bg-joy-gray-50 p-3 text-sm text-joy-gray-700">
-                    规则：<b>颜色 + 空格 + 随机数字</b>，例如「粉色 4827」。
-                    同一商品内随机数字不重复；颜色维度之外的规格（尺码等）保持不变。
+                  <div className="rounded-xl bg-joy-gray-50 p-3 text-sm text-joy-gray-700 space-y-1">
+                    <div>变体规则：<b>颜色 + 空格 + 随机数字</b>，例如「粉色 4827」。同一商品内随机数字不重复。</div>
+                    <div>商品规则：<b>保留原标题</b>，末尾加随机数字。</div>
+                    <div className="text-xs text-joy-gray-500">
+                      单维度商品：变体名、选择器、维度面板三处同步改。<br/>
+                      多维度商品（颜色+尺码）：<b>只改变体的完整名称</b>，尺码等维度值保持原样
+                      —— 维度值是多个变体共享的，加了数字会把维度结构改坏。
+                    </div>
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <Input label="随机数字位数" type="number" value={String(batchForm.digits)} onChange={(e) => setBatchForm({ ...batchForm, digits: Number(e.target.value) || 4 })} />

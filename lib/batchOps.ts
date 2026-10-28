@@ -239,49 +239,85 @@ export function batchRename(
 
   // 同一商品内，随机数字不能重复
   const used = new Set<string>()
+  const nextNum = () => {
+    let num = randomDigits(digits, rand)
+    let guard = 0
+    while (used.has(num) && guard < 50) {
+      num = randomDigits(digits, rand)
+      guard++
+    }
+    used.add(num)
+    return num
+  }
+
+  // 颜色维度在 specs 里的下标；-1 = 没有颜色维度
+  const colorIdxOf = (v: BatchVariant) => {
+    const specs = Array.isArray(v.specs) ? v.specs : []
+    return specs.findIndex(
+      s => s && typeof s.name === 'string' && /颜色|色|color/i.test(s.name)
+    )
+  }
 
   if (scope === 'variant' || scope === 'both') {
-    const next = variants.map(v => {
-      const color = colorValueOf(v)
-      if (!color) return v
-      let num = randomDigits(digits, rand)
-      let guard = 0
-      while (used.has(num) && guard < 50) {
-        num = randomDigits(digits, rand)
-        guard++
-      }
-      used.add(num)
-      const newValue = `${prefix}${color}${sep}${num}`.trim()
-      names.push(newValue)
-      if (newValue !== v.value) changed = true
+    // 颜色值映射（旧颜色值 → 新颜色值），用于同步 variantDims
+    const colorMap = new Map<string, string>()
 
-      // ★ specs 里的颜色值必须同步，否则前台选择器还显示旧名
-      const specs = Array.isArray(v.specs)
-        ? v.specs.map(s => {
-            if (!s || typeof s.name !== 'string') return s
-            if (!/颜色|色|color/i.test(s.name)) return s
-            return { ...s, value: newValue }
-          })
-        : v.specs
+    const next = variants.map(v => {
+      const specs = Array.isArray(v.specs) ? v.specs : []
+      const colorIdx = colorIdxOf(v)
+      const oldColor = colorValueOf(v)
+      if (!oldColor) return v
+
+      const num = nextNum()
+      const newColor = `${prefix}${oldColor}${sep}${num}`.trim()
+      names.push(newColor)
+
+      // ★ 单维度 vs 多维度，策略完全不同：
+      //
+      // 单维度（specs.length <= 1）：value / specs / dims 全部同步。
+      //   前台单维度路径显示 variant.value，多维度路径显示 specs 派生的行，
+      //   两种显示都得是新名，所以三处必须一起改。
+      //
+      // 多维度（specs.length > 1）：**只改 variant.value，绝不动 specs / dims**。
+      //   因为维度值是多个变体共享的 —— 「粉色」被 粉色/M、粉色/L 共用，
+      //   给它加随机数会把它撑成 3 个维度值，维度结构直接坏掉。
+      //   随机数加在 value 的颜色片段上：「粉色 / M」→「粉色 8697 / M」，
+      //   变体本身唯一，维度结构完好。
+      if (specs.length <= 1) {
+        const newSpecs = specs.length
+          ? [{ ...specs[0], value: newColor }]
+          : specs
+        if (oldColor !== newColor) colorMap.set(String(oldColor), newColor)
+        if (newColor !== v.value) changed = true
+        return { ...v, value: newColor, specs: newSpecs }
+      }
+
+      // 多维度：替换 value 里对应颜色维度的那一段
+      const parts = String(v.value || '').split(' / ')
+      let newValue: string
+      if (colorIdx >= 0 && parts.length === specs.length) {
+        parts[colorIdx] = newColor
+        newValue = parts.join(' / ')
+      } else {
+        // 兜底：value 的片段数和 specs 对不上 → 整体追加
+        newValue = `${prefix}${String(v.value || '').trim()}${sep}${num}`.trim()
+      }
+      if (newValue !== v.value) changed = true
       return { ...v, value: newValue, specs }
     })
     if (next.length) out.variants = JSON.stringify(next)
 
-    // ★ variantDims.values 也要同步（维度面板显示用）
+    // ★ variantDims 也要同步（维度面板显示用）
+    //   只在单维度时改 —— 多维度时维度值没变，改了反而错
     const dims = parseDims(product.variantDims)
-    if (dims.length) {
+    if (dims.length && colorMap.size) {
       const newDims = dims.map(d => {
         const vals = Array.isArray(d.values) ? d.values : []
         const isColor = /颜色|色|color/i.test(String(d.name || ''))
         if (!isColor) return d
-        // 用变体的旧 value → 新 value 做映射
-        const map = new Map<string, string>()
-        variants.forEach((v, i) => {
-          if (next[i] && next[i].value !== v.value) map.set(String(v.value || ''), String(next[i].value || ''))
-        })
         return {
           ...d,
-          values: vals.map(x => map.get(String(x)) || String(x)),
+          values: vals.map(x => colorMap.get(String(x)) || String(x)),
         }
       })
       out.variantDims = JSON.stringify(newDims)
@@ -289,17 +325,12 @@ export function batchRename(
   }
 
   if (scope === 'product' || scope === 'both') {
-    // 商品名：取第一个变体的颜色（或商品名首词）+ 随机数字
-    const color = variants.length ? colorValueOf(variants[0]) : String(product.name || '')
-    if (color) {
-      let num = randomDigits(digits, rand)
-      let guard = 0
-      while (used.has(num) && guard < 50) {
-        num = randomDigits(digits, rand)
-        guard++
-      }
-      used.add(num)
-      const newName = `${prefix}${color}${sep}${num}`.trim()
+    // 商品名：**保留原标题**，末尾加随机数字。
+    // （不能只拿颜色 —— 那样商品名会变成 "5B 8697"，标题全丢，前台列表没法看）
+    const base = String(product.name || '').trim()
+    if (base) {
+      const num = nextNum()
+      const newName = `${base}${sep}${num}`.trim()
       names.push(newName)
       if (newName !== product.name) {
         out.name = newName

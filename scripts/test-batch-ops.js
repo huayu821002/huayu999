@@ -130,7 +130,9 @@ console.log('\n[⑨ 兼容商品名也改]')
     variants: JSON.stringify([V('粉色', 1, 1, '粉色')]),
   }
   const r = B.batchRename(p, { digits: 4, scope: 'both' })
-  t('商品名也变成 颜色+数字', /^粉色 \d{4}$/.test(r.product.name), r.product.name)
+  // 商品名必须**保留原标题** —— 之前写成「颜色+数字」会把标题整个丢掉，
+  // 前台商品列表全变成 "5B 8697"，没法看。
+  t('★ 商品名保留原标题 + 末尾数字', /^旧名 \d{4}$/.test(r.product.name), r.product.name)
 }
 
 console.log(`\n通过 ${pass} / 失败 ${fail}`)
