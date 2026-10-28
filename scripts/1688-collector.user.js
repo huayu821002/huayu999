@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.38.0
+// @version      2.39.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.10.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.11.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -3292,6 +3292,67 @@
     return out
   }
 
+  /* ---------------------------------------------------------------
+   * 逐变体价格回填（2026-10-28）
+   *
+   * 背景：offerdetail 报文里经常**没有**逐 SKU 价格容器（无 skuInfos / skuMap /
+   *   skuPriceMap / skuList / skuProps / saleProp），于是 pickVariants 出来的变体
+   *   价格全是商品级兜底价 —— 22 个变体一个价，前台选哪个都一样。
+   *   而 DOM 上渲染的规格表往往一行一个真实价。
+   *
+   * 策略：
+   *   ① 接口变体去重后价格只有 1 个（或全为 null）→ 判定为兜底价
+   *   ② 拿 DOM 规格表逐行匹配（按「维度名+规格值」集合）
+   *   ③ 匹配上且价格可信 → 回填；匹配不上 → **保留原值**，不猜
+   *
+   * 纯函数，不碰 DOM，便于单测。
+   */
+  function backfillVariantPrices(variants, domVars) {
+    const list = Array.isArray(variants) ? variants : []
+    if (list.length < 2) return { variants: list, filled: 0, domRows: 0, skipped: 'too-few-variants' }
+
+    const priceSet = new Set(
+      list.map(v => v && v.price).filter(p => typeof p === 'number' && p > 0)
+    )
+    if (priceSet.size > 1) return { variants: list, filled: 0, domRows: 0, skipped: 'prices-already-differ' }
+    if (priceSet.size === 0) return { variants: list, filled: 0, domRows: 0, skipped: 'no-prices' }
+
+    const domWithPrice = (Array.isArray(domVars) ? domVars : [])
+      .filter(v => v && typeof v.price === 'number' && v.price > 0)
+    if (!domWithPrice.length) return { variants: list, filled: 0, domRows: 0, skipped: 'no-dom-prices' }
+
+    // 规格值归一化：去空白（含全角）、去括号、小写
+    const norm = s => String(s == null ? '' : s)
+      .replace(/[\s　]/g, '')
+      .replace(/[（）()【】\[\]]/g, '')
+      .toLowerCase()
+
+    const domRows = domWithPrice.map(v => ({
+      price: v.price,
+      keys: (v.specs || []).map(s => norm(s.name) + ':' + norm(s.value)),
+    }))
+
+    // 两个变体的规格集合相同 → 认为是同一个 SKU
+    const sameSpecSet = (a, b) => {
+      if (!a.length || a.length !== b.length) return false
+      const sb = new Set(b)
+      return a.every(x => sb.has(x))
+    }
+
+    let filled = 0
+    const out = list.map(v => {
+      const keys = ((v && v.specs) || []).map(s => norm(s.name) + ':' + norm(s.value))
+      if (!keys.length) return v
+      const hit = domRows.find(r => sameSpecSet(keys, r.keys))
+      if (!hit) return v
+      if (v.price === hit.price) return v
+      filled++
+      return { ...v, price: hit.price, priceText: String(hit.price) }
+    })
+
+    return { variants: out, filled, domRows: domRows.length, skipped: null }
+  }
+
   /* --------------------------------------------------------------- 解析 */
   async function parseDetail() {
     const url = location.href
@@ -3353,6 +3414,8 @@
     const variantRes = pickVariants(payloads)
     let variants = variantRes.variants
     let variantDims = variantRes.dims
+    // DOM 规格表回填逐变体价格的诊断结果（见下方回填逻辑）
+    let priceBackfill = null
 
     // 接口没给出变体时 → 用 DOM 的规格价格表兜底
     // （2026-05 实采发现：offerdetail 报文里可能压根没有 SKU 容器，
@@ -3389,6 +3452,25 @@
         })
         variantDims = Array.from(dimMap.values())
       }
+    }
+
+    // ★★ 接口变体价**全相同**时，用 DOM 规格价格表按规格值回填（2026-10-28）
+    //   详见 backfillVariantPrices() 的说明。
+    if (variants.length > 1) {
+      const domVars = domVariants({ lo: pr.lo, hi: pr.hi })
+      const bf = backfillVariantPrices(variants, domVars)
+      if (bf.filled) {
+        variants = bf.variants.map(v => {
+          let color = '', size = ''
+          for (const s of (v.specs || [])) {
+            const k = dimKind(s.name)
+            if (k === 'color' && !color) color = s.value
+            if (k === 'size' && !size) size = s.value
+          }
+          return { ...v, color, size, specText: (v.specs || []).map(s => s.value).join(' / ') }
+        })
+      }
+      priceBackfill = { domRows: bf.domRows, filled: bf.filled, skipped: bf.skipped || null }
     }
 
     // 描述 = 商品基本属性表（不是详情页那段图片 HTML）
@@ -3513,6 +3595,7 @@
           return out
         })(),
         priceWhy: pr.why,
+        variantPriceBackfill: priceBackfill || undefined,
         priceCandidates: pr.candidates,
         skuCandidates: pr.skuCandidates,
         priceContainers: collectPriceContainers(payloads),
@@ -4083,7 +4166,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.10.0',
+    __v: '4.11.0',
     install,
     capture,
     collectAll,
@@ -4145,6 +4228,7 @@
     parseLoose,
     parseDetail,
     parseSearch,
+    backfillVariantPrices,
     push,
     // 暴露给测试/控制台：把 1688 小图 URL 归一成原图 URL
     normImage,
@@ -4239,9 +4323,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.38.0</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.39.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.38.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.39.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -4640,9 +4724,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.10.0 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.11.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.10.0'
+  const MIN_CORE = '4.11.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -4695,7 +4779,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.38.0，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.39.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
