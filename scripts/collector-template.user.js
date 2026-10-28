@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.45.1
+// @version      2.46.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -219,6 +219,17 @@
           lines.push(`探测价: ${kk.length} 个（${kk.slice(0, 6).map(k => k + '=' + pp[k]).join('，')}）`)
         } else {
           lines.push('探测价: 0 个 ⚠️ 没点过颜色就没有逐变体价')
+        }
+        // 探测命中/未命中统计 —— 定位「第一个变体价格不对」的直接原因
+        const ps = payload.raw && payload.raw.probePriceStat
+        if (ps) {
+          lines.push(`探测命中: ${ps.hit} / 未命中 ${ps.miss}  来源分布 ${JSON.stringify(ps.bySource || {})}`)
+          if (ps.missValues && ps.missValues.length) {
+            lines.push(`未命中的规格: ${ps.missValues.join('，')}`)
+          }
+          if (ps.samples && ps.samples.length) {
+            for (const sm of ps.samples) lines.push(`  探测 ${sm.v} → ${sm.p} [${sm.s}]`)
+          }
         }
         const vs = payload.raw && payload.raw.variantImageStat
         if (vs) lines.push(`变体配图: 探测命中 ${vs.matched} 个 / 未配上 ${vs.skipped} 个`)

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         Fiestaflare 1688 采集器
 // @namespace    fiestaflare
-// @version      2.45.1
+// @version      2.46.0
 // @description  在 1688 商品页/搜索页一键采集商品数据并推送到 Fiestaflare 独立站后台
 // @author       JOHNFUNG
 // @updateURL    https://fiestaflare.com/1688-collector.user.js
@@ -36,7 +36,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.17.1') return
+  if (window.FF1688 && window.FF1688.__v === '4.18.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -2366,7 +2366,10 @@
   function priceSnapshot() {
     const out = new Map()
     let all = []
-    try { all = Array.from(document.querySelectorAll('*')).slice(0, 6000) } catch (e) { return out }
+    // ★ 2026-10-28：6000 → 20000。
+    //   1688 商品页元素极多（常 >8000），价格区在 DOM 里位置靠后
+    //   → 截断会让价格元素**根本没进快照** → 差分/几何全失效。
+    try { all = Array.from(document.querySelectorAll('*')).slice(0, 20000) } catch (e) { return out }
     for (const el of all) {
       if (el.children && el.children.length) continue // 只看叶子
       const txt = clean(el.innerText || el.textContent || '')
@@ -2423,7 +2426,7 @@
       // ★ 离点击点太远 → 不可信（那是推荐位/别的区域的价格）
       if (clickPt && fresh[0].x) {
         const d = Math.abs(fresh[0].x - clickPt.x) + Math.abs(fresh[0].y - clickPt.y)
-        if (d > 600) fresh.length = 0
+        if (d > 1500) fresh.length = 0
       }
       if (fresh.length) {
         return { price: fresh[0].v, source: 'diff', text: fresh[0].txt, diag }
@@ -2442,7 +2445,7 @@
       // 距离太远（>600px）说明不是当前价
       if (arr.length && arr[0].x) {
         const d = Math.abs(arr[0].x - clickPt.x) + Math.abs(arr[0].y - clickPt.y)
-        if (d <= 600) {
+        if (d <= 1500) {
           return { price: arr[0].v, source: 'near', text: arr[0].txt, diag }
         }
       }
@@ -2522,9 +2525,15 @@
   function schedulePriceProbe(value, beforePrices, clickPt) {
     if (!value) return
     const v = String(value)
-    setTimeout(() => {
+    // ★ 2026-10-28：**二次采样**。
+    //   第一次点色卡时，1688 的价格区可能**还没渲染**（未选规格 → 显示"请选择"），
+    //   700ms 那次采样拍不到真实价 → 第一个变体价格错误，后面都对。
+    //   第二次采样（1600ms）以上一次的快照当 before 再差分一次，
+    //   此时价格区已渲染 → 能抓到。
+    let lastSnapshot = beforePrices
+    const shoot = delay => setTimeout(() => {
       try {
-        const r = captureCurrentPrice2(beforePrices, clickPt)
+        const r = captureCurrentPrice2(lastSnapshot, clickPt)
         // ★ 2026-10-28：记录诊断候选（页面上所有带 ¥ 的短文本 + class）
         //   用户报「变体价格都是一个价格」时，先看 priceProbeDiag 确认
         //   1688 把逐 SKU 价格渲染在哪个 class 里。
@@ -2538,8 +2547,12 @@
         } else if (r) {
           VARIANT_CAPTURE.log.push({ value: v, src: 'price-miss', url: '', price: null, priceSrc: r.source, priceText: r.text })
         }
+        // 把这次快照留作下一次的 before（形成连续差分链）
+        try { lastSnapshot = priceSnapshot() } catch (e) {}
       } catch (e) {}
-    }, 700)
+    }, delay)
+    shoot(700)
+    shoot(1600)
   }
 
   /** 开始 B 方案：监听点击，记录「选项文字 → 图片」 */
@@ -4278,7 +4291,27 @@
         probeVariants: probeVariantsStat || undefined,
         // ★ 探测到的原始价格（诊断用）：key = 规格值，value = 抓到的价
         //   用户报「采集价格不正确」时，先看这里确认抓到的是不是真价
-        probePrices: (VARIANT_CAPTURE && VARIANT_CAPTURE.prices) || undefined,
+        probePrices: (VARIANT_CAPTURE && VARIARIANT_CAPTURE.prices) || undefined,
+        // ★ 探测命中/未命中统计：第一个变体价格错的直接原因
+        probePriceStat: (() => {
+          const log = (VARIANT_CAPTURE && VARIANT_CAPTURE.log) || []
+          const hit = log.filter(l => l.src === 'price')
+          const miss = log.filter(l => l.src === 'price-miss')
+          return {
+            hit: hit.length,
+            miss: miss.length,
+            // 未命中的值（最多 12 个）—— 哪个颜色没抓到价，一目了然
+            missValues: miss.map(l => l.value).filter(Boolean).slice(0, 12),
+            // 命中的来源分布：diff=差分 / near=几何最近 / container=容器
+            bySource: hit.reduce((acc, l) => {
+              const k = l.priceSrc || 'unknown'
+              acc[k] = (acc[k] || 0) + 1
+              return acc
+            }, {}),
+            // 前 8 条命中日志（值→价→来源），用于核对第一个
+            samples: hit.slice(0, 8).map(l => ({ v: l.value, p: l.price, s: l.priceSrc, t: l.priceText })),
+          }
+        })(),
         // ★ 探测时页面上所有带 ¥ 的短文本候选（含 class）——定位 1688 逐 SKU 价的渲染位置
         priceProbeDiag: (VARIANT_CAPTURE && VARIANT_CAPTURE.priceDiag) || undefined,
         priceCandidates: pr.candidates,
@@ -4851,7 +4884,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.17.1',
+    __v: '4.18.0',
     install,
     capture,
     collectAll,
@@ -5037,9 +5070,9 @@
         #ff1688-panel .kv{max-height:220px;overflow:auto}
         #ff1688-panel .kv{font-size:12px;color:#333;background:#fafafa;border-radius:8px;padding:8px;margin-top:6px;white-space:pre-wrap;word-break:break-all}
       </style>
-      <div class="hd"><span>Fiestaflare 采集器 v2.45.1</span><span class="tg">－</span></div>
+      <div class="hd"><span>Fiestaflare 采集器 v2.46.0</span><span class="tg">－</span></div>
       <div class="bd">
-        <div class="text-xs text-gray-500">脚本版本 v2.45.1 · 内核版本 <span id="ff-corever">加载中…</span></div>
+        <div class="text-xs text-gray-500">脚本版本 v2.46.0 · 内核版本 <span id="ff-corever">加载中…</span></div>
         <div class="text-xs text-gray-500">API 地址</div>
         <input id="ff-api" value="${API}" />
         <div class="text-xs text-gray-500">管理员 Token</div>
@@ -5147,6 +5180,17 @@
           lines.push(`探测价: ${kk.length} 个（${kk.slice(0, 6).map(k => k + '=' + pp[k]).join('，')}）`)
         } else {
           lines.push('探测价: 0 个 ⚠️ 没点过颜色就没有逐变体价')
+        }
+        // 探测命中/未命中统计 —— 定位「第一个变体价格不对」的直接原因
+        const ps = payload.raw && payload.raw.probePriceStat
+        if (ps) {
+          lines.push(`探测命中: ${ps.hit} / 未命中 ${ps.miss}  来源分布 ${JSON.stringify(ps.bySource || {})}`)
+          if (ps.missValues && ps.missValues.length) {
+            lines.push(`未命中的规格: ${ps.missValues.join('，')}`)
+          }
+          if (ps.samples && ps.samples.length) {
+            for (const sm of ps.samples) lines.push(`  探测 ${sm.v} → ${sm.p} [${sm.s}]`)
+          }
         }
         const vs = payload.raw && payload.raw.variantImageStat
         if (vs) lines.push(`变体配图: 探测命中 ${vs.matched} 个 / 未配上 ${vs.skipped} 个`)
@@ -5454,9 +5498,9 @@
   // 从 core 3.6.0 开始，页面上就一直在弹「内核版本过旧」的假提示，
   // 用户明明装的是最新内核，却被告知内核太旧。
   //
-  // 基准版本由构建脚本注入（4.17.1 → 内联内核的 __v），
+  // 基准版本由构建脚本注入（4.18.0 → 内联内核的 __v），
   // 这样脚本与内核永远配套，不会各自漂移。
-  const MIN_CORE = '4.17.1'
+  const MIN_CORE = '4.18.0'
   const cmpVer = (a, b) => {
     const pa = String(a || '0').split('.').map(x => parseInt(x, 10) || 0)
     const pb = String(b || '0').split('.').map(x => parseInt(x, 10) || 0)
@@ -5509,7 +5553,7 @@
         if (!document.documentElement) { setTimeout(tryPanel, 300); return }
         createPanel()
         const v = refreshCoreVersion()
-        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.45.1，内核版本：', v || '未加载')
+        console.log('[Fiestaflare] 采集器已启动，脚本版本 v2.46.0，内核版本：', v || '未加载')
       } catch (e) {
         fatal(e && (e.stack || e.message) || e)
       }
