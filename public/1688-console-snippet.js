@@ -25,7 +25,7 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.13.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.14.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
@@ -566,6 +566,43 @@
   }
 
   /* ---------------------------------------------------------------- 价格 */
+
+  /**
+   * 单元格文本**整格就是价格**的形状（domVariants / domSkuPrices 共用）
+   *   允许：2.65 / ¥2.65 / 2.65元 / ¥13.50起 / 13.2-15.5
+   *   拒绝：1 粉色 / 100%桑蚕丝 / 均码 / 库存
+   */
+  const PRICE_CELL_ALLOWED_RE = /^[¥￥]?\d+(\.\d+)?([-~至][¥￥]?\d+(\.\d+)?)?(元|起)?$/
+  /** 明确不是价格的单元格（数量/库存/重量…） */
+  const NOT_PRICE_CELL_RE = /件|起批|起订|库存|已售|销量|重量|克|kg|浏览|评论|排名|编号/
+
+  /**
+   * 从**单个单元格**里取价格，取不到返回 null。
+   * ★ 2026-10-28 修（单维度规格表翻车）：
+   *   1688 单维度表长这样：| 颜色 | 库存 | 价格 | / | 1 粉色 | 1 | 2.65 |
+   *   老代码用 cells.slice(1).join(' ') 拼起来抠数字 → 先匹配到**库存的 1**，
+   *   于是整个商品价和所有变体价都变成 1（真实价 2.65）。
+   *   多维度表（| 颜色 | 尺码 | 价格 |）中间列是 M/L/XL 没数字，所以碰巧对 ——
+   *   这正是「只有一种规格时才有问题」的原因。
+   *   现在：严格整格校验 + 优先用表头指明的价格列。
+   */
+  function strictCellPrice(rawTxt) {
+    const t = String(rawTxt == null ? '' : rawTxt).trim()
+    if (!t) return null
+    if (NOT_PRICE_CELL_RE.test(t)) return null
+    if (/[%％]/.test(t)) return null
+    if (/[A-Za-z]/.test(t)) return null
+    if (/[一-龥]/.test(t.replace(/(元|起)/g, ''))) return null
+    const shape = t.replace(/\s/g, '')
+    if (!PRICE_CELL_ALLOWED_RE.test(shape)) return null
+    const clean = shape.replace(/[,¥￥]/g, '').replace(/(元|起)/g, '')
+    let m = clean.match(/^\d+(\.\d+)?$/)
+    if (m) return parseFloat(m[0])
+    m = clean.match(/^\d+(\.\d+)?[-~至]\d+(\.\d+)?$/)
+    if (m) return parseFloat(m[0])
+    m = clean.match(/\d+(\.\d+)?/)
+    return m ? parseFloat(m[0]) : null
+  }
 
   /**
    * priceText **整体就是价格**时的形状（2026-10-28）
@@ -3280,6 +3317,13 @@
     }
     try {
       // 1) 表格：表头含规格/颜色/尺码 → 规格价格表；含起批量 → 阶梯价表（往后排）
+      //
+      // ★ 2026-10-28 重大修：原来用 cells.slice(1).join(' ').match(/\d+/) 取价，
+      //   对**单维度**规格表会抓到「库存/数量」列的数字：
+      //     | 颜色 | 库存 | 价格 |  | 1 粉色 | 1 | 2.65 |   → 抓到 1（库存）
+      //     | 颜色 | 尺码 | 价格 |  | 红色  | M  | 12.5 |  → 抓到 12.5（碰巧对）
+      //   表现出来就是「只有一种规格（如只有颜色）时价格全变成 1」。
+      //   现在：① 优先用**表头指明的价格列**；② 整格严格校验；③ 都不行就不填。
       const tierRows = []
       const skuRows = []
       for (const table of Array.from(document.querySelectorAll('table'))) {
@@ -3289,13 +3333,30 @@
         const isTier = /起订|起批|数量|件数/.test(head)
         const isSku = /规格|颜色|尺码|款式|型号|属性/.test(head)
         if (!isTier && !isSku) continue
+        // 表头各列（用于定位价格列）
+        const headCells = Array.from(rows[0].querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || ''))
+        let priceCol = headCells.findIndex(h => /价|price|金额|单价/i.test(String(h || '')))
         for (let i = 1; i < rows.length; i++) {
           const cells = Array.from(rows[i].querySelectorAll('td,th')).map(c => clean(c.innerText || c.textContent || ''))
           if (cells.length < 2) continue
-          const priceTxt = cells.slice(1).join(' ').match(/(\d+(?:\.\d+)?)/)
-          const price = priceTxt ? parseFloat(priceTxt[1]) : null
+          // ★ 规格值 = 价格列**之前**的所有列（多维度时拼起来）
+          const specCols = priceCol > 0 ? cells.slice(0, priceCol) : cells.slice(0, 1)
+          const spec = specCols.join(' ').trim()
+          if (!spec) continue
+          let price = null
+          if (priceCol >= 0) {
+            // 表头指明了价格列 → 只用这一列（值不合法就不填，不回退扫描）
+            price = strictCellPrice(cells[priceCol])
+          } else {
+            // 表头没有价格列 → 从右往左找**整格是纯价格**的列
+            for (let c = cells.length - 1; c >= 1; c--) {
+              if (NOT_PRICE_CELL_RE.test(String(headCells[c] || ''))) continue
+              const v = strictCellPrice(cells[c])
+              if (v !== null) { price = v; break }
+            }
+          }
           if (price === null) continue
-          const item = { spec: cells[0], price }
+          const item = { spec, price }
           ;(isTier ? tierRows : skuRows).push(item)
         }
       }
@@ -3308,12 +3369,14 @@
         const els = Array.from(document.querySelectorAll('[class*="sku-price"], [class*="price-item"], [class*="skuPrice"], [class*="priceInfo"]'))
         for (const el of els.slice(0, 30)) {
           const txt = clean(el.innerText || el.textContent || '')
-          const m = txt.match(/(\d+(?:\.\d+)?)/)
-          if (!m) continue
+          // ★ 2026-10-28：整格严格校验（老代码 match(/\d+/) 会把
+          //   「1 粉色」「100%桑蚕丝」里的数字当价格）
+          const v = strictCellPrice(txt)
+          if (v === null) continue
           const spec = clean((el.closest('[class*="sku-item"], [class*="sku-row"], li, tr') || el).innerText || '')
             .replace(txt, '')
             .slice(0, 60)
-          add(spec, parseFloat(m[1]))
+          add(spec, v)
         }
       }
     } catch (e) {}
@@ -3410,42 +3473,18 @@
           let price = null
           let priceCol = priceIdx
           // 单元格文本里**含件数/库存/重量等** → 一律不当价格
-          const NOT_PRICE_CELL_RE = /件|起批|起订|库存|已售|销量|重量|克|kg|浏览|评论|排名|编号/
-          // ★ 2026-10-28 修：规格文本里的数字不能当价格。
+          // ★ 2026-10-28：整格严格校验抽到顶层 strictCellPrice()（与 domSkuPrices 共用）
+          //   规格文本里的数字不能当价格。
           //   典型翻车：「100%桑蚕丝面罩」被解析成 100 CNY → 41.67 USD，
           //   而同款其它颜色才 12 CNY → 5 USD。
           //   规则：整格**必须基本是价格** —— 只允许数字/小数点/区间符/货币符，
           //   以及价格语境里的「元」「起」；出现百分号、汉字说明、字母 → 一律拒绝。
-          const PRICE_CELL_ALLOWED_RE = /^[¥￥]?\d+(\.\d+)?([-~至][¥￥]?\d+(\.\d+)?)?(元|起)?$/
           const cellPrice = i => {
             const rawTxt = String(cells[i] || '').trim()
             if (!rawTxt) return null
-            if (NOT_PRICE_CELL_RE.test(rawTxt)) return null
-            // 百分号 / 字母 → 不是价格
-            if (/[%％]/.test(rawTxt)) return null
-            if (/[A-Za-z]/.test(rawTxt)) return null
-            // 汉字说明（去掉价格语境里的「元/起」）→ 不是价格
-            if (/[一-龥]/.test(rawTxt.replace(/(元|起)/g, ''))) return null
-            // 整格形状必须是价格
-            if (!PRICE_CELL_ALLOWED_RE.test(rawTxt.replace(/\s/g, ''))) return null
-            const txt = rawTxt.replace(/[,¥￥\s]/g, '').replace(/(元|起)/g, '')
-            if (!txt) return null
-            // 整格是纯数字
-            let m = txt.match(/^\d+(\.\d+)?$/)
-            if (m) return priceOK(parseFloat(m[0])) ? parseFloat(m[0]) : null
-            // 区间价 "13.2-15.5" → 取下界
-            m = txt.match(/^\d+(\.\d+)?[-~至]\d+(\.\d+)?$/)
-            if (m) {
-              const lo = parseFloat(m[0])
-              return priceOK(lo) ? lo : null
-            }
-            // 带后缀/前缀 "¥13.50起" "13.50元" → 取**第一个数字**
-            m = txt.match(/\d+(\.\d+)?/)
-            if (m) {
-              const v = parseFloat(m[0])
-              return priceOK(v) ? v : null
-            }
-            return null
+            const v = strictCellPrice(rawTxt)
+            if (v === null) return null
+            return priceOK(v) ? v : null
           }
           if (priceCol >= 0 && !NON_PRICE_COL_RE.test(headCells[priceCol] || '')) {
             price = cellPrice(priceCol)
@@ -4385,7 +4424,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.13.0',
+    __v: '4.14.0',
     install,
     capture,
     collectAll,
@@ -4450,6 +4489,8 @@
     backfillVariantPrices,
     applyProbePrices,
     captureCurrentPrice,
+    // 仅供测试：直接拿 DOM 抓到的规格价（2026-10-28 单维度规格表回归用）
+    __test_domSkuPrices: () => domSkuPrices(),
     // 仅供测试注入探测结果（生产环境无副作用）
     __test_setProbePrices: (obj) => {
       VARIANT_CAPTURE.prices = Object.assign({}, obj)
@@ -4488,7 +4529,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.41.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.42.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
