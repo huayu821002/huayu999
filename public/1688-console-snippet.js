@@ -25,10 +25,36 @@
 (function () { /* __FF1688_CORE__ */
   'use strict'
   // 同一版本重复注入时不重复安装（版本号变了吗？这里的常量要同步改）
-  if (window.FF1688 && window.FF1688.__v === '4.19.0') return
+  if (window.FF1688 && window.FF1688.__v === '4.20.0') return
 
   const API = 'https://fiestaflare.com'
   const CAPTURE_ID = 'ff1688-capture'
+
+  // ★ 2026-10-28：**排除采集器自己的 UI**
+  //   生产数据里 probePrices 混进了 "Fiestaflare 采集器 v2.47.0"、
+  //   "探测变体图"、"已售500+对"、"－" 这种垃圾规格值。
+  //   前两个是采集器面板/悬浮窗自己的元素（用户操作面板时被当成点了色卡），
+  //   后两个是页面上的非规格文案。
+  const COLLECTOR_UI_SEL = [
+    '#ff1688-panel', '#ff1688-capture', '#ff-core-nag',
+    '[id^="ff1688"]', '[id^="ff-core"]',
+  ].join(',')
+  function isCollectorUI(node) {
+    try {
+      return !!(node && node.closest && node.closest(COLLECTOR_UI_SEL))
+    } catch (e) { return false }
+  }
+
+  /** 明显不是规格值的文案（销量/评价/运费/纯符号…） */
+  function looksLikeSpecValue(v) {
+    const t = String(v == null ? '' : v).trim()
+    if (!t || t.length > 40) return false
+    if (/已售|评价|评论|浏览|人付款|人收藏|收藏|包邮|运费|起批|库存|加入购物车|立即购买|客服|旺铺|采集器|探测变体图/.test(t)) return false
+    if (/[¥￥]/.test(t)) return false
+    // 纯符号/标点不算规格
+    if (!/[0-9A-Za-z\u4e00-\u9fa5]/.test(t)) return false
+    return true
+  }
   /** 图集总张数（用户要求：主图 1 张 + 图集共 5 张） */
   const MAX_GALLERY = 5
 
@@ -2603,6 +2629,10 @@
     let pendingTimer = null
 
     const onClick = ev => {
+      // ★ 2026-10-28：点在采集器自己的面板/悬浮窗上 → 直接忽略，
+      //   否则面板标题、按钮文字会被当成「规格值」记进探测数据。
+      if (isCollectorUI(ev.target)) return
+
       // 点击前的全页图片快照（用于识别「新出现」的那张）
       const before = new Set(captureAllImages().map(x => x.url))
       // ★ 2026-10-28：点击前的**价格快照** —— 点色卡后价格会变，
@@ -2645,6 +2675,11 @@
       }
       if (!value) {
         VARIANT_CAPTURE.log.push({ value: '', src: 'no-value', url: '', cls: String((ev.target && ev.target.className) || '') })
+        return
+      }
+      // ★ 2026-10-28：明显不是规格值的文案（已售/评价/纯符号…）→ 丢弃
+      if (!looksLikeSpecValue(value)) {
+        VARIANT_CAPTURE.log.push({ value: String(value).slice(0, 40), src: 'not-spec', url: '', cls: String((ev.target && ev.target.className) || '') })
         return
       }
 
@@ -4916,7 +4951,7 @@
   }
 
   window.FF1688 = {
-    __v: '4.19.0',
+    __v: '4.20.0',
     install,
     capture,
     collectAll,
@@ -4989,6 +5024,8 @@
     __test_domSkuPriceGrid: (guard) => domSkuPriceGrid(guard),
     // 仅供测试：探测价（差分 + 几何）2026-10-28
     __test_parsePriceText: (txt) => parsePriceText(txt),
+    __test_isCollectorUI: (node) => isCollectorUI(node),
+    __test_looksLikeSpecValue: (v) => looksLikeSpecValue(v),
     __test_priceSnapshot: () => priceSnapshot(),
     __test_captureCurrentPrice2: (before, pt) => captureCurrentPrice2(before, pt),
     // 仅供测试：DOM 规格表 → 变体
@@ -5041,7 +5078,7 @@
       console.log('调试信息：', debug)
       console.log(
         '字段速览：\n' +
-          '脚本版本: v2.47.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
+          '脚本版本: v2.48.0  内核版本: ' + (window.FF1688.__v || '?') + '\n' +
           '标题: ' + payload.title + '\n' +
           '价格: ' + payload.priceMin + ' ~ ' + payload.priceMax + '\n' +
           '起订: ' + payload.moq + '\n' +
