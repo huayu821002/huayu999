@@ -548,6 +548,81 @@ export default function ProductDetailPage() {
                   )}
                 </div>
 
+            {/* Variants —— 多维度：每个维度一行；单维度：保持原样 */}
+            {product.variants && product.variants.length > 0 && (
+              // ★ 变体选择器移进价格卡片后，规格按钮（灰底）落在灰卡片上会看不见
+              //   → 内嵌一层白底子卡片
+              <div className="mb-5 space-y-4 bg-white rounded-xl p-4">
+                {variantRows.length > 0 ? variantRows.map((row) => {
+                  const isFirstRow = row === variantRows[0]
+                  const currentVal = variantSelection[row.name] || ''
+                  return (
+                    <div key={row.name}>
+                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">
+                        {row.name}
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {row.values.map((val) => {
+                          // 选中该值后能否匹配到变体
+                          const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
+                          const disabled = !probe
+                          const isActive = currentVal === val
+                          return (
+                            <button
+                              key={val}
+                              disabled={disabled}
+                              onClick={() => {
+                                const next = { ...variantSelection, [row.name]: val }
+                                setVariantSelection(next)
+                                const m = matchVariant(product.variants, next)
+                                if (m) setSelectedVariant(m.id)
+                              }}
+                              className={cn(
+                                'px-4 py-2 rounded-lg font-medium text-sm transition-all',
+                                isActive
+                                  ? 'bg-joy-orange text-white'
+                                  : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200',
+                                disabled && 'opacity-40 cursor-not-allowed'
+                              )}
+                            >
+                              {val}
+                              {(() => {
+                                const inv = probe?.inventory
+                                return inv != null && inv < 10 ? ` (${inv} left)` : ''
+                              })()}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                }) : (
+                  <div>
+                    <label className="block text-sm font-medium text-joy-gray-700 mb-2">
+                      {product.variants[0].name}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      {product.variants.map((variant) => (
+                        <button
+                          key={variant.id}
+                          onClick={() => setSelectedVariant(variant.id)}
+                          className={cn(
+                            'px-4 py-2 rounded-lg font-medium text-sm transition-all',
+                            selectedVariant === variant.id
+                              ? 'bg-joy-orange text-white'
+                              : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200'
+                          )}
+                        >
+                          {variant.value}
+                          {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
                 {/* Tier Prices */}
                 <div className="grid grid-cols-3 gap-2 text-sm">
                   {tiers.map((tier, idx) => (
@@ -639,79 +714,6 @@ export default function ProductDetailPage() {
                   </span>
                 </div>
               </div>
-
-              {/* Variants —— 多维度：每个维度一行；单维度：保持原样 */}
-              {product.variants && product.variants.length > 0 && (
-                <div className="mb-6 space-y-4">
-                  {variantRows.length > 0 ? variantRows.map((row) => {
-                    const isFirstRow = row === variantRows[0]
-                    const currentVal = variantSelection[row.name] || ''
-                    return (
-                      <div key={row.name}>
-                        <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                          {row.name}
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {row.values.map((val) => {
-                            // 选中该值后能否匹配到变体
-                            const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
-                            const disabled = !probe
-                            const isActive = currentVal === val
-                            return (
-                              <button
-                                key={val}
-                                disabled={disabled}
-                                onClick={() => {
-                                  const next = { ...variantSelection, [row.name]: val }
-                                  setVariantSelection(next)
-                                  const m = matchVariant(product.variants, next)
-                                  if (m) setSelectedVariant(m.id)
-                                }}
-                                className={cn(
-                                  'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-                                  isActive
-                                    ? 'bg-joy-orange text-white'
-                                    : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200',
-                                  disabled && 'opacity-40 cursor-not-allowed'
-                                )}
-                              >
-                                {val}
-                                {(() => {
-                                  const inv = probe?.inventory
-                                  return inv != null && inv < 10 ? ` (${inv} left)` : ''
-                                })()}
-                              </button>
-                            )
-                          })}
-                        </div>
-                      </div>
-                    )
-                  }) : (
-                    <div>
-                      <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                        {product.variants[0].name}
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {product.variants.map((variant) => (
-                          <button
-                            key={variant.id}
-                            onClick={() => setSelectedVariant(variant.id)}
-                            className={cn(
-                              'px-4 py-2 rounded-lg font-medium text-sm transition-all',
-                              selectedVariant === variant.id
-                                ? 'bg-joy-orange text-white'
-                                : 'bg-joy-gray-100 text-joy-gray-700 hover:bg-joy-gray-200'
-                            )}
-                          >
-                            {variant.value}
-                            {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* Add to Cart */}
               <div className="flex flex-col sm:flex-row gap-3 mb-6">
