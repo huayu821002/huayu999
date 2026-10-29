@@ -3,237 +3,261 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Fiestaflare · 详情页价格段视觉方案对比</title>
+<title>Fiestaflare · 详情页价格段视觉方向（第 4 轮 · 5 个方向）</title>
 <style>
   :root{
-    --ink:#111214; --muted:#6b7280; --line:#e5e7eb;
-    --font: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
-    --serif: "Didot", "Bodoni MT", Georgia, "Songti SC", serif;
+    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+    --serif:"Didot","Bodoni MT",Georgia,"Songti SC",serif;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:#f6f6f7;font-family:var(--font);color:var(--ink);padding:32px 20px 80px}
-  .wrap{max-width:1180px;margin:0 auto}
-  h1{font-size:26px;margin:0 0 6px}
-  .sub{color:var(--muted);font-size:14px;margin:0 0 28px;line-height:1.7}
-  .note{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 16px;font-size:13px;color:#444;margin-bottom:26px;line-height:1.8}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:26px}
-  .cell{background:#fff;border:1px solid var(--line);border-radius:18px;padding:18px}
-  .tag{display:inline-block;font-size:12px;font-weight:700;letter-spacing:.04em;padding:4px 10px;border-radius:999px;background:#111;color:#fff;margin-bottom:6px}
-  .tag.cur{background:#6b7280}
-  .title{font-size:17px;font-weight:700;margin:2px 0 4px}
-  .desc{font-size:12.5px;color:var(--muted);line-height:1.7;margin:0 0 16px}
-  .mock{border-radius:14px;overflow:hidden}
+  body{margin:0;background:#f5f5f6;font-family:var(--font);color:#111;padding:30px 18px 70px}
+  .wrap{max-width:1200px;margin:0 auto}
+  h1{font-size:25px;margin:0 0 6px}
+  .sub{color:#6b7280;font-size:14px;line-height:1.7;margin:0 0 24px}
+  .note{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:13px 17px;font-size:13px;line-height:1.9;color:#333;margin-bottom:24px}
+  .note b{color:#111}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:24px}
+  .cell{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px}
+  .tag{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.05em;padding:4px 10px;border-radius:999px;background:#111;color:#fff}
+  .tag.cur{background:#9ca3af}
+  .title{font-size:16.5px;font-weight:800;margin:7px 0 3px}
+  .desc{font-size:12.5px;color:#6b7280;line-height:1.75;margin:0 0 14px}
+  .mock{border-radius:12px;overflow:hidden}
+  .pad{padding:22px}
+  .price{font-weight:800;letter-spacing:-.02em}
+  .old{text-decoration:line-through}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chips span{font-size:13.5px;padding:8px 13px}
 
-  /* ---------- 当前线上：方案4 珍珠白 + 柔光虹彩 ---------- */
-  .cur-box{position:relative;overflow:hidden;border-radius:22px;padding:22px;
+  /* ===== 0 现状 ===== */
+  .cur-box{position:relative;overflow:hidden;border-radius:20px;padding:22px;
     background:linear-gradient(135deg,#fff 0%,#FDFBFF 45%,#F4F1FF 100%);
     border:1px solid #fff;box-shadow:0 18px 40px -22px rgba(99,102,241,.35)}
-  .cur-box::before{content:"";position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(90% 90% at 8% 0%, rgba(244,114,182,.16), transparent 60%)}
-  .cur-box::after{content:"";position:absolute;inset:0;pointer-events:none;
-    background:radial-gradient(100% 100% at 95% 100%, rgba(167,139,250,.14), transparent 62%)}
+  .cur-box::before{content:"";position:absolute;inset:0;background:radial-gradient(90% 90% at 8% 0%,rgba(244,114,182,.16),transparent 60%)}
+  .cur-box::after{content:"";position:absolute;inset:0;background:radial-gradient(100% 100% at 95% 100%,rgba(167,139,250,.14),transparent 62%)}
   .cur-box>*{position:relative}
-  .price{font-size:38px;font-weight:800;letter-spacing:-.02em;color:#0f172a;filter:drop-shadow(0 0 22px rgba(139,92,246,.22))}
-  .old{font-size:19px;color:#94a3b8;text-decoration:line-through;margin-left:10px}
-  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px;font-size:13px}
-  .tiers div{text-align:center;padding:9px;border-radius:12px;background:rgba(255,255,255,.7);border:1px solid #eef1f5;color:#475569}
-  .tiers div.mid{background:linear-gradient(135deg,#fbcfe8,#ddd6fe 50%,#bae6fd);color:#0f172a;border-color:#fff;box-shadow:0 10px 20px -12px rgba(167,139,250,.8);font-weight:700}
-  .opts{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
-  .opts span{font-size:14px;padding:9px 14px;border-radius:12px;background:rgba(255,255,255,.7);border:1px solid #e2e8f0;color:#334155}
-  .opts span.on{background:linear-gradient(90deg,#fbcfe8,#ddd6fe,#bae6fd);color:#0f172a;font-weight:700;border-color:#fff}
+  .cur-price{font-size:36px;color:#0f172a;filter:drop-shadow(0 0 22px rgba(139,92,246,.22))}
+  .cur-old{font-size:18px;color:#94a3b8}
+  .cur-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;font-size:12.5px;color:#64748b}
+  .cur-tiers div{text-align:center;padding:9px;border-radius:12px;background:rgba(255,255,255,.72);border:1px solid #eef1f6}
+  .cur-tiers div.mid{background:linear-gradient(135deg,#fbcfe8,#ddd6fe 50%,#bae6fd);color:#0f172a;font-weight:700}
+  .cur-chips span{background:rgba(255,255,255,.72);border:1px solid #e2e8f0;color:#334155}
+  .cur-chips span.on{background:linear-gradient(90deg,#fbcfe8,#ddd6fe,#bae6fd);color:#0f172a;font-weight:700}
 
-  /* ---------- A 极简画廊 ---------- */
-  .a-box{padding:26px 26px 24px;background:#fff;border:1px solid #111;border-radius:4px}
-  .a-label{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:#111;font-weight:700}
-  .a-price{font-size:52px;font-weight:800;letter-spacing:-.035em;line-height:1.05;margin:14px 0 4px;color:#000}
-  .a-old{font-size:14px;color:#9ca3af;text-decoration:line-through}
-  .a-rule{height:1px;background:#111;margin:18px 0 16px;opacity:.85}
-  .a-tiers{display:flex;gap:26px;font-size:12.5px;color:#111}
-  .a-tiers b{display:block;font-size:16px;margin-top:3px}
-  .a-tiers span{color:#9ca3af;letter-spacing:.04em}
-  .a-opts{display:flex;gap:0;border-top:1px solid #111;border-bottom:1px solid #111;margin-top:18px}
-  .a-opts span{flex:1;text-align:center;padding:11px 4px;font-size:13.5px;color:#111;border-right:1px solid #e5e7eb}
-  .a-opts span:last-child{border-right:0}
-  .a-opts span.on{background:#111;color:#fff;font-weight:700}
+  /* ===== 1 无卡片 纯文字行 ===== */
+  .n{padding:26px 4px;background:#fff}
+  .n-kick{font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:#111;font-weight:700}
+  .n-price{font-size:46px;line-height:1;margin:14px 0 5px;color:#000}
+  .n-old{font-size:15px;color:#b0b5bd}
+  .n-vols{margin-top:14px;font-size:13px;color:#555;display:flex;gap:16px;flex-wrap:wrap}
+  .n-vols b{color:#111}
+  .n-vols i{font-style:normal;color:#d7dade;margin:0 2px}
+  .n-chips{margin-top:20px;display:flex;flex-wrap:wrap;gap:0;border-top:1px solid #ececef;padding-top:12px}
+  .n-chips span{font-size:13.5px;color:#6b7280;padding:4px 12px;border-bottom:1px solid transparent}
+  .n-chips span.on{color:#000;font-weight:700;border-bottom:2px solid #000}
+  .n-cta{margin-top:20px;background:#000;color:#fff;display:inline-block;padding:12px 30px;font-size:13px;font-weight:700;letter-spacing:.06em;border-radius:2px}
 
-  /* ---------- B 暖砂轻奢 ---------- */
-  .b-box{padding:26px;border-radius:18px;background:linear-gradient(160deg,#FBF8F2 0%,#F4EEE3 100%);
-    border:1px solid #D9C9A8;box-shadow:0 20px 40px -26px rgba(120,90,40,.5);position:relative}
-  .b-box::after{content:"";position:absolute;inset:8px;border:1px solid rgba(176,141,87,.35);border-radius:12px;pointer-events:none}
-  .b-brand{font-family:var(--serif);font-size:13px;letter-spacing:.3em;color:#9A7B45;text-transform:uppercase}
-  .b-price{font-family:var(--serif);font-size:44px;color:#3B2F23;line-height:1.1;margin:12px 0 2px}
-  .b-old{font-family:var(--serif);font-size:17px;color:#B09B7C;text-decoration:line-through}
-  .b-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:18px}
-  .b-tiers div{text-align:center;padding:10px;border-radius:10px;border:1px solid #E3D5B8;background:rgba(255,255,255,.6);font-size:12.5px;color:#7A6A52}
-  .b-tiers div.mid{background:#3B2F23;border-color:#3B2F23;color:#E8D6B0}
-  .b-tiers b{display:block;font-family:var(--serif);font-size:17px;color:#3B2F23;margin-top:3px}
-  .b-tiers div.mid b{color:#E8D6B0}
-  .b-opts{display:flex;gap:9px;margin-top:18px}
-  .b-opts span{padding:9px 15px;border-radius:999px;border:1px solid #CDB68C;color:#5B4A36;background:rgba(255,255,255,.55);font-size:14px}
-  .b-opts span.on{background:#B08D57;border-color:#B08D57;color:#fff;font-weight:600}
+  /* ===== 2 价签票券 ===== */
+  .t{padding:20px;background:#FFFDF6}
+  .t-card{position:relative;background:#fff;border:1px solid #1c1c1c;border-radius:4px;overflow:hidden}
+  .t-top{background:#E23D28;color:#fff;text-align:center;padding:7px;font-size:11.5px;font-weight:800;letter-spacing:.22em}
+  .t-body{padding:20px 18px 16px;text-align:center;position:relative}
+  .t-body::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:repeating-linear-gradient(90deg,#c9c9c9 0 6px,transparent 6px 12px)}
+  .t-price{font-size:42px;color:#1c1c1c;line-height:1}
+  .t-old{font-size:15px;color:#9aa0a6;margin-top:6px}
+  .t-note{font-size:11px;letter-spacing:.14em;color:#8b9096;margin-top:10px;text-transform:uppercase}
+  .t-stubs{display:flex;background:#fff}
+  .t-stubs div{flex:1;text-align:center;padding:12px 4px;font-size:11.5px;color:#7c8288;border-right:1px dashed #dcdcdc}
+  .t-stubs div:last-child{border-right:0}
+  .t-stubs b{display:block;font-size:15px;color:#1c1c1c;margin-top:2px}
+  .t-stubs div.on{background:#1c1c1c;color:#e8e8e8}
+  .t-stubs div.on b{color:#fff}
+  .t-chips{justify-content:center;margin-top:14px}
+  .t-chips span{border:1px solid #1c1c1c;color:#1c1c1c;border-radius:2px;padding:7px 12px;font-size:13px}
+  .t-chips span.on{background:#1c1c1c;color:#fff;font-weight:700}
 
-  /* ---------- C 撞色促销 ---------- */
-  .c-box{padding:24px;border-radius:20px;background:#15171C;color:#fff;position:relative;overflow:hidden}
-  .c-flag{position:absolute;top:0;right:0;background:#FF5A3C;color:#fff;font-size:12px;font-weight:800;padding:7px 16px;border-bottom-left-radius:14px;letter-spacing:.04em}
-  .c-label{font-size:12px;color:#9AA0AC;letter-spacing:.16em;text-transform:uppercase}
-  .c-price{font-size:46px;font-weight:900;letter-spacing:-.03em;color:#FF5A3C;margin:10px 0 2px;line-height:1}
-  .c-old{font-size:17px;color:#6C7280;text-decoration:line-through}
-  .c-save{display:inline-block;margin-left:10px;font-size:13px;font-weight:800;color:#15171C;background:#FFC53D;border-radius:999px;padding:3px 11px;vertical-align:middle}
-  .c-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:18px}
-  .c-tiers div{text-align:center;padding:11px;border-radius:12px;background:#1F232B;font-size:12.5px;color:#9AA0AC}
-  .c-tiers div.mid{background:#FF5A3C;color:#fff;font-weight:800}
-  .c-tiers b{display:block;font-size:17px;margin-top:3px;color:#fff}
-  .c-opts{display:flex;gap:9px;margin-top:18px}
-  .c-opts span{padding:10px 16px;border-radius:10px;background:#1F232B;color:#D7DBE3;font-size:14px}
-  .c-opts span.on{background:#FFC53D;color:#15171C;font-weight:800}
+  /* ===== 3 霓虹暗夜 ===== */
+  .y{padding:22px;background:#05060A;position:relative;overflow:hidden}
+  .y::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(34,228,245,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(34,228,245,.09) 1px,transparent 1px);background-size:26px 26px}
+  .y>*{position:relative}
+  .y-kick{font-size:10.5px;letter-spacing:.3em;color:#22E4F5;font-weight:700;text-transform:uppercase}
+  .y-price{font-size:44px;line-height:1;margin:12px 0 4px;color:#fff;text-shadow:0 0 18px rgba(34,228,245,.75),0 0 44px rgba(255,47,176,.35)}
+  .y-old{font-size:16px;color:#5c6470}
+  .y-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:16px}
+  .y-tiers div{text-align:center;padding:10px;border:1px solid rgba(34,228,245,.28);border-radius:3px;font-size:12px;color:#7e8894;background:rgba(34,228,245,.05)}
+  .y-tiers div.on{border-color:#FF2FB0;color:#fff;background:rgba(255,47,176,.12);box-shadow:0 0 18px rgba(255,47,176,.25) inset}
+  .y-tiers b{display:block;font-size:16px;color:#fff;margin-top:2px}
+  .y-chips{margin-top:16px}
+  .y-chips span{border:1px solid rgba(255,255,255,.22);color:#9aa4b0;background:transparent}
+  .y-chips span.on{border-color:#22E4F5;color:#05060A;background:#22E4F5;font-weight:700;box-shadow:0 0 16px rgba(34,228,245,.55)}
+  .y-brk{position:absolute;width:16px;height:16px;border:1px solid #22E4F5;opacity:.7}
+  .y-brk.a{top:10px;left:10px;border-right:0;border-bottom:0}
+  .y-brk.b{bottom:10px;right:10px;border-left:0;border-top:0;border-color:#FF2FB0}
 
-  /* ---------- D 杂志分栏 ---------- */
-  .d-box{background:#fff;border:1px solid #111;border-radius:2px;overflow:hidden}
-  .d-top{display:grid;grid-template-columns:1.15fr .85fr;border-bottom:1px solid #111}
-  .d-left{padding:24px 22px 20px}
-  .d-right{padding:24px 20px;border-left:1px solid #111;background:#FAFAFA}
-  .d-kicker{font-size:11px;letter-spacing:.24em;text-transform:uppercase;font-weight:800}
-  .d-price{font-size:50px;font-weight:900;letter-spacing:-.04em;line-height:.98;margin:12px 0 6px}
-  .d-old{font-size:15px;color:#9ca3af;text-decoration:line-through}
-  .d-dot{display:inline-block;width:9px;height:9px;background:#FFD400;border-radius:50%;margin-right:8px;vertical-align:6px}
-  .d-tiers{display:flex;flex-direction:column;gap:8px;font-size:12.5px;color:#6b7280}
-  .d-tiers div{display:flex;justify-content:space-between;padding-bottom:7px;border-bottom:1px dashed #d7dbe0}
-  .d-tiers b{color:#111;font-size:14px}
-  .d-tiers div.mid b{background:#FFD400;padding:1px 7px;border-radius:3px}
-  .d-opts{display:flex;gap:8px;margin-top:16px}
-  .d-opts span{padding:9px 13px;border:1px solid #111;font-size:13.5px;color:#111}
-  .d-opts span.on{background:#111;color:#fff;font-weight:700}
-  .d-bar{height:10px;background:linear-gradient(90deg,#111 0 55%,#FFD400 55% 100%)}
-  .foot{margin-top:30px;font-size:13px;color:var(--muted);line-height:1.9}
+  /* ===== 4 波普撞色 ===== */
+  .p{padding:22px;background:#F4F1EA;position:relative;overflow:hidden}
+  .p-blk{position:absolute;left:-20px;top:-24px;width:120px;height:120px;background:#FFD400}
+  .p-cir{position:absolute;right:-30px;bottom:-34px;width:130px;height:130px;border-radius:50%;background:#2E5BFF;opacity:.92}
+  .p-rec{position:absolute;right:16px;top:18px;width:70px;height:22px;background:#FF4B3E;transform:rotate(-8deg)}
+  .p>*{position:relative}
+  .p-kick{font-size:11px;letter-spacing:.2em;font-weight:900;color:#111;display:inline-block;background:#FFD400;padding:3px 9px;border:2px solid #111}
+  .p-price{font-size:48px;line-height:.95;margin:14px 0 6px;color:#111;font-weight:900;letter-spacing:-.03em}
+  .p-old{font-size:16px;color:#6b7280}
+  .p-tiers{display:flex;gap:0;margin-top:18px;border:2px solid #111}
+  .p-tiers div{flex:1;text-align:center;padding:11px 4px;font-size:12px;color:#111;border-right:2px solid #111;background:#fff}
+  .p-tiers div:last-child{border-right:0}
+  .p-tiers div.on{background:#111;color:#FFD400;font-weight:800}
+  .p-tiers b{display:block;font-size:16px;margin-top:2px}
+  .p-chips{margin-top:16px}
+  .p-chips span{border:2px solid #111;background:#fff;color:#111;font-weight:700;padding:7px 13px;border-radius:0}
+  .p-chips span.on{background:#FF4B3E;color:#fff}
+
+  /* ===== 5 真丝绒质感 ===== */
+  .v{padding:24px;background:#0B1410;position:relative;overflow:hidden}
+  .v-tex{position:absolute;inset:0;opacity:.5;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .v-sheen{position:absolute;inset:0;background:radial-gradient(70%_50%_at_28%_8%,rgba(255,255,255,.28),transparent_60%),radial-gradient(60%_45%_at_85%_95%,rgba(212,175,55,.22),transparent_62%),linear-gradient(160deg,#0E2A20 0%,#061410 60%,#0A1F18 100%)}
+  .v>*{position:relative}
+  .v-kick{font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;color:#C9A96A;font-weight:700}
+  .v-price{font-family:var(--serif);font-size:46px;line-height:1;margin:14px 0 5px;color:#F0DFB8;text-shadow:0 2px 20px rgba(0,0,0,.6),0 0 40px rgba(212,175,55,.28)}
+  .v-old{font-family:var(--serif);font-size:16px;color:rgba(240,223,184,.45)}
+  .v-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:18px}
+  .v-tiers div{text-align:center;padding:10px;border:1px solid rgba(201,169,106,.35);border-radius:2px;font-size:12px;color:rgba(240,223,184,.6);background:rgba(0,0,0,.25)}
+  .v-tiers div.on{border-color:#C9A96A;color:#F0DFB8;background:rgba(201,169,106,.14)}
+  .v-tiers b{display:block;font-size:16px;color:#F0DFB8;margin-top:2px}
+  .v-chips{margin-top:16px}
+  .v-chips span{border:1px solid rgba(201,169,106,.4);color:rgba(240,223,184,.85);background:rgba(0,0,0,.2);border-radius:2px}
+  .v-chips span.on{background:#C9A96A;border-color:#C9A96A;color:#0B1410;font-weight:700}
+  .v-hair{position:absolute;left:24px;right:24px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(201,169,106,.8),transparent)}
+
+  .foot{margin-top:28px;font-size:13px;color:#6b7280;line-height:1.9}
+  code{background:#f1f1f3;padding:1px 5px;border-radius:4px}
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Fiestaflare · 详情页「价格段 + 变体规格」视觉方向对比</h1>
-  <p class="sub">2026-10-29 · 第 3 轮。上面是当前线上（方案4 珍珠白+柔光虹彩），下面是 4 个全新方向。<b>看完直接在飞书回我字母（A/B/C/D）或说哪块要改。</b></p>
+  <h1>详情页「价格段 + 变体规格」视觉方向 · 第 4 轮（5 个）</h1>
+  <p class="sub">2026-10-29 · 前 3 轮（曜黑 / 冰蓝 / 墨绿金 / 珍珠虹彩）你都不满意，这轮换了思路：<b>结构、材质、明暗、用途全部拉开</b>，不再是一套卡片换配色。</p>
 
   <div class="note">
-    <b>4 个新方向刻意换了「结构」，不只是换颜色：</b><br/>
-    <b>A 极简画廊</b> —— 白底 + 1px 黑边 + 巨大黑字，几乎零装饰，靠留白和字体说话（Apple / 高端站做法）<br/>
-    <b>B 暖砂轻奢</b> —— 米白砂色 + 棕金描边 + 衬线数字 + 内嵌金线框（饰品/轻奢最贴）<br/>
-    <b>C 撞色促销</b> —— 深墨底 + 珊瑚橙高饱和 + 黄色折扣徽章，转化向、视觉冲击最强<br/>
-    <b>D 杂志分栏</b> —— 黑白大字 + 一个亮黄点缀，价格与阶梯价左右分栏（lookbook 感）
+    <b>1 无卡片纯文字行</b> —— 干脆不做容器，一行大字价格 + 划线价，阶梯价写成一行小字，变体是文字链。最像 COS / Aritzia。<br/>
+    <b>2 价签票券</b> —— 白纸底 + 红头「SALE」+ 虚线撕口 + 票根式阶梯价，像一张实物价签。<br/>
+    <b>3 霓虹暗夜</b> —— 近黑底 + 青色网格 + 荧光青/品红发光，潮玩街头感。<br/>
+    <b>4 波普撞色</b> —— 米白底 + 黄/蓝/红几何色块 + 粗黑描边，设计感强、辨识度高。<br/>
+    <b>5 真丝绒质感</b> —— <b>真·噪点纤维纹理</b>（不是渐变冒充）+ 扫过的高光 + 香槟金细线，最像实物丝绒。<br/>
+    <span style="color:#6b7280">（备选方向，先不做图，你点名我再做：日式和纸风 · 液态金属铬金 · 扁平插画手绘风 · 极简全白无任何线条）</span>
   </div>
 
   <div class="grid">
 
-    <!-- 当前线上 -->
+    <!-- 0 现状 -->
     <div class="cell">
       <span class="tag cur">当前线上</span>
       <div class="title">方案 4 · 珍珠白 + 柔光虹彩</div>
-      <p class="desc">你已经看过的版本，放这里当对照基准。</p>
+      <p class="desc">你已看过的版本，放这当基准。</p>
       <div class="mock">
         <div class="cur-box">
-          <div class="price">$12.99 <span class="old">$19.99</span></div>
-          <div class="tiers">
-            <div><span>1-2 pcs</span><br><b>$12.99</b></div>
-            <div class="mid"><span>3-9 pcs</span><br><b>$10.99</b></div>
-            <div><span>10+ pcs</span><br><b>$9.49</b></div>
+          <div class="price cur-price">$12.99 <span class="old cur-old">$19.99</span></div>
+          <div class="cur-tiers">
+            <div>1-2 pcs<br><b>$12.99</b></div><div class="mid">3-9 pcs<br><b>$10.99</b></div><div>10+ pcs<br><b>$9.49</b></div>
           </div>
-          <div class="opts"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+          <div class="chips cur-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
         </div>
       </div>
     </div>
 
-    <!-- A -->
+    <!-- 1 -->
     <div class="cell">
-      <span class="tag">A</span>
-      <div class="title">极简画廊</div>
-      <p class="desc">白底、硬边、大黑字。价格是唯一的主角，没有渐变没有光晕。最保险，也最不容易出错。</p>
-      <div class="mock">
-        <div class="a-box">
-          <div class="a-label">Sale Price</div>
-          <div class="a-price">$12.99</div>
-          <div class="a-old">$19.99</div>
-          <div class="a-rule"></div>
-          <div class="a-tiers">
-            <div><span>1–2 PCS</span><b>$12.99</b></div>
-            <div><span>3–9 PCS</span><b>$10.99</b></div>
-            <div><span>10+ PCS</span><b>$9.49</b></div>
-          </div>
-          <div class="a-opts"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
-        </div>
-      </div>
+      <span class="tag">1</span>
+      <div class="title">无卡片 · 纯文字行</div>
+      <p class="desc">没有卡片、没有圆角、没有光晕。全靠字号和留白撑场，阶梯价收成一行小字。克制到极致，也最容易做得「高级」。</p>
+      <div class="mock"><div class="n">
+        <div class="n-kick">Sale price</div>
+        <div class="n-price">$12.99</div>
+        <div class="n-old">$19.99</div>
+        <div class="n-vols"><span>1-2 pcs <b>$12.99</b></span><i>|</i><span>3-9 pcs <b>$10.99</b></span><i>|</i><span>10+ pcs <b>$9.49</b></span></div>
+        <div class="n-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+        <div class="n-cta">ADD TO CART</div>
+      </div></div>
     </div>
 
-    <!-- B -->
+    <!-- 2 -->
     <div class="cell">
-      <span class="tag">B</span>
-      <div class="title">暖砂轻奢</div>
-      <p class="desc">米白砂色 + 棕金 + 衬线数字，双层金线框。首饰/轻奢品类最贴的一套气质。</p>
-      <div class="mock">
-        <div class="b-box">
-          <div class="b-brand">Fiestaflare</div>
-          <div class="b-price">$12.99 <span class="b-old">$19.99</span></div>
-          <div class="b-tiers">
-            <div><span>1-2 pcs</span><b>$12.99</b></div>
-            <div class="mid"><span>3-9 pcs</span><b>$10.99</b></div>
-            <div><span>10+ pcs</span><b>$9.49</b></div>
+      <span class="tag">2</span>
+      <div class="title">价签票券</div>
+      <p class="desc">做成一张实物价签：红头 SALE、虚线撕口、票根式阶梯价。零售感强，比「卡片」更有故事。</p>
+      <div class="mock"><div class="t">
+        <div class="t-card">
+          <div class="t-top">SALE · LIMITED STOCK</div>
+          <div class="t-body">
+            <div class="t-price">$12.99</div>
+            <div class="t-old">$19.99</div>
+            <div class="t-note">Wholesale price · tiered</div>
           </div>
-          <div class="b-opts"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+          <div class="t-stubs">
+            <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
+          </div>
+          <div class="chips t-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
         </div>
-      </div>
+      </div></div>
     </div>
 
-    <!-- C -->
+    <!-- 3 -->
     <div class="cell">
-      <span class="tag">C</span>
-      <div class="title">撞色促销</div>
-      <p class="desc">深墨底 + 珊瑚橙大价格 + 黄色折扣角标 + 实心按钮。最抓眼，转化向，但和「轻奢」气质相反。</p>
-      <div class="mock">
-        <div class="c-box">
-          <div class="c-flag">-35% OFF</div>
-          <div class="c-label">Bulk Price</div>
-          <div class="c-price">$12.99 <span class="c-save">Save $7</span></div>
-          <div class="c-old">$19.99</div>
-          <div class="c-tiers">
-            <div>1-2 pcs<b>$12.99</b></div>
-            <div class="mid">3-9 pcs<b>$10.99</b></div>
-            <div>10+ pcs<b>$9.49</b></div>
-          </div>
-          <div class="c-opts"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+      <span class="tag">3</span>
+      <div class="title">霓虹暗夜</div>
+      <p class="desc">近黑底 + 青色网格 + 荧光发光文字和按钮，角落加取景框标记。潮玩 / 街头 / Y2K 那套。</p>
+      <div class="mock"><div class="y">
+        <span class="y-brk a"></span><span class="y-brk b"></span>
+        <div class="y-kick">Wholesale · Live</div>
+        <div class="y-price">$12.99</div>
+        <div class="y-old">$19.99</div>
+        <div class="y-tiers">
+          <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
         </div>
-      </div>
+        <div class="chips y-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+      </div></div>
     </div>
 
-    <!-- D -->
+    <!-- 4 -->
     <div class="cell">
-      <span class="tag">D</span>
-      <div class="title">杂志分栏</div>
-      <p class="desc">黑白大字 + 一个亮黄点缀，价格与阶梯价左右分栏。有点 lookbook 的设计感。</p>
-      <div class="mock">
-        <div class="d-box">
-          <div class="d-top">
-            <div class="d-left">
-              <div class="d-kicker"><span class="d-dot"></span>Bulk Price</div>
-              <div class="d-price">$12.99</div>
-              <div class="d-old">$19.99</div>
-              <div class="d-opts"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
-            </div>
-            <div class="d-right">
-              <div class="d-kicker" style="color:#6b7280">Volume</div>
-              <div class="d-tiers" style="margin-top:12px">
-                <div><span>1-2 pcs</span><b>$12.99</b></div>
-                <div class="mid"><span>3-9 pcs</span><b>$10.99</b></div>
-                <div><span>10+ pcs</span><b>$9.49</b></div>
-              </div>
-            </div>
-          </div>
-          <div class="d-bar"></div>
+      <span class="tag">4</span>
+      <div class="title">波普撞色</div>
+      <p class="desc">米白底上压黄块、蓝圆、红条，配 2px 粗黑描边和方角。辨识度最高，一眼就记住。</p>
+      <div class="mock"><div class="p">
+        <span class="p-blk"></span><span class="p-cir"></span><span class="p-rec"></span>
+        <div class="p-kick">BULK PRICE</div>
+        <div class="p-price">$12.99</div>
+        <div class="p-old">$19.99</div>
+        <div class="p-tiers">
+          <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
         </div>
-      </div>
+        <div class="chips p-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+      </div></div>
+    </div>
+
+    <!-- 5 -->
+    <div class="cell">
+      <span class="tag">5</span>
+      <div class="title">真丝绒质感</div>
+      <p class="desc">用 SVG 噪点做**真纤维纹理** + 一道扫过的高光 + 香槟金细线。比之前那版「墨绿渐变」更像实物丝绒。</p>
+      <div class="mock"><div class="v">
+        <span class="v-sheen"></span><span class="v-tex"></span><span class="v-hair"></span>
+        <div class="v-kick">Fiestaflare</div>
+        <div class="v-price">$12.99</div>
+        <div class="v-old">$19.99</div>
+        <div class="v-tiers">
+          <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
+        </div>
+        <div class="chips v-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+      </div></div>
     </div>
 
   </div>
 
   <div class="foot">
-    说明：这是<b>静态预览页</b>（纯 HTML/CSS，不影响线上前台）。选中后我再把对应样式落到 <code>app/(shop)/products/[slug]/page.tsx</code>，并按之前的方式做线上验证（chunk grep + CSS 编译检查）。<br/>
-    目录里没给到的方向之外，你也可以直接说「A 但底色改成 X / B 但不要双层框」这种改法，我按你的话改。
+    静态预览页（纯 HTML/CSS，<b>不影响线上前台</b>）。回我编号 <b>1~5</b> 即可；也可以说「5 但高光不要」这种改法。<br/>
+    选定后我再落到 <code>app/(shop)/products/[slug]/page.tsx</code>，并按老规矩做线上验证（chunk grep + CSS 编译检查 + 线上 CSS 确认纹理/渐变真的生效）。
   </div>
 </div>
 </body>
