@@ -543,32 +543,32 @@ export default function ProductDetailPage() {
               )}
 
               {/* Price Display */}
-              {/* ★ 2026-10-29 16:35 价格段视觉 → 配色「苹果红 + 米白」× 样式第一版卡片式
-                  · 底色：苹果红渐变（#8E1A1C → #C8322F → #6E1113）
+              {/* ★ 2026-10-29 16:35 价格段视觉 → 配色「靛蓝牛仔 + 燕麦白」× 样式第一版卡片式
+                  · 底色：靛蓝渐变（#23395B → #3E5C86 → #16233A）
                   · 样式/特效：第一版卡片式 —— 两层径向柔光 + 两枚角落光晕 + 顶部高光细线 + 圆角投影
-                  · 描边与强调色：米白 #FDF6EC；价格米白 #FDF6EC
+                  · 描边与强调色：燕麦白 #EDE3D2；价格燕麦白 #F4EFE4
                   · 变体规格区 = 内嵌子卡（同一套语言）
               */}
               <div className="relative overflow-hidden rounded-3xl mb-6 p-6
-                              bg-gradient-to-br from-[#8E1A1C] via-[#C8322F] to-[#6E1113]
-                              border border-[#FDF6EC]/30 shadow-2xl shadow-[#4A0B0D]/60">
+                              bg-gradient-to-br from-[#23395B] via-[#3E5C86] to-[#16233A]
+                              border border-[#EDE3D2]/30 shadow-2xl shadow-[#0D1626]/60">
                 {/* 径向柔光 */}
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_12%_0%,rgba(253,246,236,0.18),transparent_60%)]" />
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_100%_at_95%_100%,rgba(224,101,95,0.22),transparent_62%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_12%_0%,rgba(237,227,210,0.18),transparent_60%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_100%_at_95%_100%,rgba(143,168,200,0.22),transparent_62%)]" />
                 {/* 角落光晕 */}
-                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#FDF6EC]/20 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-[#E0655F]/25 blur-3xl" />
+                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#EDE3D2]/20 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-[#8FA8C8]/25 blur-3xl" />
                 {/* 顶部高光描边 */}
-                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#FDF6EC]/60 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#EDE3D2]/60 to-transparent" />
 
                 <div className="relative">
                   <div className="flex items-baseline gap-3 mb-4">
-                    <span className="text-4xl font-extrabold tracking-tight text-[#FDF6EC]
-                                     drop-shadow-[0_0_26px_rgba(255,220,200,0.34)]">
+                    <span className="text-4xl font-extrabold tracking-tight text-[#F4EFE4]
+                                     drop-shadow-[0_0_26px_rgba(210,225,240,0.34)]">
                       {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
                     </span>
                     {product.comparePrice && (
-                      <span className="text-xl text-[#FDF6EC]/40 line-through">
+                      <span className="text-xl text-[#F4EFE4]/40 line-through">
                         {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
                       </span>
                     )}
@@ -580,18 +580,18 @@ export default function ProductDetailPage() {
                       <div key={idx} className={cn(
                         "text-center p-3 rounded-xl transition-all duration-200",
                         idx === 1
-                          ? "bg-[linear-gradient(135deg,#FDF6EC,#D9C3AE)] text-[#8A1A1C] shadow-lg shadow-[#D9C3AE]/30 scale-[1.03] ring-1 ring-[#8A1A1C]/20"
-                          : "bg-white/[0.06] border border-[#FDF6EC]/20 text-[#FDF6EC] backdrop-blur-md"
+                          ? "bg-[linear-gradient(135deg,#EDE3D2,#B9B09C)] text-[#1E3454] shadow-lg shadow-[#B9B09C]/30 scale-[1.03] ring-1 ring-[#1E3454]/20"
+                          : "bg-white/[0.06] border border-[#EDE3D2]/20 text-[#F4EFE4] backdrop-blur-md"
                       )}>
                         <div className={cn(
                           "font-semibold mb-1",
-                          idx === 1 ? "text-[#8A1A1C]/70" : idx === 2 ? "text-[#FDF6EC]" : "text-[#FDF6EC]/60"
+                          idx === 1 ? "text-[#1E3454]/70" : idx === 2 ? "text-[#F4EFE4]" : "text-[#F4EFE4]/60"
                         )}>
                           {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
                         </div>
                         <div className={cn(
                           "font-semibold",
-                          idx === 1 ? "text-[#8A1A1C]" : idx === 2 ? "text-[#FDF6EC]" : "text-[#FDF6EC]"
+                          idx === 1 ? "text-[#1E3454]" : idx === 2 ? "text-[#F4EFE4]" : "text-[#F4EFE4]"
                         )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
                       </div>
                     ))}
@@ -603,19 +603,19 @@ export default function ProductDetailPage() {
               {product.variants && product.variants.length > 0 && (
                 // ★ 湖水青配色 × 第一版卡片式（内嵌子卡）
                 <div className="relative overflow-hidden mb-6 space-y-4 rounded-3xl p-5
-                                bg-[#8E1A1C]/70 backdrop-blur-xl
-                                border border-[#FDF6EC]/20 shadow-2xl shadow-[#4A0B0D]/50">
+                                bg-[#23395B]/70 backdrop-blur-xl
+                                border border-[#EDE3D2]/20 shadow-2xl shadow-[#0D1626]/50">
                   {/* 卡内柔光 */}
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_20%_0%,rgba(253,246,236,0.12),transparent_62%)]" />
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_90%_100%,rgba(224,101,95,0.12),transparent_62%)]" />
-                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-[#FDF6EC]/15 blur-3xl" />
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_20%_0%,rgba(237,227,210,0.12),transparent_62%)]" />
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_90%_100%,rgba(143,168,200,0.12),transparent_62%)]" />
+                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-[#EDE3D2]/15 blur-3xl" />
                   <div className="relative">
                     {variantRows.length > 0 ? variantRows.map((row) => {
                       const isFirstRow = row === variantRows[0]
                       const currentVal = variantSelection[row.name] || ''
                       return (
                         <div key={row.name}>
-                          <label className="block text-sm font-medium text-[#FDF6EC]/70 mb-2">
+                          <label className="block text-sm font-medium text-[#F4EFE4]/70 mb-2">
                             {row.name}
                           </label>
                           <div className="flex flex-wrap gap-2">
@@ -638,8 +638,8 @@ export default function ProductDetailPage() {
                                   className={cn(
                                     'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                                     isActive
-                                      ? 'bg-[linear-gradient(135deg,#FDF6EC,#D9C3AE)] text-[#8A1A1C] shadow-lg shadow-[#D9C3AE]/30 scale-[1.03] ring-1 ring-[#8A1A1C]/20'
-                                      : 'bg-white/[0.06] border border-[#FDF6EC]/30 text-[#FDF6EC] hover:bg-white/[0.12] hover:border-[#FDF6EC]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#6E1113]/50',
+                                      ? 'bg-[linear-gradient(135deg,#EDE3D2,#B9B09C)] text-[#1E3454] shadow-lg shadow-[#B9B09C]/30 scale-[1.03] ring-1 ring-[#1E3454]/20'
+                                      : 'bg-white/[0.06] border border-[#EDE3D2]/30 text-[#F4EFE4] hover:bg-white/[0.12] hover:border-[#EDE3D2]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#16233A]/50',
                                     disabled && 'opacity-40 cursor-not-allowed'
                                   )}
                                 >
@@ -656,7 +656,7 @@ export default function ProductDetailPage() {
                       )
                     }) : (
                       <div>
-                        <label className="block text-sm font-medium text-[#FDF6EC]/70 mb-2">
+                        <label className="block text-sm font-medium text-[#F4EFE4]/70 mb-2">
                           {product.variants[0].name}
                         </label>
                         <div className="flex flex-wrap gap-2">
@@ -667,8 +667,8 @@ export default function ProductDetailPage() {
                               className={cn(
                                 'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                                 selectedVariant === variant.id
-                                  ? 'bg-[linear-gradient(135deg,#FDF6EC,#D9C3AE)] text-[#8A1A1C] shadow-lg shadow-[#D9C3AE]/30 scale-[1.03] ring-1 ring-[#8A1A1C]/20'
-                                  : 'bg-white/[0.06] border border-[#FDF6EC]/30 text-[#FDF6EC] hover:bg-white/[0.12] hover:border-[#FDF6EC]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#6E1113]/50'
+                                  ? 'bg-[linear-gradient(135deg,#EDE3D2,#B9B09C)] text-[#1E3454] shadow-lg shadow-[#B9B09C]/30 scale-[1.03] ring-1 ring-[#1E3454]/20'
+                                  : 'bg-white/[0.06] border border-[#EDE3D2]/30 text-[#F4EFE4] hover:bg-white/[0.12] hover:border-[#EDE3D2]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#16233A]/50'
                               )}
                             >
                               {variant.value}
