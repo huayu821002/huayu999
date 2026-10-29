@@ -543,66 +543,69 @@ export default function ProductDetailPage() {
               )}
 
               {/* Price Display + Variants —— 合并为同一张大卡片 */}
-              {/* ★ 2026-10-29 17:30 价格段视觉 → 配色「石墨黑 + 电光紫」× 样式第一版卡片式
-                  · 底色：石墨黑渐变（#141319 → #262230 → #0A0A0E）
-                  · 样式/特效：第一版卡片式 —— 两层径向柔光 + 两枚角落光晕 + 顶部高光细线 + 圆角投影
-                  · 描边与强调色：电光紫 #B98CFF；价格淡紫白 #EDE7F7
-                  · ★ 价格段与变体规格合并在同一张大卡片内（中间用一条发光细线分隔）
+              {/* ★ 2026-10-29 17:52 大卡片底色改「暖色」= 焦糖琥珀棕
+                  · 卡片底色：焦糖棕渐变（#3A2617 → #6B4A2A → #1E120A）—— 唯一的变量
+                  · 按钮底色不变：中间档 + 选中态仍是电光紫渐变（#CDAAFF → #7E4FD6）
+                  · 特效不变：两层径向柔光 + 两枚角落光晕 + 顶部高光细线 + 圆角投影 + 发光分隔线
+                  · 描边/强调色：琥珀金 #E0A85C；价格暖奶白 #F6E9D6
+                  · 阶梯三档：每一档都有自己的圆角实心底色（深焦糖 / 电光紫 / 中焦糖）
               */}
               <div className="relative overflow-hidden rounded-3xl mb-6 p-6
-                              bg-gradient-to-br from-[#141319] via-[#262230] to-[#0A0A0E]
-                              border border-[#B98CFF]/28 shadow-2xl shadow-[#000000]/70">
+                              bg-gradient-to-br from-[#3A2617] via-[#6B4A2A] to-[#1E120A]
+                              border border-[#E0A85C]/28 shadow-2xl shadow-[#150C05]/70">
                 {/* 径向柔光 */}
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_12%_0%,rgba(185,140,255,0.18),transparent_60%)]" />
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_100%_at_95%_100%,rgba(108,82,168,0.22),transparent_62%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_12%_0%,rgba(224,168,92,0.18),transparent_60%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_100%_at_95%_100%,rgba(176,113,58,0.22),transparent_62%)]" />
                 {/* 角落光晕 */}
-                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#B98CFF]/20 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-[#6C52A8]/25 blur-3xl" />
+                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#E0A85C]/20 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-[#B0713A]/25 blur-3xl" />
                 {/* 顶部高光描边 */}
-                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#B98CFF]/60 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#E0A85C]/60 to-transparent" />
 
                 <div className="relative">
                   {/* ---- 价格 ---- */}
                   <div className="flex items-baseline gap-3 mb-4">
-                    <span className="text-4xl font-extrabold tracking-tight text-[#EDE7F7]
-                                     drop-shadow-[0_0_26px_rgba(185,140,255,0.42)]">
+                    <span className="text-4xl font-extrabold tracking-tight text-[#F6E9D6]
+                                     drop-shadow-[0_0_26px_rgba(255,205,140,0.38)]">
                       {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
                     </span>
                     {product.comparePrice && (
-                      <span className="text-xl text-[#EDE7F7]/40 line-through">
+                      <span className="text-xl text-[#F6E9D6]/40 line-through">
                         {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
                       </span>
                     )}
                   </div>
 
-                  {/* 阶梯价 */}
+                  {/* 阶梯价 —— 每档一个圆角按钮底色 */}
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     {tiers.map((tier, idx) => (
                       <div key={idx} className={cn(
                         "text-center p-3 rounded-xl transition-all duration-200",
                         idx === 1
                           ? "bg-[linear-gradient(135deg,#CDAAFF,#7E4FD6)] text-[#120A1C] shadow-lg shadow-[#7E4FD6]/40 scale-[1.03] ring-1 ring-[#120A1C]/30"
-                          : "bg-white/[0.06] border border-[#B98CFF]/22 text-[#EDE7F7] backdrop-blur-md"
+                          : idx === 0
+                            ? "bg-[#4A3220] border border-[#E0A85C]/25 text-[#F6E9D6] backdrop-blur-md"
+                            : "bg-[#5A3E27] border border-[#E0A85C]/30 text-[#F6E9D6] backdrop-blur-md"
                       )}>
                         <div className={cn(
                           "font-semibold mb-1",
-                          idx === 1 ? "text-[#120A1C]/70" : idx === 2 ? "text-[#EDE7F7]" : "text-[#EDE7F7]/60"
+                          idx === 1 ? "text-[#120A1C]/70" : idx === 2 ? "text-[#E0A85C]" : "text-[#F6E9D6]/60"
                         )}>
                           {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
                         </div>
                         <div className={cn(
                           "font-semibold",
-                          idx === 1 ? "text-[#120A1C]" : idx === 2 ? "text-[#EDE7F7]" : "text-[#EDE7F7]"
+                          idx === 1 ? "text-[#120A1C]" : idx === 2 ? "text-[#F6E9D6]" : "text-[#F6E9D6]"
                         )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
                       </div>
                     ))}
                   </div>
 
-                  {/* ---- 变体规格（同一张大卡片内） ---- */}
+                  {/* ---- 变体规格（同一张大卡片内，按钮底色不变） ---- */}
                   {product.variants && product.variants.length > 0 && (
                     <div className="mt-6 pt-5">
                       {/* 发光分隔线 */}
-                      <div className="pointer-events-none h-px w-full bg-gradient-to-r from-transparent via-[#B98CFF]/40 to-transparent" />
+                      <div className="pointer-events-none h-px w-full bg-gradient-to-r from-transparent via-[#E0A85C]/40 to-transparent" />
                       <div className="space-y-4">
                         {variantRows.length > 0 ? variantRows.map((row) => {
                           const currentVal = variantSelection[row.name] || ''
@@ -632,7 +635,7 @@ export default function ProductDetailPage() {
                                         'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                                         isActive
                                           ? 'bg-[linear-gradient(135deg,#CDAAFF,#7E4FD6)] text-[#120A1C] shadow-lg shadow-[#7E4FD6]/40 scale-[1.03] ring-1 ring-[#120A1C]/30'
-                                          : 'bg-white/[0.06] border border-[#B98CFF]/28 text-[#EDE7F7] hover:bg-white/[0.12] hover:border-[#B98CFF]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#0A0A0E]/70',
+                                          : 'bg-white/[0.06] border border-[#B98CFF]/28 text-[#EDE7F7] hover:bg-white/[0.12] hover:border-[#B98CFF]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#1E120A]/60',
                                         disabled && 'opacity-40 cursor-not-allowed'
                                       )}
                                     >
@@ -661,7 +664,7 @@ export default function ProductDetailPage() {
                                     'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                                     selectedVariant === variant.id
                                       ? 'bg-[linear-gradient(135deg,#CDAAFF,#7E4FD6)] text-[#120A1C] shadow-lg shadow-[#7E4FD6]/40 scale-[1.03] ring-1 ring-[#120A1C]/30'
-                                      : 'bg-white/[0.06] border border-[#B98CFF]/28 text-[#EDE7F7] hover:bg-white/[0.12] hover:border-[#B98CFF]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#0A0A0E]/70'
+                                      : 'bg-white/[0.06] border border-[#B98CFF]/28 text-[#EDE7F7] hover:bg-white/[0.12] hover:border-[#B98CFF]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#1E120A]/60'
                                   )}
                                 >
                                   {variant.value}
