@@ -543,60 +543,55 @@ export default function ProductDetailPage() {
               )}
 
               {/* Price Display */}
-              {/* ★ 2026-10-29 15:50 价格段视觉 → 方案 B「蜡封印章」（摩卡咖啡 + 焦糖）
-                  · 深摩卡信笺底 + SVG 噪点颗粒 + 右上角浮雕蜡封章
-                  · 价格香槟金 #F0DDB6；阶梯价中间档 = 香槟金渐变
-                  · 变体规格区同一套语言（深摩卡底 + 金边 + 噪点）
+              {/* ★ 2026-10-29 16:35 价格段视觉 → 配色「湖水青 + 奶白」× 样式回第一版卡片式
+                  · 底色：湖水青渐变（#0E4C52 → #1B6E70 → #06262A）
+                  · 样式/特效：第一版卡片式 —— 两层径向柔光 + 两枚角落光晕 + 顶部高光细线 + 圆角投影
+                  · 描边与强调色：青绿 #7FD4D0；价格奶白 #F2F7F4
+                  · 变体规格区 = 内嵌子卡（同一套语言）
               */}
-              <div className="relative overflow-hidden rounded-lg mb-6 p-6
-                              bg-[linear-gradient(150deg,rgba(88,58,34,0.55),rgba(46,30,18,0.85))]
-                              border border-[#D6AF6E]/30 shadow-2xl shadow-[#2A1C11]/40">
-                {/* 噪点颗粒 */}
-                <div className="pointer-events-none absolute inset-0 opacity-35 mix-blend-overlay"
-                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
-                {/* 蜡封印章 */}
-                <div className="pointer-events-none absolute right-5 top-5 w-[74px] h-[74px] rounded-full
-                                bg-[radial-gradient(circle_at_34%_30%,#A8483A,#7A2A20_55%,#541812)]
-                                shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_-3px_8px_rgba(0,0,0,0.35),inset_0_3px_6px_rgba(255,255,255,0.18)]
-                                flex items-center justify-center">
-                  <span className="font-serif text-2xl font-extrabold text-[#E8C9A0]">F</span>
-                  <span className="absolute inset-[7px] rounded-full border border-dashed border-[#E8C9A0]/55" />
-                </div>
+              <div className="relative overflow-hidden rounded-3xl mb-6 p-6
+                              bg-gradient-to-br from-[#0E4C52] via-[#1B6E70] to-[#06262A]
+                              border border-[#7FD4D0]/30 shadow-2xl shadow-[#04201F]/60">
+                {/* 径向柔光 */}
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_12%_0%,rgba(127,212,208,0.18),transparent_60%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_100%_at_95%_100%,rgba(90,165,168,0.22),transparent_62%)]" />
+                {/* 角落光晕 */}
+                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#7FD4D0]/20 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-[#5AA5A8]/25 blur-3xl" />
+                {/* 顶部高光描边 */}
+                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#7FD4D0]/60 to-transparent" />
 
-                <div className="relative pr-24">
-                  <div className="text-[10.5px] font-bold uppercase tracking-[0.32em] text-[#D6AF6E] mb-3">
-                    Fiestaflare · Wholesale
-                  </div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="text-4xl font-extrabold tracking-tight text-[#F0DDB6]"
-                          style={{ textShadow: '0 2px 18px rgba(214,175,110,0.40)' }}>
+                <div className="relative">
+                  <div className="flex items-baseline gap-3 mb-4">
+                    <span className="text-4xl font-extrabold tracking-tight text-[#F2F7F4]
+                                     drop-shadow-[0_0_26px_rgba(150,225,220,0.34)]">
                       {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
                     </span>
                     {product.comparePrice && (
-                      <span className="text-xl text-[#F0DDB6]/45 line-through">
+                      <span className="text-xl text-[#F2F7F4]/40 line-through">
                         {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
                       </span>
                     )}
                   </div>
 
                   {/* Tier Prices */}
-                  <div className="grid grid-cols-3 gap-2 text-xs mt-5">
+                  <div className="grid grid-cols-3 gap-2 text-sm">
                     {tiers.map((tier, idx) => (
                       <div key={idx} className={cn(
-                        "text-center p-3 rounded-lg transition-all duration-200",
+                        "text-center p-3 rounded-xl transition-all duration-200",
                         idx === 1
-                          ? "bg-[linear-gradient(135deg,#D6AF6E,#A87A3C)] text-[#2A1C11] font-bold shadow-lg shadow-[#A87A3C]/30"
-                          : "bg-white/[0.05] border border-[#D6AF6E]/20 text-[#F0DDB6]"
+                          ? "bg-[linear-gradient(135deg,#7FD4D0,#3C8F8E)] text-[#06262A] shadow-lg shadow-[#3C8F8E]/30 scale-[1.03] ring-1 ring-white/20"
+                          : "bg-white/[0.06] border border-[#7FD4D0]/20 text-[#F2F7F4] backdrop-blur-md"
                       )}>
                         <div className={cn(
                           "font-semibold mb-1",
-                          idx === 1 ? "text-[#2A1C11]/70" : idx === 2 ? "text-[#D6AF6E]" : "text-[#F0DDB6]/50"
+                          idx === 1 ? "text-[#06262A]/70" : idx === 2 ? "text-[#7FD4D0]" : "text-[#F2F7F4]/60"
                         )}>
                           {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
                         </div>
                         <div className={cn(
                           "font-semibold",
-                          idx === 1 ? "text-[#2A1C11]" : idx === 2 ? "text-[#D6AF6E]" : "text-[#F0DDB6]"
+                          idx === 1 ? "text-[#06262A]" : idx === 2 ? "text-[#7FD4D0]" : "text-[#F2F7F4]"
                         )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
                       </div>
                     ))}
@@ -606,20 +601,21 @@ export default function ProductDetailPage() {
 
               {/* Variants —— 多维度：每个维度一行；单维度：保持原样 */}
               {product.variants && product.variants.length > 0 && (
-                // ★ 方案 B「蜡封印章」：变体规格区同一套材质语言（深摩卡 + 金边 + 噪点）
-                <div className="relative overflow-hidden mb-6 space-y-4 rounded-lg p-5
-                                bg-[linear-gradient(150deg,rgba(88,58,34,0.45),rgba(46,30,18,0.75))]
-                                border border-[#D6AF6E]/25">
-                  {/* 噪点颗粒 */}
-                  <div className="pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay"
-                       style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
+                // ★ 湖水青配色 × 第一版卡片式（内嵌子卡）
+                <div className="relative overflow-hidden mb-6 space-y-4 rounded-3xl p-5
+                                bg-[#0E4C52]/70 backdrop-blur-xl
+                                border border-[#7FD4D0]/20 shadow-2xl shadow-[#04201F]/50">
+                  {/* 卡内柔光 */}
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_20%_0%,rgba(127,212,208,0.12),transparent_62%)]" />
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_90%_100%,rgba(90,165,168,0.12),transparent_62%)]" />
+                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-[#7FD4D0]/15 blur-3xl" />
                   <div className="relative">
                     {variantRows.length > 0 ? variantRows.map((row) => {
                       const isFirstRow = row === variantRows[0]
                       const currentVal = variantSelection[row.name] || ''
                       return (
                         <div key={row.name}>
-                          <label className="block text-sm font-medium text-[#F0DDB6]/70 mb-2">
+                          <label className="block text-sm font-medium text-[#F2F7F4]/70 mb-2">
                             {row.name}
                           </label>
                           <div className="flex flex-wrap gap-2">
@@ -640,10 +636,10 @@ export default function ProductDetailPage() {
                                     if (m) setSelectedVariant(m.id)
                                   }}
                                   className={cn(
-                                    'px-4 py-3 rounded-lg font-medium text-base transition-all duration-200',
+                                    'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                                     isActive
-                                      ? 'bg-[linear-gradient(135deg,#D6AF6E,#A87A3C)] text-[#2A1C11] shadow-lg shadow-[#A87A3C]/30 scale-[1.03]'
-                                      : 'bg-white/[0.05] border border-[#D6AF6E]/35 text-[#F0DDB6] hover:bg-white/[0.10] hover:border-[#D6AF6E]/60 hover:-translate-y-0.5',
+                                      ? 'bg-[linear-gradient(135deg,#7FD4D0,#3C8F8E)] text-[#06262A] shadow-lg shadow-[#3C8F8E]/30 scale-[1.03] ring-1 ring-white/20'
+                                      : 'bg-white/[0.06] border border-[#7FD4D0]/30 text-[#F2F7F4] hover:bg-white/[0.12] hover:border-[#7FD4D0]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#06262A]/50',
                                     disabled && 'opacity-40 cursor-not-allowed'
                                   )}
                                 >
@@ -660,7 +656,7 @@ export default function ProductDetailPage() {
                       )
                     }) : (
                       <div>
-                        <label className="block text-sm font-medium text-[#F0DDB6]/70 mb-2">
+                        <label className="block text-sm font-medium text-[#F2F7F4]/70 mb-2">
                           {product.variants[0].name}
                         </label>
                         <div className="flex flex-wrap gap-2">
@@ -669,10 +665,10 @@ export default function ProductDetailPage() {
                               key={variant.id}
                               onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
                               className={cn(
-                                'px-4 py-3 rounded-lg font-medium text-base transition-all duration-200',
+                                'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                                 selectedVariant === variant.id
-                                  ? 'bg-[linear-gradient(135deg,#D6AF6E,#A87A3C)] text-[#2A1C11] shadow-lg shadow-[#A87A3C]/30 scale-[1.03]'
-                                  : 'bg-white/[0.05] border border-[#D6AF6E]/35 text-[#F0DDB6] hover:bg-white/[0.10] hover:border-[#D6AF6E]/60 hover:-translate-y-0.5'
+                                  ? 'bg-[linear-gradient(135deg,#7FD4D0,#3C8F8E)] text-[#06262A] shadow-lg shadow-[#3C8F8E]/30 scale-[1.03] ring-1 ring-white/20'
+                                  : 'bg-white/[0.06] border border-[#7FD4D0]/30 text-[#F2F7F4] hover:bg-white/[0.12] hover:border-[#7FD4D0]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#06262A]/50'
                               )}
                             >
                               {variant.value}
