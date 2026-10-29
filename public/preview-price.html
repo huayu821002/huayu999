@@ -1,264 +1,328 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
-<head>
-<meta charset="utf-8" />
+<html lang="zh-CN"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Fiestaflare · 详情页价格段视觉方向（第 4 轮 · 5 个方向）</title>
+<title>Fiestaflare · 价格段配色方案（10 组 · 特效不变）</title>
 <style>
-  :root{
-    --font:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
-    --serif:"Didot","Bodoni MT",Georgia,"Songti SC",serif;
-  }
   *{box-sizing:border-box}
-  body{margin:0;background:#f5f5f6;font-family:var(--font);color:#111;padding:30px 18px 70px}
-  .wrap{max-width:1200px;margin:0 auto}
+  body{margin:0;background:#f5f5f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#111;padding:30px 18px 70px}
+  .wrap{max-width:1240px;margin:0 auto}
   h1{font-size:25px;margin:0 0 6px}
-  .sub{color:#6b7280;font-size:14px;line-height:1.7;margin:0 0 24px}
-  .note{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:13px 17px;font-size:13px;line-height:1.9;color:#333;margin-bottom:24px}
-  .note b{color:#111}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:24px}
-  .cell{background:#fff;border:1px solid #e5e7eb;border-radius:16px;padding:16px}
-  .tag{display:inline-block;font-size:11.5px;font-weight:800;letter-spacing:.05em;padding:4px 10px;border-radius:999px;background:#111;color:#fff}
-  .tag.cur{background:#9ca3af}
-  .title{font-size:16.5px;font-weight:800;margin:7px 0 3px}
-  .desc{font-size:12.5px;color:#6b7280;line-height:1.75;margin:0 0 14px}
-  .mock{border-radius:12px;overflow:hidden}
-  .pad{padding:22px}
-  .price{font-weight:800;letter-spacing:-.02em}
-  .old{text-decoration:line-through}
-  .chips{display:flex;gap:8px;flex-wrap:wrap}
-  .chips span{font-size:13.5px;padding:8px 13px}
-
-  /* ===== 0 现状 ===== */
-  .cur-box{position:relative;overflow:hidden;border-radius:20px;padding:22px;
-    background:linear-gradient(135deg,#fff 0%,#FDFBFF 45%,#F4F1FF 100%);
-    border:1px solid #fff;box-shadow:0 18px 40px -22px rgba(99,102,241,.35)}
-  .cur-box::before{content:"";position:absolute;inset:0;background:radial-gradient(90% 90% at 8% 0%,rgba(244,114,182,.16),transparent 60%)}
-  .cur-box::after{content:"";position:absolute;inset:0;background:radial-gradient(100% 100% at 95% 100%,rgba(167,139,250,.14),transparent 62%)}
-  .cur-box>*{position:relative}
-  .cur-price{font-size:36px;color:#0f172a;filter:drop-shadow(0 0 22px rgba(139,92,246,.22))}
-  .cur-old{font-size:18px;color:#94a3b8}
-  .cur-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:14px;font-size:12.5px;color:#64748b}
-  .cur-tiers div{text-align:center;padding:9px;border-radius:12px;background:rgba(255,255,255,.72);border:1px solid #eef1f6}
-  .cur-tiers div.mid{background:linear-gradient(135deg,#fbcfe8,#ddd6fe 50%,#bae6fd);color:#0f172a;font-weight:700}
-  .cur-chips span{background:rgba(255,255,255,.72);border:1px solid #e2e8f0;color:#334155}
-  .cur-chips span.on{background:linear-gradient(90deg,#fbcfe8,#ddd6fe,#bae6fd);color:#0f172a;font-weight:700}
-
-  /* ===== 1 无卡片 纯文字行 ===== */
-  .n{padding:26px 4px;background:#fff}
-  .n-kick{font-size:10.5px;letter-spacing:.26em;text-transform:uppercase;color:#111;font-weight:700}
-  .n-price{font-size:46px;line-height:1;margin:14px 0 5px;color:#000}
-  .n-old{font-size:15px;color:#b0b5bd}
-  .n-vols{margin-top:14px;font-size:13px;color:#555;display:flex;gap:16px;flex-wrap:wrap}
-  .n-vols b{color:#111}
-  .n-vols i{font-style:normal;color:#d7dade;margin:0 2px}
-  .n-chips{margin-top:20px;display:flex;flex-wrap:wrap;gap:0;border-top:1px solid #ececef;padding-top:12px}
-  .n-chips span{font-size:13.5px;color:#6b7280;padding:4px 12px;border-bottom:1px solid transparent}
-  .n-chips span.on{color:#000;font-weight:700;border-bottom:2px solid #000}
-  .n-cta{margin-top:20px;background:#000;color:#fff;display:inline-block;padding:12px 30px;font-size:13px;font-weight:700;letter-spacing:.06em;border-radius:2px}
-
-  /* ===== 2 价签票券 ===== */
-  .t{padding:20px;background:#FFFDF6}
-  .t-card{position:relative;background:#fff;border:1px solid #1c1c1c;border-radius:4px;overflow:hidden}
-  .t-top{background:#E23D28;color:#fff;text-align:center;padding:7px;font-size:11.5px;font-weight:800;letter-spacing:.22em}
-  .t-body{padding:20px 18px 16px;text-align:center;position:relative}
-  .t-body::after{content:"";position:absolute;left:0;right:0;bottom:-1px;height:1px;background:repeating-linear-gradient(90deg,#c9c9c9 0 6px,transparent 6px 12px)}
-  .t-price{font-size:42px;color:#1c1c1c;line-height:1}
-  .t-old{font-size:15px;color:#9aa0a6;margin-top:6px}
-  .t-note{font-size:11px;letter-spacing:.14em;color:#8b9096;margin-top:10px;text-transform:uppercase}
-  .t-stubs{display:flex;background:#fff}
-  .t-stubs div{flex:1;text-align:center;padding:12px 4px;font-size:11.5px;color:#7c8288;border-right:1px dashed #dcdcdc}
-  .t-stubs div:last-child{border-right:0}
-  .t-stubs b{display:block;font-size:15px;color:#1c1c1c;margin-top:2px}
-  .t-stubs div.on{background:#1c1c1c;color:#e8e8e8}
-  .t-stubs div.on b{color:#fff}
-  .t-chips{justify-content:center;margin-top:14px}
-  .t-chips span{border:1px solid #1c1c1c;color:#1c1c1c;border-radius:2px;padding:7px 12px;font-size:13px}
-  .t-chips span.on{background:#1c1c1c;color:#fff;font-weight:700}
-
-  /* ===== 3 霓虹暗夜 ===== */
-  .y{padding:22px;background:#05060A;position:relative;overflow:hidden}
-  .y::before{content:"";position:absolute;inset:0;background-image:linear-gradient(rgba(34,228,245,.09) 1px,transparent 1px),linear-gradient(90deg,rgba(34,228,245,.09) 1px,transparent 1px);background-size:26px 26px}
-  .y>*{position:relative}
-  .y-kick{font-size:10.5px;letter-spacing:.3em;color:#22E4F5;font-weight:700;text-transform:uppercase}
-  .y-price{font-size:44px;line-height:1;margin:12px 0 4px;color:#fff;text-shadow:0 0 18px rgba(34,228,245,.75),0 0 44px rgba(255,47,176,.35)}
-  .y-old{font-size:16px;color:#5c6470}
-  .y-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:16px}
-  .y-tiers div{text-align:center;padding:10px;border:1px solid rgba(34,228,245,.28);border-radius:3px;font-size:12px;color:#7e8894;background:rgba(34,228,245,.05)}
-  .y-tiers div.on{border-color:#FF2FB0;color:#fff;background:rgba(255,47,176,.12);box-shadow:0 0 18px rgba(255,47,176,.25) inset}
-  .y-tiers b{display:block;font-size:16px;color:#fff;margin-top:2px}
-  .y-chips{margin-top:16px}
-  .y-chips span{border:1px solid rgba(255,255,255,.22);color:#9aa4b0;background:transparent}
-  .y-chips span.on{border-color:#22E4F5;color:#05060A;background:#22E4F5;font-weight:700;box-shadow:0 0 16px rgba(34,228,245,.55)}
-  .y-brk{position:absolute;width:16px;height:16px;border:1px solid #22E4F5;opacity:.7}
-  .y-brk.a{top:10px;left:10px;border-right:0;border-bottom:0}
-  .y-brk.b{bottom:10px;right:10px;border-left:0;border-top:0;border-color:#FF2FB0}
-
-  /* ===== 4 波普撞色 ===== */
-  .p{padding:22px;background:#F4F1EA;position:relative;overflow:hidden}
-  .p-blk{position:absolute;left:-20px;top:-24px;width:120px;height:120px;background:#FFD400}
-  .p-cir{position:absolute;right:-30px;bottom:-34px;width:130px;height:130px;border-radius:50%;background:#2E5BFF;opacity:.92}
-  .p-rec{position:absolute;right:16px;top:18px;width:70px;height:22px;background:#FF4B3E;transform:rotate(-8deg)}
-  .p>*{position:relative}
-  .p-kick{font-size:11px;letter-spacing:.2em;font-weight:900;color:#111;display:inline-block;background:#FFD400;padding:3px 9px;border:2px solid #111}
-  .p-price{font-size:48px;line-height:.95;margin:14px 0 6px;color:#111;font-weight:900;letter-spacing:-.03em}
-  .p-old{font-size:16px;color:#6b7280}
-  .p-tiers{display:flex;gap:0;margin-top:18px;border:2px solid #111}
-  .p-tiers div{flex:1;text-align:center;padding:11px 4px;font-size:12px;color:#111;border-right:2px solid #111;background:#fff}
-  .p-tiers div:last-child{border-right:0}
-  .p-tiers div.on{background:#111;color:#FFD400;font-weight:800}
-  .p-tiers b{display:block;font-size:16px;margin-top:2px}
-  .p-chips{margin-top:16px}
-  .p-chips span{border:2px solid #111;background:#fff;color:#111;font-weight:700;padding:7px 13px;border-radius:0}
-  .p-chips span.on{background:#FF4B3E;color:#fff}
-
-  /* ===== 5 真丝绒质感 ===== */
-  .v{padding:24px;background:#0B1410;position:relative;overflow:hidden}
-  .v-tex{position:absolute;inset:0;opacity:.5;mix-blend-mode:overlay;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E")}
-  .v-sheen{position:absolute;inset:0;background:radial-gradient(70%_50%_at_28%_8%,rgba(255,255,255,.28),transparent_60%),radial-gradient(60%_45%_at_85%_95%,rgba(212,175,55,.22),transparent_62%),linear-gradient(160deg,#0E2A20 0%,#061410 60%,#0A1F18 100%)}
-  .v>*{position:relative}
-  .v-kick{font-size:10.5px;letter-spacing:.32em;text-transform:uppercase;color:#C9A96A;font-weight:700}
-  .v-price{font-family:var(--serif);font-size:46px;line-height:1;margin:14px 0 5px;color:#F0DFB8;text-shadow:0 2px 20px rgba(0,0,0,.6),0 0 40px rgba(212,175,55,.28)}
-  .v-old{font-family:var(--serif);font-size:16px;color:rgba(240,223,184,.45)}
-  .v-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:18px}
-  .v-tiers div{text-align:center;padding:10px;border:1px solid rgba(201,169,106,.35);border-radius:2px;font-size:12px;color:rgba(240,223,184,.6);background:rgba(0,0,0,.25)}
-  .v-tiers div.on{border-color:#C9A96A;color:#F0DFB8;background:rgba(201,169,106,.14)}
-  .v-tiers b{display:block;font-size:16px;color:#F0DFB8;margin-top:2px}
-  .v-chips{margin-top:16px}
-  .v-chips span{border:1px solid rgba(201,169,106,.4);color:rgba(240,223,184,.85);background:rgba(0,0,0,.2);border-radius:2px}
-  .v-chips span.on{background:#C9A96A;border-color:#C9A96A;color:#0B1410;font-weight:700}
-  .v-hair{position:absolute;left:24px;right:24px;top:0;height:1px;background:linear-gradient(90deg,transparent,rgba(201,169,106,.8),transparent)}
-
-  .foot{margin-top:28px;font-size:13px;color:#6b7280;line-height:1.9}
-  code{background:#f1f1f3;padding:1px 5px;border-radius:4px}
-</style>
-</head>
-<body>
-<div class="wrap">
-  <h1>详情页「价格段 + 变体规格」视觉方向 · 第 4 轮（5 个）</h1>
-  <p class="sub">2026-10-29 · 前 3 轮（曜黑 / 冰蓝 / 墨绿金 / 珍珠虹彩）你都不满意，这轮换了思路：<b>结构、材质、明暗、用途全部拉开</b>，不再是一套卡片换配色。</p>
-
-  <div class="note">
-    <b>1 无卡片纯文字行</b> —— 干脆不做容器，一行大字价格 + 划线价，阶梯价写成一行小字，变体是文字链。最像 COS / Aritzia。<br/>
-    <b>2 价签票券</b> —— 白纸底 + 红头「SALE」+ 虚线撕口 + 票根式阶梯价，像一张实物价签。<br/>
-    <b>3 霓虹暗夜</b> —— 近黑底 + 青色网格 + 荧光青/品红发光，潮玩街头感。<br/>
-    <b>4 波普撞色</b> —— 米白底 + 黄/蓝/红几何色块 + 粗黑描边，设计感强、辨识度高。<br/>
-    <b>5 真丝绒质感</b> —— <b>真·噪点纤维纹理</b>（不是渐变冒充）+ 扫过的高光 + 香槟金细线，最像实物丝绒。<br/>
-    <span style="color:#6b7280">（备选方向，先不做图，你点名我再做：日式和纸风 · 液态金属铬金 · 扁平插画手绘风 · 极简全白无任何线条）</span>
-  </div>
-
-  <div class="grid">
-
-    <!-- 0 现状 -->
-    <div class="cell">
-      <span class="tag cur">当前线上</span>
-      <div class="title">方案 4 · 珍珠白 + 柔光虹彩</div>
-      <p class="desc">你已看过的版本，放这当基准。</p>
-      <div class="mock">
-        <div class="cur-box">
-          <div class="price cur-price">$12.99 <span class="old cur-old">$19.99</span></div>
-          <div class="cur-tiers">
-            <div>1-2 pcs<br><b>$12.99</b></div><div class="mid">3-9 pcs<br><b>$10.99</b></div><div>10+ pcs<br><b>$9.49</b></div>
-          </div>
-          <div class="chips cur-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+  .sub{color:#6b7280;font-size:14px;line-height:1.7;margin:0 0 20px}
+  .note{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:13px 17px;font-size:13px;line-height:1.9;color:#333;margin-bottom:22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+  .cell{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px}
+  .tag{display:inline-block;font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;background:#111;color:#fff}
+  .title{font-size:15.5px;font-weight:800;margin:6px 0 2px}
+  .desc{font-size:12px;color:#6b7280;line-height:1.7;margin:0 0 12px}
+  .mock{position:relative;overflow:hidden;border-radius:20px;padding:20px}
+  .ov1{position:absolute;inset:0;pointer-events:none}
+  .ov2{position:absolute;inset:0;pointer-events:none}
+  .g1{position:absolute;width:190px;height:190px;border-radius:50%;filter:blur(48px);top:-60px;right:-50px}
+  .g2{position:absolute;width:170px;height:170px;border-radius:50%;filter:blur(46px);bottom:-60px;left:-46px}
+  .hair{position:absolute;left:28px;right:28px;top:0;height:1px}
+  .in{position:relative}
+  .price{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+  .old{font-size:17px;font-weight:600}
+  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:14px;font-size:12px}
+  .tiers div{text-align:center;padding:8px 4px;border-radius:12px;line-height:1.45}
+  .tiers b{display:block;font-size:14px;margin-top:2px}
+  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
+  .chips span{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:12px}
+  .foot{margin-top:26px;font-size:13px;color:#6b7280;line-height:1.9}
+</style></head>
+<body><div class="wrap">
+<h1>价格段 · 只换配色（10 组）</h1>
+<p class="sub">2026-10-29 · 第 5 轮：<b>特效、结构全部保持线上现状不变</b>（渐变底 + 两层径向柔光 + 角落光晕 + 顶部高光线 + 圆角投影 + 阶梯价三档 + 变体按钮），<b>只换底色与配色</b>。回我编号即可。</p>
+<div class="note">配色都按「饰品 / 轻奢 / 走量」三类各给：<b>轻奢</b> 1 酒红玫瑰金 · 3 藏青亮金 · 8 砖红米白；<b>日常暖调</b> 2 摩卡焦糖 · 4 奶油珊瑚橘；<b>特色</b> 5 墨黑荧光黄 · 6 深紫樱粉 · 7 森林墨绿奶油 · 9 冷钢灰蓝 · 10 纯白正红。</div>
+<div class="grid">
+  <div class="cell">
+    <span class="tag">1</span>
+    <div class="title">酒红勃艮第 + 玫瑰金</div>
+    <p class="desc">经典轻奢，酒红底 + 玫瑰金描边/文字，饰品品牌最安全的一套。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#3E0B18 0%,#6B1526 48%,#4A0F1E 100%);border:1px solid rgba(231,183,160,0.30);box-shadow:0 18px 40px -22px rgba(80,10,25,0.60)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(231,183,160,0.18),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(180,90,110,0.20),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(231,183,160,0.16)"></span>
+      <span class="g2" style="background:rgba(231,183,160,0.18)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(231,183,160,0.85),rgba(255,220,205,0.85),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#F6DCD0;filter:drop-shadow(0 0 22px rgba(231,150,120,0.45))">$12.99
+          <span class="old" style="color:rgba(246,220,208,0.45);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.22);color:#F6DCD0">1-2 pcs<b>#F6DCD0</b></div>
+          <div style="background:linear-gradient(135deg,#F0C3A8,#C97B6E);color:#3E0B18;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.22);color:#F6DCD0">10+ pcs<b>#F6DCD0</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#F0C3A8,#C97B6E);color:#3E0B18">Pink</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.28);color:#F6DCD0">White</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.28);color:#F6DCD0">Black</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.28);color:#F6DCD0">Red</span>
         </div>
       </div>
     </div>
-
-    <!-- 1 -->
-    <div class="cell">
-      <span class="tag">1</span>
-      <div class="title">无卡片 · 纯文字行</div>
-      <p class="desc">没有卡片、没有圆角、没有光晕。全靠字号和留白撑场，阶梯价收成一行小字。克制到极致，也最容易做得「高级」。</p>
-      <div class="mock"><div class="n">
-        <div class="n-kick">Sale price</div>
-        <div class="n-price">$12.99</div>
-        <div class="n-old">$19.99</div>
-        <div class="n-vols"><span>1-2 pcs <b>$12.99</b></span><i>|</i><span>3-9 pcs <b>$10.99</b></span><i>|</i><span>10+ pcs <b>$9.49</b></span></div>
-        <div class="n-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
-        <div class="n-cta">ADD TO CART</div>
-      </div></div>
-    </div>
-
-    <!-- 2 -->
-    <div class="cell">
-      <span class="tag">2</span>
-      <div class="title">价签票券</div>
-      <p class="desc">做成一张实物价签：红头 SALE、虚线撕口、票根式阶梯价。零售感强，比「卡片」更有故事。</p>
-      <div class="mock"><div class="t">
-        <div class="t-card">
-          <div class="t-top">SALE · LIMITED STOCK</div>
-          <div class="t-body">
-            <div class="t-price">$12.99</div>
-            <div class="t-old">$19.99</div>
-            <div class="t-note">Wholesale price · tiered</div>
-          </div>
-          <div class="t-stubs">
-            <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
-          </div>
-          <div class="chips t-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
-        </div>
-      </div></div>
-    </div>
-
-    <!-- 3 -->
-    <div class="cell">
-      <span class="tag">3</span>
-      <div class="title">霓虹暗夜</div>
-      <p class="desc">近黑底 + 青色网格 + 荧光发光文字和按钮，角落加取景框标记。潮玩 / 街头 / Y2K 那套。</p>
-      <div class="mock"><div class="y">
-        <span class="y-brk a"></span><span class="y-brk b"></span>
-        <div class="y-kick">Wholesale · Live</div>
-        <div class="y-price">$12.99</div>
-        <div class="y-old">$19.99</div>
-        <div class="y-tiers">
-          <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
-        </div>
-        <div class="chips y-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
-      </div></div>
-    </div>
-
-    <!-- 4 -->
-    <div class="cell">
-      <span class="tag">4</span>
-      <div class="title">波普撞色</div>
-      <p class="desc">米白底上压黄块、蓝圆、红条，配 2px 粗黑描边和方角。辨识度最高，一眼就记住。</p>
-      <div class="mock"><div class="p">
-        <span class="p-blk"></span><span class="p-cir"></span><span class="p-rec"></span>
-        <div class="p-kick">BULK PRICE</div>
-        <div class="p-price">$12.99</div>
-        <div class="p-old">$19.99</div>
-        <div class="p-tiers">
-          <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
-        </div>
-        <div class="chips p-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
-      </div></div>
-    </div>
-
-    <!-- 5 -->
-    <div class="cell">
-      <span class="tag">5</span>
-      <div class="title">真丝绒质感</div>
-      <p class="desc">用 SVG 噪点做**真纤维纹理** + 一道扫过的高光 + 香槟金细线。比之前那版「墨绿渐变」更像实物丝绒。</p>
-      <div class="mock"><div class="v">
-        <span class="v-sheen"></span><span class="v-tex"></span><span class="v-hair"></span>
-        <div class="v-kick">Fiestaflare</div>
-        <div class="v-price">$12.99</div>
-        <div class="v-old">$19.99</div>
-        <div class="v-tiers">
-          <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
-        </div>
-        <div class="chips v-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
-      </div></div>
-    </div>
-
   </div>
 
-  <div class="foot">
-    静态预览页（纯 HTML/CSS，<b>不影响线上前台</b>）。回我编号 <b>1~5</b> 即可；也可以说「5 但高光不要」这种改法。<br/>
-    选定后我再落到 <code>app/(shop)/products/[slug]/page.tsx</code>，并按老规矩做线上验证（chunk grep + CSS 编译检查 + 线上 CSS 确认纹理/渐变真的生效）。
+  <div class="cell">
+    <span class="tag">2</span>
+    <div class="title">摩卡咖啡 + 焦糖</div>
+    <p class="desc">暖调复古，巧克力底 + 焦糖色高亮，柔和不刺眼。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#33241D 0%,#4E382C 50%,#2E211A 100%);border:1px solid rgba(216,165,107,0.28);box-shadow:0 18px 40px -22px rgba(35,22,15,0.60)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(216,165,107,0.18),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(160,110,70,0.22),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(216,165,107,0.16)"></span>
+      <span class="g2" style="background:rgba(216,165,107,0.20)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(216,165,107,0.85),rgba(255,230,200,0.80),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#F3E3CE;filter:drop-shadow(0 0 22px rgba(216,165,107,0.45))">$12.99
+          <span class="old" style="color:rgba(243,227,206,0.45);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.22);color:#F3E3CE">1-2 pcs<b>#F3E3CE</b></div>
+          <div style="background:linear-gradient(135deg,#E8C08A,#B87C4A);color:#33241D;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.22);color:#F3E3CE">10+ pcs<b>#F3E3CE</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#E8C08A,#B87C4A);color:#33241D">Pink</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.28);color:#F3E3CE">White</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.28);color:#F3E3CE">Black</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.28);color:#F3E3CE">Red</span>
+        </div>
+      </div>
+    </div>
   </div>
-</div>
-</body>
-</html>
+
+  <div class="cell">
+    <span class="tag">3</span>
+    <div class="title">藏青午夜 + 亮金</div>
+    <p class="desc">深蓝底 + 金线，稳重的贵气，比纯黑多一分层次。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#08152E 0%,#132A4D 50%,#0A1B36 100%);border:1px solid rgba(227,199,122,0.28);box-shadow:0 18px 40px -22px rgba(5,12,28,0.62)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(227,199,122,0.16),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(60,100,180,0.22),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(227,199,122,0.14)"></span>
+      <span class="g2" style="background:rgba(80,120,200,0.20)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(227,199,122,0.85),rgba(255,245,215,0.80),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#F3E4B6;filter:drop-shadow(0 0 22px rgba(227,199,122,0.45))">$12.99
+          <span class="old" style="color:rgba(243,228,182,0.45);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.22);color:#F3E4B6">1-2 pcs<b>#F3E4B6</b></div>
+          <div style="background:linear-gradient(135deg,#F0DFA8,#C9A54B);color:#08152E;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.22);color:#F3E4B6">10+ pcs<b>#F3E4B6</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#F0DFA8,#C9A54B);color:#08152E">Pink</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.28);color:#F3E4B6">White</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.28);color:#F3E4B6">Black</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.28);color:#F3E4B6">Red</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <span class="tag">4</span>
+    <div class="title">奶油杏 + 珊瑚橘</div>
+    <p class="desc">亮底暖色，奶油底 + 珊瑚橘高亮，亲和力强、适合走量。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#FFF4EA 0%,#FFE6D4 50%,#FFF8F2 100%);border:1px solid rgba(255,160,120,0.35);box-shadow:0 18px 40px -22px rgba(255,140,100,0.28)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(255,122,89,0.16),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(255,190,150,0.20),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(255,150,110,0.30)"></span>
+      <span class="g2" style="background:rgba(255,190,150,0.30)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(255,122,89,0.75),rgba(255,190,150,0.75),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#7A2E1C;filter:drop-shadow(0 0 22px rgba(255,122,89,0.30))">$12.99
+          <span class="old" style="color:rgba(122,46,28,0.45);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(255,255,255,0.65);border:1px solid rgba(255,170,135,0.30);color:#7A2E1C">1-2 pcs<b>#7A2E1C</b></div>
+          <div style="background:linear-gradient(135deg,#FF9E76,#FF6E42);color:#FFFFFF;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(255,255,255,0.65);border:1px solid rgba(255,170,135,0.30);color:#7A2E1C">10+ pcs<b>#7A2E1C</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#FF9E76,#FF6E42);color:#FFFFFF">Pink</span>
+          <span style="background:rgba(255,255,255,0.70);border:1px solid rgba(255,170,135,0.35);color:#7A2E1C">White</span>
+          <span style="background:rgba(255,255,255,0.70);border:1px solid rgba(255,170,135,0.35);color:#7A2E1C">Black</span>
+          <span style="background:rgba(255,255,255,0.70);border:1px solid rgba(255,170,135,0.35);color:#7A2E1C">Red</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <span class="tag">5</span>
+    <div class="title">墨黑 + 荧光柠檬</div>
+    <p class="desc">黑底 + 一抹荧光黄，街头潮牌感，识别度极高。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#0C0C0D 0%,#1B1B1E 50%,#0A0A0B 100%);border:1px solid rgba(232,255,61,0.28);box-shadow:0 18px 40px -22px rgba(0,0,0,0.70)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(232,255,61,0.14),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(120,140,40,0.18),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(232,255,61,0.16)"></span>
+      <span class="g2" style="background:rgba(200,255,90,0.12)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(232,255,61,0.85),rgba(255,255,255,0.60),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#E8FF3D;filter:drop-shadow(0 0 22px rgba(232,255,61,0.45))">$12.99
+          <span class="old" style="color:rgba(232,255,61,0.40);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.22);color:#E8FF3D">1-2 pcs<b>#E8FF3D</b></div>
+          <div style="background:linear-gradient(135deg,#E8FF3D,#B4CC16);color:#0C0C0D;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.22);color:#E8FF3D">10+ pcs<b>#E8FF3D</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#E8FF3D,#B4CC16);color:#0C0C0D">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.28);color:#E8FF3D">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.28);color:#E8FF3D">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.28);color:#E8FF3D">Red</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <span class="tag">6</span>
+    <div class="title">深紫罗兰 + 樱粉</div>
+    <p class="desc">深紫底 + 樱粉柔光，梦幻一点，适合少女/发饰类。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#241046 0%,#3E1B72 50%,#1C0B36 100%);border:1px solid rgba(240,166,208,0.30);box-shadow:0 18px 40px -22px rgba(20,6,40,0.62)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(240,166,208,0.20),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(120,60,190,0.25),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(240,166,208,0.18)"></span>
+      <span class="g2" style="background:rgba(170,110,230,0.20)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(240,166,208,0.85),rgba(200,150,255,0.80),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#F7D9EC;filter:drop-shadow(0 0 22px rgba(240,166,208,0.45))">$12.99
+          <span class="old" style="color:rgba(247,217,236,0.45);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.22);color:#F7D9EC">1-2 pcs<b>#F7D9EC</b></div>
+          <div style="background:linear-gradient(135deg,#F7C2E0,#B07BE0);color:#241046;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.22);color:#F7D9EC">10+ pcs<b>#F7D9EC</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#F7C2E0,#B07BE0);color:#241046">Pink</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.28);color:#F7D9EC">White</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.28);color:#F7D9EC">Black</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.28);color:#F7D9EC">Red</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <span class="tag">7</span>
+    <div class="title">森林墨绿 + 奶油白</div>
+    <p class="desc">深森林绿配奶油字，比「墨绿+香槟金」更素净、更日常。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#0D2418 0%,#1B3D2C 50%,#0B1D14 100%);border:1px solid rgba(226,240,225,0.24);box-shadow:0 18px 40px -22px rgba(6,22,14,0.62)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(226,240,225,0.14),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(60,120,90,0.22),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(210,235,215,0.12)"></span>
+      <span class="g2" style="background:rgba(80,150,110,0.20)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(226,240,225,0.70),rgba(255,255,255,0.55),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#F1EFE2;filter:drop-shadow(0 0 22px rgba(190,225,200,0.35))">$12.99
+          <span class="old" style="color:rgba(241,239,226,0.45);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.20);color:#F1EFE2">1-2 pcs<b>#F1EFE2</b></div>
+          <div style="background:linear-gradient(135deg,#F1EFE2,#B9C9B4);color:#0D2418;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.20);color:#F1EFE2">10+ pcs<b>#F1EFE2</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#F1EFE2,#B9C9B4);color:#0D2418">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.26);color:#F1EFE2">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.26);color:#F1EFE2">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.26);color:#F1EFE2">Red</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <span class="tag">8</span>
+    <div class="title">砖红陶土 + 米白</div>
+    <p class="desc">陶土红配米白，温暖手作感，适合手工/饰品。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#7E3421 0%,#A85038 50%,#6E2B1B 100%);border:1px solid rgba(246,241,231,0.30);box-shadow:0 18px 40px -22px rgba(70,25,12,0.60)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(246,241,231,0.20),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(180,90,60,0.25),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(246,241,231,0.16)"></span>
+      <span class="g2" style="background:rgba(190,100,70,0.22)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(246,241,231,0.85),rgba(255,225,200,0.75),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#FBF4E8;filter:drop-shadow(0 0 22px rgba(255,220,190,0.40))">$12.99
+          <span class="old" style="color:rgba(251,244,232,0.45);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.22);color:#FBF4E8">1-2 pcs<b>#FBF4E8</b></div>
+          <div style="background:linear-gradient(135deg,#FBF4E8,#D9A08A);color:#7E3421;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.22);color:#FBF4E8">10+ pcs<b>#FBF4E8</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#FBF4E8,#D9A08A);color:#7E3421">Pink</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.28);color:#FBF4E8">White</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.28);color:#FBF4E8">Black</span>
+          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.28);color:#FBF4E8">Red</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <span class="tag">9</span>
+    <div class="title">冷钢灰蓝 + 银白</div>
+    <p class="desc">工业冷调灰蓝 + 银白，偏科技/专业感，冷静克制。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#1A242C 0%,#2C3D4A 50%,#161F26 100%);border:1px solid rgba(199,210,220,0.26);box-shadow:0 18px 40px -22px rgba(10,16,22,0.62)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(199,210,220,0.16),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(90,130,170,0.24),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(199,210,220,0.14)"></span>
+      <span class="g2" style="background:rgba(90,140,190,0.20)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(199,210,220,0.80),rgba(255,255,255,0.60),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#E8EEF3;filter:drop-shadow(0 0 22px rgba(160,200,235,0.40))">$12.99
+          <span class="old" style="color:rgba(232,238,243,0.45);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.20);color:#E8EEF3">1-2 pcs<b>#E8EEF3</b></div>
+          <div style="background:linear-gradient(135deg,#E8EEF3,#9FB3C4);color:#1A242C;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.20);color:#E8EEF3">10+ pcs<b>#E8EEF3</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#E8EEF3,#9FB3C4);color:#1A242C">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.26);color:#E8EEF3">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.26);color:#E8EEF3">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.26);color:#E8EEF3">Red</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cell">
+    <span class="tag">10</span>
+    <div class="title">纯白 + 正红点缀</div>
+    <p class="desc">白底极简 + 一处正红（价格/角标），最干净，靠红色抓眼。</p>
+    <div class="mock" style="background:linear-gradient(135deg,#FFFFFF 0%,#FAFAFB 50%,#F3F4F6 100%);border:1px solid rgba(17,17,19,0.14);box-shadow:0 18px 40px -22px rgba(17,17,19,0.14)">
+      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(224,49,49,0.10),transparent 60%)"></span>
+      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(224,49,49,0.08),transparent 62%)"></span>
+      <span class="g1" style="background:rgba(224,49,49,0.14)"></span>
+      <span class="g2" style="background:rgba(224,49,49,0.10)"></span>
+      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(224,49,49,0.65),rgba(17,17,19,0.35),transparent)"></span>
+      <div class="in">
+        <div class="price" style="color:#111113;filter:drop-shadow(0 0 22px rgba(224,49,49,0.22))">$12.99
+          <span class="old" style="color:rgba(17,17,19,0.38);margin-left:8px">$19.99</span>
+        </div>
+        <div class="tiers">
+          <div style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.10);color:#111113">1-2 pcs<b>#111113</b></div>
+          <div style="background:linear-gradient(135deg,#E03131,#B02525);color:#FFFFFF;font-weight:700">3-9 pcs<b>$10.99</b></div>
+          <div style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.10);color:#111113">10+ pcs<b>#111113</b></div>
+        </div>
+        <div class="chips">
+          <span style="background:linear-gradient(135deg,#E03131,#B02525);color:#FFFFFF">Pink</span>
+          <span style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.14);color:#111113">White</span>
+          <span style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.14);color:#111113">Black</span>
+          <span style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.14);color:#111113">Red</span>
+        </div>
+      </div>
+    </div>
+  </div></div>
+<div class="foot">静态预览页（纯 HTML/CSS，不影响线上前台）。选定后我落到 <code>app/(shop)/products/[slug]/page.tsx</code>，并按老规矩验证：chunk grep + 线上 CSS 确认渐变/柔光真的编译生效。</div>
+</div></body></html>
