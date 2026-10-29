@@ -543,29 +543,29 @@ export default function ProductDetailPage() {
               )}
 
               {/* Price Display */}
-              {/* ★ 2026-10-29 11:40 价格段视觉 —— 配色「藏青午夜 + 亮金」× 特效回第一版卡片式
-                  · 底色：藏青 midnight 渐变（#08152E → #132A4D → #0A1B36）
+              {/* ★ 2026-10-29 13:15 价格段视觉 —— 配色「深紫罗兰 + 樱粉」× 特效保持第一版卡片式
+                  · 底色：深紫罗兰渐变（#241046 → #3E1B72 → #1C0B36）
                   · 特效：**第一版卡片式** —— 细描边 + 厚投影 + 两枚角落模糊光晕 + 顶部高光细线
-                  · 光晕改金/宝蓝（呼应藏青），描边与价格用亮金
+                  · 光晕改樱粉/紫罗兰，描边与价格用樱粉亮色
                   · 变体规格区 = 内嵌发光子卡（第一版同款结构）
               */}
               <div className="relative overflow-hidden rounded-3xl mb-6 p-6
-                              bg-gradient-to-br from-[#08152E] via-[#132A4D] to-[#0A1B36]
-                              border border-amber-200/25 shadow-2xl shadow-[#050C1C]/70">
+                              bg-gradient-to-br from-[#241046] via-[#3E1B72] to-[#1C0B36]
+                              border border-[#F0A6D0]/30 shadow-2xl shadow-[#140628]/70">
                 {/* 角落光晕（第一版卡片式：两枚模糊大光） */}
-                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-amber-300/20 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-sky-500/20 blur-3xl" />
+                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#F0A6D0]/20 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-[#A46BE0]/20 blur-3xl" />
                 {/* 顶部亮金高光描边 */}
-                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/60 to-transparent" />
+                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#F0A6D0]/60 to-transparent" />
 
                 <div className="relative">
                   <div className="flex items-baseline gap-3 mb-4">
-                    <span className="text-4xl font-extrabold tracking-tight text-[#F3E4B6]
-                                     drop-shadow-[0_0_26px_rgba(227,199,122,0.45)]">
+                    <span className="text-4xl font-extrabold tracking-tight text-[#F7D9EC]
+                                     drop-shadow-[0_0_26px_rgba(240,166,208,0.45)]">
                       {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
                     </span>
                     {product.comparePrice && (
-                      <span className="text-xl text-[#F3E4B6]/40 line-through">
+                      <span className="text-xl text-[#F7D9EC]/40 line-through">
                         {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
                       </span>
                     )}
@@ -577,18 +577,18 @@ export default function ProductDetailPage() {
                       <div key={idx} className={cn(
                         "text-center p-3 rounded-xl transition-all duration-200",
                         idx === 1
-                          ? "bg-gradient-to-br from-amber-200 to-amber-400 text-[#08152E] shadow-lg shadow-amber-500/25 scale-[1.03] ring-1 ring-amber-50/30"
-                          : "bg-white/[0.06] border border-amber-200/20 text-[#F3E4B6] backdrop-blur-md"
+                          ? "bg-gradient-to-br from-[#F7C2E0] to-[#B07BE0] text-[#241046] shadow-lg shadow-[#B07BE0]/25 scale-[1.03] ring-1 ring-white/25"
+                          : "bg-white/[0.06] border border-[#F0A6D0]/20 text-[#F7D9EC] backdrop-blur-md"
                       )}>
                         <div className={cn(
                           "font-semibold mb-1",
-                          idx === 1 ? "text-[#08152E]/70" : idx === 2 ? "text-amber-200/90" : "text-[#F3E4B6]/60"
+                          idx === 1 ? "text-[#241046]/70" : idx === 2 ? "text-[#F0A6D0]/90" : "text-[#F7D9EC]/60"
                         )}>
                           {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
                         </div>
                         <div className={cn(
                           "font-semibold",
-                          idx === 1 ? "text-[#08152E]" : idx === 2 ? "text-amber-200" : "text-[#F3E4B6]"
+                          idx === 1 ? "text-[#241046]" : idx === 2 ? "text-[#F0A6D0]" : "text-[#F7D9EC]"
                         )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
                       </div>
                     ))}
@@ -602,16 +602,16 @@ export default function ProductDetailPage() {
                 //   → 内嵌一层白底子卡片
                 // ★ 配色「藏青午夜 + 亮金」× 第一版卡片式特效（内嵌发光子卡）
                 <div className="relative overflow-hidden mb-6 space-y-4 rounded-3xl p-5
-                                bg-[#08152E]/70 backdrop-blur-xl
-                                border border-amber-200/20 shadow-2xl shadow-[#050C1C]/50">
+                                bg-[#241046]/70 backdrop-blur-xl
+                                border border-[#F0A6D0]/20 shadow-2xl shadow-[#140628]/50">
                   {/* 卡内光晕 */}
-                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-amber-300/15 blur-3xl" />
+                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-[#F0A6D0]/15 blur-3xl" />
                   {variantRows.length > 0 ? variantRows.map((row) => {
                     const isFirstRow = row === variantRows[0]
                     const currentVal = variantSelection[row.name] || ''
                     return (
                       <div key={row.name}>
-                        <label className="block text-sm font-medium text-[#F3E4B6]/70 mb-2">
+                        <label className="block text-sm font-medium text-[#F7D9EC]/70 mb-2">
                           {row.name}
                         </label>
                         <div className="flex flex-wrap gap-2">
@@ -634,8 +634,8 @@ export default function ProductDetailPage() {
                                 className={cn(
                                   'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                                   isActive
-                                    ? 'bg-gradient-to-r from-amber-200 to-amber-400 text-[#08152E] shadow-lg shadow-amber-500/30 scale-[1.03] ring-1 ring-amber-50/30'
-                                    : 'bg-white/[0.06] border border-amber-200/25 text-[#F3E4B6] hover:bg-white/[0.12] hover:border-amber-300/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-900/30',
+                                    ? 'bg-gradient-to-r from-[#F7C2E0] to-[#B07BE0] text-[#241046] shadow-lg shadow-[#B07BE0]/30 scale-[1.03] ring-1 ring-white/25'
+                                    : 'bg-white/[0.06] border border-[#F0A6D0]/25 text-[#F7D9EC] hover:bg-white/[0.12] hover:border-[#F0A6D0]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#3E1B72]/50',
                                   disabled && 'opacity-40 cursor-not-allowed'
                                 )}
                               >
@@ -652,7 +652,7 @@ export default function ProductDetailPage() {
                     )
                   }) : (
                     <div>
-                      <label className="block text-sm font-medium text-[#F3E4B6]/70 mb-2">
+                      <label className="block text-sm font-medium text-[#F7D9EC]/70 mb-2">
                         {product.variants[0].name}
                       </label>
                       <div className="flex flex-wrap gap-2">
@@ -663,8 +663,8 @@ export default function ProductDetailPage() {
                             className={cn(
                               'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                               selectedVariant === variant.id
-                                ? 'bg-gradient-to-r from-amber-200 to-amber-400 text-[#08152E] shadow-lg shadow-amber-500/30 scale-[1.03] ring-1 ring-amber-50/30'
-                                : 'bg-white/[0.06] border border-amber-200/25 text-[#F3E4B6] hover:bg-white/[0.12] hover:border-amber-300/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-900/30'
+                                ? 'bg-gradient-to-r from-[#F7C2E0] to-[#B07BE0] text-[#241046] shadow-lg shadow-[#B07BE0]/30 scale-[1.03] ring-1 ring-white/25'
+                                : 'bg-white/[0.06] border border-[#F0A6D0]/25 text-[#F7D9EC] hover:bg-white/[0.12] hover:border-[#F0A6D0]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#3E1B72]/50'
                             )}
                           >
                             {variant.value}
