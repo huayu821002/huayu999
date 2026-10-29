@@ -1,50 +1,73 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Fiestaflare · 蜡封印章结构 × 10 组配色</title>
+<title>Fiestaflare · 蜡封印章 × 10 组配色（完整样式）</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#f4f1ec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#111;padding:30px 18px 70px}
-.wrap{max-width:1240px;margin:0 auto}
+.wrap{max-width:1280px;margin:0 auto}
 h1{font-size:25px;margin:0 0 6px}
-.sub{color:#6b7280;font-size:14px;line-height:1.75;margin:0 0 20px}
+.sub{color:#6b7280;font-size:14px;line-height:1.75;margin:0 0 18px}
 .note{background:#fff;border:1px solid #e3ddd2;border-radius:12px;padding:13px 17px;font-size:13px;line-height:1.9;color:#333;margin-bottom:22px}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:20px}
-.cell{background:#fff;border:1px solid #e3ddd2;border-radius:14px;padding:14px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:20px}
+.cell{background:#fff;border:1px solid #e3ddd2;border-radius:14px;padding:13px}
 .tag{display:inline-block;font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;background:#3B2A1E;color:#fff}
 .title{font-size:15.5px;font-weight:800;margin:6px 0 2px}
-.desc{font-size:12px;color:#6b7280;line-height:1.7;margin:0 0 12px}
-.mock{border-radius:12px;overflow:hidden;padding:22px}
-.wx{position:relative;border-radius:8px;padding:22px 20px;overflow:hidden}
+.desc{font-size:12px;color:#6b7280;line-height:1.7;margin:0 0 11px}
+.mock{border-radius:12px;overflow:hidden;padding:18px}
+
+/* ===== 蜡封价格卡 ===== */
+.wx{position:relative;border-radius:8px;padding:20px 18px;overflow:hidden;box-shadow:0 18px 34px -20px rgba(0,0,0,.55)}
 .noise{position:absolute;inset:0;opacity:.35;mix-blend-mode:overlay;background-image:url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E\")}
-.wax{position:absolute;right:18px;top:18px;width:70px;height:70px;border-radius:50%;
+.hair{position:absolute;left:18px;right:18px;top:0;height:1px}
+.wax{position:absolute;right:16px;top:16px;width:68px;height:68px;border-radius:50%;
   box-shadow:0 6px 16px rgba(0,0,0,.45),inset 0 -3px 8px rgba(0,0,0,.35),inset 0 3px 6px rgba(255,255,255,.18);
   display:flex;align-items:center;justify-content:center}
 .wax::after{content:"";position:absolute;inset:7px;border-radius:50%;border:1px dashed rgba(255,255,255,.55)}
-.wax b{font:800 24px/1 "Didot",Georgia,serif}
-.in{position:relative;padding-right:88px}
-.kick{font-size:10.5px;font-weight:700;letter-spacing:.32em;text-transform:uppercase;margin-bottom:12px}
-.price{font-size:32px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
-.price .old{font-size:16px;font-weight:600;margin-left:8px;text-decoration:line-through}
-.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:16px;font-size:11.5px}
-.tiers div{text-align:center;padding:8px 3px;border-radius:9px;line-height:1.4}
-.tiers b{display:block;font-size:14px;margin-top:2px}
-.chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
-.chips span{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px}
+.wax b{font:800 23px/1 "Didot",Georgia,serif}
+.in{position:relative;padding-right:84px}
+.kick{font-size:10px;font-weight:700;letter-spacing:.3em;text-transform:uppercase;margin-bottom:11px}
+.price{font-size:30px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.price .old{font-size:15px;font-weight:600;margin-left:8px;text-decoration:line-through}
+.tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:14px;font-size:11px}
+.tiers div{text-align:center;padding:8px 3px;border-radius:9px;line-height:1.35}
+.tiers b{display:block;font-size:13.5px;margin-top:2px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:13px}
+.chips span{font-size:12px;font-weight:600;padding:6px 11px;border-radius:9px}
+
+/* ===== 变体规格卡 ===== */
+.vc{position:relative;border-radius:8px;padding:15px 16px;margin-top:12px;overflow:hidden}
+.vc .noise{opacity:.28}
+.vlabel{position:relative;font-size:12.5px;font-weight:500;margin-bottom:8px}
+.vbtns{position:relative;display:flex;gap:7px;flex-wrap:wrap}
+.vbtns span{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:9px}
+
+/* ===== 数量 + 按钮 ===== */
+.qty{position:relative;display:flex;align-items:center;gap:10px;margin-top:12px;font-size:12px}
+.qbox{display:inline-flex;align-items:center;border-radius:9px;overflow:hidden}
+.qbox i{font-style:normal;padding:6px 11px;font-size:13px}
+.qbox b{padding:6px 12px;font-weight:700;font-size:13px}
+.cta{position:relative;display:flex;gap:8px;margin-top:12px}
+.cta span{flex:1;text-align:center;padding:11px;border-radius:9px;font-size:12.5px;font-weight:700;letter-spacing:.04em}
+.cta .ghost{background:transparent;border:1px solid;}
+
 .foot{margin-top:26px;font-size:13px;color:#6b7280;line-height:1.9}
 </style></head>
 <body><div class="wrap">
-<h1>蜡封印章结构 × 10 组配色</h1>
-<p class="sub">2026-10-29 16:12 · 结构 = 刚上线的 B「蜡封印章」，<b>只换配色</b>。1 号 = 当前线上（摩卡咖啡+焦糖）。</p>
-<div class="note">每组的<b>蜡封章颜色也跟着变</b>（不永远是红蜡）；深色系用米金/亮金字，浅色系（4 / 9）用深字。回我编号即可。</div>
+<h1>蜡封印章结构 × 10 组配色（完整样式）</h1>
+<p class="sub">2026-10-29 16:18 · 每一格都是**整块商品详情的样子**：价格卡（蜡封 + 噪点 + 金线 + 阶梯价 + 变体快捷按钮）
++ 变体规格卡 + 数量步进 + Add to Cart 按钮。结构统一，只换配色。1 号 = 当前线上（摩卡咖啡+焦糖）。</p>
+<div class="note">每组的<b>蜡封章颜色、描边色、价格字色都跟着配色走</b>；深色系用米金亮字，浅色系（4 / 9）自动切深字。回我编号即可。</div>
 <div class="grid">
   <div class="cell">
     <span class="tag">1</span>
     <div class="title">摩卡咖啡 + 焦糖</div>
     <p class="desc">当前线上。深摩卡信笺 + 红棕蜡封 + 香槟金。</p>
     <div class="mock" style="background:#E9E0D2">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(88,58,34,0.62),rgba(46,30,18,0.88));border:1px solid #D6AF6E55">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#D6AF6E,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #A8483A, #7A2A20 55%, #541812)"><b style="color:#E8C9A0">F</b></span>
         <div class="in">
           <div class="kick" style="color:#D6AF6E">Fiestaflare &middot; Wholesale</div>
@@ -62,6 +85,30 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(88,58,34,0.62),rgba(46,30,18,0.88));border:1px solid #D6AF6E55">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#D6AF6E">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#D6AF6E,#A87A3C);color:#2A1C11">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #D6AF6E59;color:#F0DDB6">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #D6AF6E59;color:#F0DDB6">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #D6AF6E59;color:#F0DDB6">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#F0DDB6">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #D6AF6E59">
+          <i style="background:rgba(255,255,255,0.05);color:#F0DDB6">&minus;</i><b style="color:#F0DDB6">2</b><i style="background:rgba(255,255,255,0.05);color:#F0DDB6">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#D6AF6E,#A87A3C);color:#2A1C11;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#D6AF6E59;color:#F0DDB6">Add to Wishlist</span>
+      </div>
+
     </div>
   </div>
 
@@ -70,8 +117,10 @@ h1{font-size:25px;margin:0 0 6px}
     <div class="title">酒红勃艮第 + 玫瑰金</div>
     <p class="desc">深酒红信笺 + 深红蜡封 + 玫瑰金描边，经典轻奢。</p>
     <div class="mock" style="background:#EFE0DC">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(90,18,32,0.62),rgba(46,8,18,0.88));border:1px solid #E7B7A055">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#E7B7A0,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #8E2C3C, #66141F 55%, #440A12)"><b style="color:#F0D2C4">F</b></span>
         <div class="in">
           <div class="kick" style="color:#E7B7A0">Fiestaflare &middot; Wholesale</div>
@@ -89,6 +138,30 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(90,18,32,0.62),rgba(46,8,18,0.88));border:1px solid #E7B7A055">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#E7B7A0">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#F0C3A8,#C97B6E);color:#3E0B18">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #E7B7A059;color:#F6DCD0">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #E7B7A059;color:#F6DCD0">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #E7B7A059;color:#F6DCD0">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#F6DCD0">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #E7B7A059">
+          <i style="background:rgba(255,255,255,0.05);color:#F6DCD0">&minus;</i><b style="color:#F6DCD0">2</b><i style="background:rgba(255,255,255,0.05);color:#F6DCD0">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#F0C3A8,#C97B6E);color:#3E0B18;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#E7B7A059;color:#F6DCD0">Add to Wishlist</span>
+      </div>
+
     </div>
   </div>
 
@@ -97,8 +170,10 @@ h1{font-size:25px;margin:0 0 6px}
     <div class="title">藏青午夜 + 亮金</div>
     <p class="desc">深藏青信笺 + 藏青蜡封 + 亮金，稳重的贵气。</p>
     <div class="mock" style="background:#E2E6EE">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(14,32,64,0.66),rgba(6,16,36,0.9));border:1px solid #E3C77A55">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#E3C77A,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #27456F, #182B4C 55%, #0D1A30)"><b style="color:#F0E0B0">F</b></span>
         <div class="in">
           <div class="kick" style="color:#E3C77A">Fiestaflare &middot; Wholesale</div>
@@ -116,6 +191,30 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(14,32,64,0.66),rgba(6,16,36,0.9));border:1px solid #E3C77A55">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#E3C77A">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#F0DFA8,#C9A54B);color:#08152E">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #E3C77A59;color:#F3E4B6">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #E3C77A59;color:#F3E4B6">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #E3C77A59;color:#F3E4B6">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#F3E4B6">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #E3C77A59">
+          <i style="background:rgba(255,255,255,0.05);color:#F3E4B6">&minus;</i><b style="color:#F3E4B6">2</b><i style="background:rgba(255,255,255,0.05);color:#F3E4B6">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#F0DFA8,#C9A54B);color:#08152E;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#E3C77A59;color:#F3E4B6">Add to Wishlist</span>
+      </div>
+
     </div>
   </div>
 
@@ -124,8 +223,10 @@ h1{font-size:25px;margin:0 0 6px}
     <div class="title">奶油杏 + 珊瑚橘</div>
     <p class="desc">浅底暖色信笺 + 橘红蜡封，亲和力强、适合走量。</p>
     <div class="mock" style="background:#F3EAE0">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(255,244,234,0.96),rgba(255,227,212,0.92));border:1px solid #FF9E7655">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#D9542A,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #F2703F, #D24E20 55%, #A83A14)"><b style="color:#FFE7D2">F</b></span>
         <div class="in">
           <div class="kick" style="color:#D9542A">Fiestaflare &middot; Wholesale</div>
@@ -143,6 +244,30 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(255,244,234,0.96),rgba(255,227,212,0.92));border:1px solid #FF9E7655">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#D9542A">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#FF9E76,#FF6E42);color:#FFFFFF">Pink</span>
+          <span style="background:rgba(255,255,255,0.7);border:1px solid #FF9E7660;color:#7A2E1C">White</span>
+          <span style="background:rgba(255,255,255,0.7);border:1px solid #FF9E7660;color:#7A2E1C">Black</span>
+          <span style="background:rgba(255,255,255,0.7);border:1px solid #FF9E7660;color:#7A2E1C">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#7A2E1C">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #FF9E7660">
+          <i style="background:rgba(255,255,255,0.55);color:#7A2E1C">&minus;</i><b style="color:#7A2E1C">2</b><i style="background:rgba(255,255,255,0.55);color:#7A2E1C">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#FF9E76,#FF6E42);color:#FFFFFF;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#FF9E7660;color:#7A2E1C">Add to Wishlist</span>
+      </div>
+
     </div>
   </div>
 
@@ -151,8 +276,10 @@ h1{font-size:25px;margin:0 0 6px}
     <div class="title">森林墨绿 + 奶油白</div>
     <p class="desc">深森林绿信笺 + 墨绿蜡封 + 奶油金，素净日常。</p>
     <div class="mock" style="background:#E4EAE4">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(14,44,30,0.66),rgba(6,22,15,0.9));border:1px solid #D9E4D255">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#C9D8C4,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #2E5A44, #1D3D2D 55%, #102419)"><b style="color:#E8F0E2">F</b></span>
         <div class="in">
           <div class="kick" style="color:#C9D8C4">Fiestaflare &middot; Wholesale</div>
@@ -170,6 +297,30 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(14,44,30,0.66),rgba(6,22,15,0.9));border:1px solid #D9E4D255">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#C9D8C4">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#F1EFE2,#B9C9B4);color:#0D2418">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #D9E4D259;color:#F1EFE2">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #D9E4D259;color:#F1EFE2">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #D9E4D259;color:#F1EFE2">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#F1EFE2">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #D9E4D259">
+          <i style="background:rgba(255,255,255,0.05);color:#F1EFE2">&minus;</i><b style="color:#F1EFE2">2</b><i style="background:rgba(255,255,255,0.05);color:#F1EFE2">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#F1EFE2,#B9C9B4);color:#0D2418;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#D9E4D259;color:#F1EFE2">Add to Wishlist</span>
+      </div>
+
     </div>
   </div>
 
@@ -178,8 +329,10 @@ h1{font-size:25px;margin:0 0 6px}
     <div class="title">深紫罗兰 + 樱粉</div>
     <p class="desc">深紫信笺 + 紫罗兰蜡封 + 樱粉，梦幻少女感。</p>
     <div class="mock" style="background:#EDE4F2">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(48,20,88,0.64),rgba(20,8,42,0.9));border:1px solid #F0A6D055">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#F0A6D0,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #7A3EA8, #53247A 55%, #341348)"><b style="color:#F7D2E8">F</b></span>
         <div class="in">
           <div class="kick" style="color:#F0A6D0">Fiestaflare &middot; Wholesale</div>
@@ -197,6 +350,30 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(48,20,88,0.64),rgba(20,8,42,0.9));border:1px solid #F0A6D055">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#F0A6D0">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#F7C2E0,#B07BE0);color:#241046">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #F0A6D059;color:#F7D9EC">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #F0A6D059;color:#F7D9EC">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #F0A6D059;color:#F7D9EC">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#F7D9EC">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #F0A6D059">
+          <i style="background:rgba(255,255,255,0.05);color:#F7D9EC">&minus;</i><b style="color:#F7D9EC">2</b><i style="background:rgba(255,255,255,0.05);color:#F7D9EC">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#F7C2E0,#B07BE0);color:#241046;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#F0A6D059;color:#F7D9EC">Add to Wishlist</span>
+      </div>
+
     </div>
   </div>
 
@@ -205,8 +382,10 @@ h1{font-size:25px;margin:0 0 6px}
     <div class="title">砖红陶土 + 米白</div>
     <p class="desc">陶土信笺 + 砖红蜡封 + 米白，温暖手作感。</p>
     <div class="mock" style="background:#F0E7DC">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(126,52,33,0.62),rgba(70,26,12,0.88));border:1px solid #F6F1E755">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#F6F1E7,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #C05A38, #93401F 55%, #632713)"><b style="color:#FBF0DC">F</b></span>
         <div class="in">
           <div class="kick" style="color:#F6F1E7">Fiestaflare &middot; Wholesale</div>
@@ -224,6 +403,30 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(126,52,33,0.62),rgba(70,26,12,0.88));border:1px solid #F6F1E755">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#F6F1E7">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#FBF4E8,#D9A08A);color:#7E3421">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #F6F1E759;color:#FBF4E8">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #F6F1E759;color:#FBF4E8">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #F6F1E759;color:#FBF4E8">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#FBF4E8">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #F6F1E759">
+          <i style="background:rgba(255,255,255,0.05);color:#FBF4E8">&minus;</i><b style="color:#FBF4E8">2</b><i style="background:rgba(255,255,255,0.05);color:#FBF4E8">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#FBF4E8,#D9A08A);color:#7E3421;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#F6F1E759;color:#FBF4E8">Add to Wishlist</span>
+      </div>
+
     </div>
   </div>
 
@@ -232,8 +435,10 @@ h1{font-size:25px;margin:0 0 6px}
     <div class="title">冷钢灰蓝 + 银白</div>
     <p class="desc">钢蓝信笺 + 钢蓝蜡封 + 银白，冷静专业。</p>
     <div class="mock" style="background:#E4E9ED">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(30,44,58,0.66),rgba(12,20,28,0.9));border:1px solid #C7D2DC55">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#C7D2DC,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #41586E, #2A3D50 55%, #182634)"><b style="color:#DCE6EE">F</b></span>
         <div class="in">
           <div class="kick" style="color:#C7D2DC">Fiestaflare &middot; Wholesale</div>
@@ -251,6 +456,30 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(30,44,58,0.66),rgba(12,20,28,0.9));border:1px solid #C7D2DC55">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#C7D2DC">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#E8EEF3,#9FB3C4);color:#1A242C">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #C7D2DC59;color:#E8EEF3">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #C7D2DC59;color:#E8EEF3">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #C7D2DC59;color:#E8EEF3">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#E8EEF3">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #C7D2DC59">
+          <i style="background:rgba(255,255,255,0.05);color:#E8EEF3">&minus;</i><b style="color:#E8EEF3">2</b><i style="background:rgba(255,255,255,0.05);color:#E8EEF3">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#E8EEF3,#9FB3C4);color:#1A242C;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#C7D2DC59;color:#E8EEF3">Add to Wishlist</span>
+      </div>
+
     </div>
   </div>
 
@@ -259,8 +488,10 @@ h1{font-size:25px;margin:0 0 6px}
     <div class="title">纯白 + 正红点缀</div>
     <p class="desc">白信笺 + 正红蜡封，最干净，靠一枚红章抓眼。</p>
     <div class="mock" style="background:#ECECEE">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(255,255,255,0.98),rgba(243,244,246,0.95));border:1px solid #E0313155">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#E03131,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #E84343, #C42A2A 55%, #961C1C)"><b style="color:#FFE3E3">F</b></span>
         <div class="in">
           <div class="kick" style="color:#E03131">Fiestaflare &middot; Wholesale</div>
@@ -278,6 +509,30 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(255,255,255,0.98),rgba(243,244,246,0.95));border:1px solid #E0313155">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#E03131">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#E03131,#B02525);color:#FFFFFF">Pink</span>
+          <span style="background:rgba(17,17,19,0.03);border:1px solid #11111333;color:#111113">White</span>
+          <span style="background:rgba(17,17,19,0.03);border:1px solid #11111333;color:#111113">Black</span>
+          <span style="background:rgba(17,17,19,0.03);border:1px solid #11111333;color:#111113">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#111113">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #11111333">
+          <i style="background:rgba(17,17,19,0.03);color:#111113">&minus;</i><b style="color:#111113">2</b><i style="background:rgba(17,17,19,0.03);color:#111113">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#E03131,#B02525);color:#FFFFFF;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#11111333;color:#111113">Add to Wishlist</span>
+      </div>
+
     </div>
   </div>
 
@@ -286,8 +541,10 @@ h1{font-size:25px;margin:0 0 6px}
     <div class="title">墨黑 + 荧光柠檬</div>
     <p class="desc">黑信笺 + 黑蜡封 + 荧光黄，街头潮牌感。</p>
     <div class="mock" style="background:#E6E6E6">
+
       <div class="wx" style="background:linear-gradient(150deg,rgba(16,16,17,0.92),rgba(6,6,7,0.96));border:1px solid #E8FF3D55">
         <span class="noise"></span>
+        <span class="hair" style="background:linear-gradient(90deg,transparent,#E8FF3D,transparent)"></span>
         <span class="wax" style="background:radial-gradient(circle at 34%, #232326, #121214 55%, #08080A)"><b style="color:#E8FF3D">F</b></span>
         <div class="in">
           <div class="kick" style="color:#E8FF3D">Fiestaflare &middot; Wholesale</div>
@@ -305,7 +562,31 @@ h1{font-size:25px;margin:0 0 6px}
           </div>
         </div>
       </div>
+
+      <div class="vc" style="background:linear-gradient(150deg,rgba(16,16,17,0.92),rgba(6,6,7,0.96));border:1px solid #E8FF3D55">
+        <span class="noise"></span>
+        <div class="vlabel" style="color:#E8FF3D">Color</div>
+        <div class="vbtns">
+          <span style="background:linear-gradient(135deg,#E8FF3D,#B4CC16);color:#0C0C0D">Pink</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #E8FF3D59;color:#E8FF3D">White</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #E8FF3D59;color:#E8FF3D">Black</span>
+          <span style="background:rgba(255,255,255,0.05);border:1px solid #E8FF3D59;color:#E8FF3D">Red</span>
+        </div>
+      </div>
+
+      <div class="qty" style="color:#E8FF3D">
+        <span>Quantity (Min. order: 2)</span>
+        <span class="qbox" style="border:1px solid #E8FF3D59">
+          <i style="background:rgba(255,255,255,0.05);color:#E8FF3D">&minus;</i><b style="color:#E8FF3D">2</b><i style="background:rgba(255,255,255,0.05);color:#E8FF3D">+</i>
+        </span>
+      </div>
+
+      <div class="cta">
+        <span style="background:linear-gradient(135deg,#E8FF3D,#B4CC16);color:#0C0C0D;box-shadow:0 8px 20px -8px rgba(0,0,0,.6)">Add to Cart</span>
+        <span class="ghost" style="border-color:#E8FF3D59;color:#E8FF3D">Add to Wishlist</span>
+      </div>
+
     </div>
   </div></div>
-<div class="foot">静态预览页（纯 HTML/CSS，不影响线上前台）。选定后我落到 <code>app/(shop)/products/[slug]/page.tsx</code>，并按老规矩验证（chunk grep + 线上 CSS 确认渐变/噪点编译生效）。</div>
+<div class="foot">静态预览页（纯 HTML/CSS，不影响线上前台）。选定后我落到 <code>app/(shop)/products/[slug]/page.tsx</code>，并按老规矩验证（chunk grep + 线上 CSS 确认渐变/噪点/阴影编译生效）。</div>
 </div></body></html>
