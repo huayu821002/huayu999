@@ -542,12 +542,12 @@ export default function ProductDetailPage() {
                 <p className="text-joy-gray-600 mb-4">{displayProduct?.shortDesc || product.shortDesc}</p>
               )}
 
-              {/* Price Display */}
-              {/* ★ 2026-10-29 16:35 价格段视觉 → 配色「深莓紫 + 玫瑰灰」× 样式第一版卡片式
+              {/* Price Display + Variants —— 合并为同一张大卡片 */}
+              {/* ★ 2026-10-29 17:30 价格段视觉 → 配色「深莓紫 + 玫瑰灰」× 样式第一版卡片式
                   · 底色：深莓紫渐变（#4B1030 → #7A1E4C → #28081A）
                   · 样式/特效：第一版卡片式 —— 两层径向柔光 + 两枚角落光晕 + 顶部高光细线 + 圆角投影
                   · 描边与强调色：玫瑰灰 #E3C3CE；价格玫瑰灰 #F6E4EA
-                  · 变体规格区 = 内嵌子卡（同一套语言）
+                  · ★ 价格段与变体规格合并在同一张大卡片内（中间用一条发光细线分隔）
               */}
               <div className="relative overflow-hidden rounded-3xl mb-6 p-6
                               bg-gradient-to-br from-[#4B1030] via-[#7A1E4C] to-[#28081A]
@@ -562,6 +562,7 @@ export default function ProductDetailPage() {
                 <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#E3C3CE]/60 to-transparent" />
 
                 <div className="relative">
+                  {/* ---- 价格 ---- */}
                   <div className="flex items-baseline gap-3 mb-4">
                     <span className="text-4xl font-extrabold tracking-tight text-[#F6E4EA]
                                      drop-shadow-[0_0_26px_rgba(230,170,195,0.34)]">
@@ -574,7 +575,7 @@ export default function ProductDetailPage() {
                     )}
                   </div>
 
-                  {/* Tier Prices */}
+                  {/* 阶梯价 */}
                   <div className="grid grid-cols-3 gap-2 text-sm">
                     {tiers.map((tier, idx) => (
                       <div key={idx} className={cn(
@@ -596,91 +597,85 @@ export default function ProductDetailPage() {
                       </div>
                     ))}
                   </div>
-                </div>
-              </div>
 
-              {/* Variants —— 多维度：每个维度一行；单维度：保持原样 */}
-              {product.variants && product.variants.length > 0 && (
-                // ★ 湖水青配色 × 第一版卡片式（内嵌子卡）
-                <div className="relative overflow-hidden mb-6 space-y-4 rounded-3xl p-5
-                                bg-[#4B1030]/70 backdrop-blur-xl
-                                border border-[#E3C3CE]/20 shadow-2xl shadow-[#18040E]/50">
-                  {/* 卡内柔光 */}
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_20%_0%,rgba(227,195,206,0.12),transparent_62%)]" />
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_90%_100%,rgba(164,94,133,0.12),transparent_62%)]" />
-                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-[#E3C3CE]/15 blur-3xl" />
-                  <div className="relative">
-                    {variantRows.length > 0 ? variantRows.map((row) => {
-                      const isFirstRow = row === variantRows[0]
-                      const currentVal = variantSelection[row.name] || ''
-                      return (
-                        <div key={row.name}>
-                          <label className="block text-sm font-medium text-[#F6E4EA]/70 mb-2">
-                            {row.name}
-                          </label>
-                          <div className="flex flex-wrap gap-2">
-                            {row.values.map((val) => {
-                              // 选中该值后能否匹配到变体
-                              const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
-                              const disabled = !probe
-                              const isActive = currentVal === val
-                              return (
+                  {/* ---- 变体规格（同一张大卡片内） ---- */}
+                  {product.variants && product.variants.length > 0 && (
+                    <div className="mt-6 pt-5">
+                      {/* 发光分隔线 */}
+                      <div className="pointer-events-none h-px w-full bg-gradient-to-r from-transparent via-[#E3C3CE]/30 to-transparent" />
+                      <div className="space-y-4">
+                        {variantRows.length > 0 ? variantRows.map((row) => {
+                          const currentVal = variantSelection[row.name] || ''
+                          return (
+                            <div key={row.name}>
+                              <label className="block text-sm font-medium text-[#F6E4EA]/70 mb-2">
+                                {row.name}
+                              </label>
+                              <div className="flex flex-wrap gap-2">
+                                {row.values.map((val) => {
+                                  // 选中该值后能否匹配到变体
+                                  const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
+                                  const disabled = !probe
+                                  const isActive = currentVal === val
+                                  return (
+                                    <button
+                                      key={val}
+                                      disabled={disabled}
+                                      onClick={() => {
+                                        const next = { ...variantSelection, [row.name]: val }
+                                        setVariantSelection(next)
+                                        setImageMode('variant')
+                                        const m = matchVariant(product.variants, next)
+                                        if (m) setSelectedVariant(m.id)
+                                      }}
+                                      className={cn(
+                                        'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
+                                        isActive
+                                          ? 'bg-[linear-gradient(135deg,#E3C3CE,#A87689)] text-[#4B1030] shadow-lg shadow-[#A87689]/30 scale-[1.03] ring-1 ring-[#4B1030]/20'
+                                          : 'bg-white/[0.06] border border-[#E3C3CE]/28 text-[#F6E4EA] hover:bg-white/[0.12] hover:border-[#E3C3CE]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#28081A]/50',
+                                        disabled && 'opacity-40 cursor-not-allowed'
+                                      )}
+                                    >
+                                      {val}
+                                      {(() => {
+                                        const inv = probe?.inventory
+                                        return inv != null && inv < 10 ? ` (${inv} left)` : ''
+                                      })()}
+                                    </button>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )
+                        }) : (
+                          <div>
+                            <label className="block text-sm font-medium text-[#F6E4EA]/70 mb-2">
+                              {product.variants[0].name}
+                            </label>
+                            <div className="flex flex-wrap gap-2">
+                              {product.variants.map((variant) => (
                                 <button
-                                  key={val}
-                                  disabled={disabled}
-                                  onClick={() => {
-                                    const next = { ...variantSelection, [row.name]: val }
-                                    setVariantSelection(next)
-                                    setImageMode('variant')
-                                    const m = matchVariant(product.variants, next)
-                                    if (m) setSelectedVariant(m.id)
-                                  }}
+                                  key={variant.id}
+                                  onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
                                   className={cn(
                                     'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
-                                    isActive
+                                    selectedVariant === variant.id
                                       ? 'bg-[linear-gradient(135deg,#E3C3CE,#A87689)] text-[#4B1030] shadow-lg shadow-[#A87689]/30 scale-[1.03] ring-1 ring-[#4B1030]/20'
-                                      : 'bg-white/[0.06] border border-[#E3C3CE]/28 text-[#F6E4EA] hover:bg-white/[0.12] hover:border-[#E3C3CE]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#28081A]/50',
-                                    disabled && 'opacity-40 cursor-not-allowed'
+                                      : 'bg-white/[0.06] border border-[#E3C3CE]/28 text-[#F6E4EA] hover:bg-white/[0.12] hover:border-[#E3C3CE]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#28081A]/50'
                                   )}
                                 >
-                                  {val}
-                                  {(() => {
-                                    const inv = probe?.inventory
-                                    return inv != null && inv < 10 ? ` (${inv} left)` : ''
-                                  })()}
+                                  {variant.value}
+                                  {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
                                 </button>
-                              )
-                            })}
+                              ))}
+                            </div>
                           </div>
-                        </div>
-                      )
-                    }) : (
-                      <div>
-                        <label className="block text-sm font-medium text-[#F6E4EA]/70 mb-2">
-                          {product.variants[0].name}
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {product.variants.map((variant) => (
-                            <button
-                              key={variant.id}
-                              onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
-                              className={cn(
-                                'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
-                                selectedVariant === variant.id
-                                  ? 'bg-[linear-gradient(135deg,#E3C3CE,#A87689)] text-[#4B1030] shadow-lg shadow-[#A87689]/30 scale-[1.03] ring-1 ring-[#4B1030]/20'
-                                  : 'bg-white/[0.06] border border-[#E3C3CE]/28 text-[#F6E4EA] hover:bg-white/[0.12] hover:border-[#E3C3CE]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#28081A]/50'
-                              )}
-                            >
-                              {variant.value}
-                              {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
-                            </button>
-                          ))}
-                        </div>
+                        )}
                       </div>
-                    )}
-                  </div>
+                    </div>
+                  )}
                 </div>
-              )}
+              </div>
 
               {/* Warehouse Selection */}
               {warehouseInventories.length > 0 && (
