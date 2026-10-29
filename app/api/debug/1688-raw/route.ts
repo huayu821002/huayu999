@@ -1,11 +1,14 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 
-const KEY = process.env.DEBUG_1688_KEY || '***REMOVED_1688_DEBUG_KEY***'
+// ★ 2026-10-29：key **只从环境变量读**，没有硬编码回落。
+//   原因：硬编码 key 曾提交进公开仓库（已在 git 历史里抹掉），
+//   现在必须「env 没配 = 端点直接关闭」，绝不能有回落默认值。
+const KEY = process.env.DEBUG_1688_KEY
 
 export async function GET(req: Request) {
   const url = new URL(req.url)
-  if (url.searchParams.get('key') !== KEY) {
+  if (!KEY || url.searchParams.get('key') !== KEY) {
     return NextResponse.json({ error: 'forbidden' }, { status: 403 })
   }
   const limit = Math.min(Number(url.searchParams.get('limit') || 5), 20)
