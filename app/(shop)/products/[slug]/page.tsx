@@ -543,31 +543,33 @@ export default function ProductDetailPage() {
               )}
 
               {/* Price Display */}
-              {/* ★ 2026-10-29 11:00 价格段视觉升级 —— 方案 3「墨绿丝绒 + 香槟金」
-                  · 深墨绿丝绒底（emerald-950 → green-950 → emerald-900）+ 两层径向柔光做丝绒反光
-                  · 香槟金描边（amber-200/30）+ 顶部一道金调高光
-                  · 价格用「香槟金」实色（#F5E7C8）+ 金色光晕
+              {/* ★ 2026-10-29 11:15 价格段视觉升级 —— 方案 4「珍珠白 + 柔光虹彩」
+                  · 珍珠白底（white → #FDFBFF → 淡紫）+ 三层极淡虹彩柔光（粉/蓝/紫）
+                  · 白色细边 + 极浅紫蓝投影，柔和不抢眼
+                  · 顶部一道虹彩高光描边
+                  · 价格用深墨近黑（slate-900）+ 极淡紫光晕
               */}
               <div className="relative overflow-hidden rounded-3xl mb-6 p-6
-                              bg-gradient-to-br from-emerald-950 via-green-950 to-emerald-900
-                              border border-amber-200/30 shadow-2xl shadow-emerald-950/60">
-                {/* 丝绒反光（两层径向柔光） */}
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_120%_at_12%_0%,rgba(16,185,129,0.22),transparent_55%)]" />
-                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_95%_100%,rgba(245,158,11,0.14),transparent_60%)]" />
+                              bg-gradient-to-br from-white via-[#FDFBFF] to-[#F4F1FF]
+                              border border-white shadow-2xl shadow-indigo-200/25">
+                {/* 虹彩柔光（三层极淡：粉 / 蓝 / 紫） */}
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_8%_0%,rgba(244,114,182,0.16),transparent_60%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_50%_0%,rgba(96,165,250,0.14),transparent_62%)]" />
+                <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_100%_at_95%_100%,rgba(167,139,250,0.14),transparent_62%)]" />
                 {/* 角落柔光 */}
-                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-emerald-400/15 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-amber-300/15 blur-3xl" />
-                {/* 顶部香槟金高光描边 */}
-                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/50 to-transparent" />
+                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-pink-200/25 blur-3xl" />
+                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-violet-200/25 blur-3xl" />
+                {/* 顶部虹彩高光描边 */}
+                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-[linear-gradient(90deg,transparent,rgba(244,114,182,0.85),rgba(167,139,250,0.85),rgba(96,165,250,0.85),transparent)]" />
 
                 <div className="relative">
                   <div className="flex items-baseline gap-3 mb-4">
-                    <span className="text-4xl font-extrabold tracking-tight text-[#F5E7C8]
-                                     drop-shadow-[0_0_26px_rgba(212,175,55,0.45)]">
+                    <span className="text-4xl font-extrabold tracking-tight text-slate-900
+                                     drop-shadow-[0_0_24px_rgba(139,92,246,0.22)]">
                       {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
                     </span>
                     {product.comparePrice && (
-                      <span className="text-xl text-[#F5E7C8]/45 line-through">
+                      <span className="text-xl text-slate-400 line-through">
                         {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
                       </span>
                     )}
@@ -579,18 +581,18 @@ export default function ProductDetailPage() {
                       <div key={idx} className={cn(
                         "text-center p-3 rounded-xl transition-all duration-200",
                         idx === 1
-                          ? "bg-gradient-to-br from-amber-100 to-amber-300 text-emerald-950 shadow-lg shadow-amber-500/25 scale-[1.03] ring-1 ring-amber-50/40"
-                          : "bg-white/[0.06] border border-amber-200/20 text-[#F5E7C8] backdrop-blur-md"
+                          ? "bg-gradient-to-br from-pink-200 via-violet-200 to-sky-200 text-slate-900 shadow-lg shadow-violet-200/50 scale-[1.03] ring-1 ring-white/70"
+                          : "bg-white/70 border border-slate-100 text-slate-700 backdrop-blur-md"
                       )}>
                         <div className={cn(
                           "font-semibold mb-1",
-                          idx === 1 ? "text-emerald-900/70" : idx === 2 ? "text-amber-200/90" : "text-[#F5E7C8]/60"
+                          idx === 1 ? "text-slate-600" : idx === 2 ? "text-violet-600" : "text-slate-400"
                         )}>
                           {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
                         </div>
                         <div className={cn(
                           "font-semibold",
-                          idx === 1 ? "text-emerald-950" : idx === 2 ? "text-amber-200" : "text-[#F5E7C8]"
+                          idx === 1 ? "text-slate-900" : idx === 2 ? "text-violet-700" : "text-slate-700"
                         )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
                       </div>
                     ))}
@@ -602,20 +604,20 @@ export default function ProductDetailPage() {
               {product.variants && product.variants.length > 0 && (
                 // ★ 变体选择器移进价格卡片后，规格按钮（灰底）落在灰卡片上会看不见
                 //   → 内嵌一层白底子卡片
-                // ★ 方案 3：墨绿丝绒卡片（与价格段同一套语言）
+                // ★ 方案 4：珍珠白玻璃卡片（与价格段同一套语言）
                 <div className="relative overflow-hidden mb-6 space-y-4 rounded-3xl p-5
-                                bg-gradient-to-br from-emerald-950/90 via-green-950/90 to-emerald-900/90
-                                backdrop-blur-xl
-                                border border-amber-200/25 shadow-2xl shadow-emerald-950/50">
-                  {/* 卡内丝绒反光 + 金色柔光 */}
-                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_100%_at_20%_0%,rgba(16,185,129,0.18),transparent_60%)]" />
-                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-amber-300/10 blur-3xl" />
+                                bg-white/70 backdrop-blur-xl
+                                border border-white shadow-xl shadow-indigo-100/50">
+                  {/* 卡内虹彩柔光 */}
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_20%_0%,rgba(244,114,182,0.12),transparent_62%)]" />
+                  <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_90%_100%,rgba(96,165,250,0.12),transparent_62%)]" />
+                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-violet-200/30 blur-3xl" />
                   {variantRows.length > 0 ? variantRows.map((row) => {
                     const isFirstRow = row === variantRows[0]
                     const currentVal = variantSelection[row.name] || ''
                     return (
                       <div key={row.name}>
-                        <label className="block text-sm font-medium text-[#F5E7C8]/70 mb-2">
+                        <label className="block text-sm font-medium text-slate-500 mb-2">
                           {row.name}
                         </label>
                         <div className="flex flex-wrap gap-2">
@@ -638,8 +640,8 @@ export default function ProductDetailPage() {
                                 className={cn(
                                   'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                                   isActive
-                                    ? 'bg-gradient-to-r from-amber-100 to-amber-300 text-emerald-950 shadow-lg shadow-amber-500/30 scale-[1.03] ring-1 ring-amber-50/50'
-                                    : 'bg-white/[0.06] border border-amber-200/25 text-[#F5E7C8] hover:bg-white/10 hover:border-amber-300/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-900/30',
+                                    ? 'bg-gradient-to-r from-pink-200 via-violet-200 to-sky-200 text-slate-900 shadow-lg shadow-violet-200/50 scale-[1.03] ring-1 ring-white/70'
+                                    : 'bg-white/70 border border-slate-200 text-slate-700 hover:bg-white hover:border-violet-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-100/60',
                                   disabled && 'opacity-40 cursor-not-allowed'
                                 )}
                               >
@@ -656,7 +658,7 @@ export default function ProductDetailPage() {
                     )
                   }) : (
                     <div>
-                      <label className="block text-sm font-medium text-[#F5E7C8]/70 mb-2">
+                      <label className="block text-sm font-medium text-slate-500 mb-2">
                         {product.variants[0].name}
                       </label>
                       <div className="flex flex-wrap gap-2">
@@ -667,8 +669,8 @@ export default function ProductDetailPage() {
                             className={cn(
                               'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
                               selectedVariant === variant.id
-                                ? 'bg-gradient-to-r from-amber-100 to-amber-300 text-emerald-950 shadow-lg shadow-amber-500/30 scale-[1.03] ring-1 ring-amber-50/50'
-                                : 'bg-white/[0.06] border border-amber-200/25 text-[#F5E7C8] hover:bg-white/10 hover:border-amber-300/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-amber-900/30'
+                                ? 'bg-gradient-to-r from-pink-200 via-violet-200 to-sky-200 text-slate-900 shadow-lg shadow-violet-200/50 scale-[1.03] ring-1 ring-white/70'
+                                : 'bg-white/70 border border-slate-200 text-slate-700 hover:bg-white hover:border-violet-300 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-violet-100/60'
                             )}
                           >
                             {variant.value}
