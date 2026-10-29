@@ -1,328 +1,245 @@
 <!DOCTYPE html>
-<html lang="zh-CN"><head><meta charset="utf-8" />
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Fiestaflare · 价格段配色方案（10 组 · 特效不变）</title>
+<title>Fiestaflare · 摩卡咖啡+焦糖 × 4 种新卡片形态</title>
 <style>
   *{box-sizing:border-box}
-  body{margin:0;background:#f5f5f6;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#111;padding:30px 18px 70px}
-  .wrap{max-width:1240px;margin:0 auto}
+  body{margin:0;background:#f4f1ec;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Microsoft YaHei",sans-serif;color:#111;padding:30px 18px 70px}
+  .wrap{max-width:1200px;margin:0 auto}
   h1{font-size:25px;margin:0 0 6px}
-  .sub{color:#6b7280;font-size:14px;line-height:1.7;margin:0 0 20px}
-  .note{background:#fff;border:1px solid #e5e7eb;border-radius:12px;padding:13px 17px;font-size:13px;line-height:1.9;color:#333;margin-bottom:22px}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
-  .cell{background:#fff;border:1px solid #e5e7eb;border-radius:14px;padding:14px}
-  .tag{display:inline-block;font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;background:#111;color:#fff}
-  .title{font-size:15.5px;font-weight:800;margin:6px 0 2px}
-  .desc{font-size:12px;color:#6b7280;line-height:1.7;margin:0 0 12px}
-  .mock{position:relative;overflow:hidden;border-radius:20px;padding:20px}
-  .ov1{position:absolute;inset:0;pointer-events:none}
-  .ov2{position:absolute;inset:0;pointer-events:none}
-  .g1{position:absolute;width:190px;height:190px;border-radius:50%;filter:blur(48px);top:-60px;right:-50px}
-  .g2{position:absolute;width:170px;height:170px;border-radius:50%;filter:blur(46px);bottom:-60px;left:-46px}
-  .hair{position:absolute;left:28px;right:28px;top:0;height:1px}
-  .in{position:relative}
-  .price{font-size:34px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
-  .old{font-size:17px;font-weight:600}
-  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;margin-top:14px;font-size:12px}
-  .tiers div{text-align:center;padding:8px 4px;border-radius:12px;line-height:1.45}
+  .sub{color:#6b7280;font-size:14px;line-height:1.75;margin:0 0 22px}
+  .note{background:#fff;border:1px solid #e3ddd2;border-radius:12px;padding:13px 17px;font-size:13px;line-height:1.9;color:#333;margin-bottom:22px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:22px}
+  .cell{background:#fff;border:1px solid #e3ddd2;border-radius:14px;padding:14px}
+  .tag{display:inline-block;font-size:11.5px;font-weight:800;padding:3px 10px;border-radius:999px;background:#3B2A1E;color:#fff}
+  .title{font-size:16px;font-weight:800;margin:6px 0 2px}
+  .desc{font-size:12.5px;color:#6b7280;line-height:1.75;margin:0 0 13px}
+  .mock{border-radius:12px;overflow:hidden}
+  .price{font-weight:800}
+  .old{text-decoration:line-through}
+  .tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:7px;font-size:11.5px}
+  .tiers div{text-align:center;padding:8px 3px;border-radius:9px;line-height:1.4}
   .tiers b{display:block;font-size:14px;margin-top:2px}
-  .chips{display:flex;gap:7px;flex-wrap:wrap;margin-top:14px}
-  .chips span{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:12px}
+  .chips{display:flex;gap:7px;flex-wrap:wrap}
+  .chips span{font-size:12.5px;font-weight:600;padding:7px 12px;border-radius:11px}
+
+  /* ===== A 牛皮纸吊牌 ===== */
+  .kraft{padding:26px 20px;background:linear-gradient(160deg,#D9C0A0,#C4A47E)}
+  .tag-paper{position:relative;max-width:300px;margin:0 auto;background:linear-gradient(180deg,#EFE3CD,#E2D1B2);
+    border:1px solid #C6AE88;border-radius:3px;padding:26px 20px 18px;box-shadow:0 14px 26px -14px rgba(60,40,20,.55)}
+  .tag-hole{position:absolute;top:9px;left:50%;transform:translateX(-50%);width:13px;height:13px;border-radius:50%;
+    background:#D9C0A0;box-shadow:inset 0 1px 3px rgba(0,0,0,.45)}
+  .tag-rope{position:absolute;top:-16px;left:50%;transform:translateX(-50%);width:44px;height:18px;
+    border:2px solid #A9865F;border-bottom:0;border-radius:22px 22px 0 0}
+  .kp-kick{font:700 10px/1 "Courier New",monospace;letter-spacing:.3em;color:#8A6A45;text-align:center;text-transform:uppercase}
+  .kp-price{font:800 40px/1 "Courier New",monospace;color:#3B2A1E;text-align:center;margin:14px 0 4px;letter-spacing:-.02em}
+  .kp-old{font:600 14px/1 "Courier New",monospace;color:#A88B68;text-align:center}
+  .kp-line{border-top:1px dashed #C0A87F;margin:16px 0 12px}
+  .kp-tiers{font:600 11.5px/1.4 "Courier New",monospace;color:#6B4F33;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;text-align:center}
+  .kp-tiers b{display:block;font-size:13px;color:#3B2A1E}
+  .kp-chips{justify-content:center;margin-top:14px}
+  .kp-chips span{border:1px solid #A9865F;color:#5A4028;background:rgba(255,255,255,.45);border-radius:3px;font-family:"Courier New",monospace}
+  .kp-chips span.on{background:#3B2A1E;color:#EFE3CD;border-color:#3B2A1E}
+  .kp-bar{margin-top:16px;height:26px;display:flex;gap:2px;align-items:flex-end;opacity:.45}
+  .kp-bar i{flex:1;background:#3B2A1E;height:100%}
+  .kp-bar i:nth-child(3n){height:70%}
+  .kp-bar i:nth-child(4n){height:88%}
+
+  /* ===== B 蜡封印章 ===== */
+  .wax{padding:26px 22px;background:linear-gradient(140deg,#3A2718,#2A1C11 60%,#3A2718)}
+  .wx-card{position:relative;border-radius:6px;padding:24px 22px;
+    background:linear-gradient(150deg,rgba(88,58,34,.55),rgba(46,30,18,.75));
+    border:1px solid rgba(214,175,110,.32);overflow:hidden}
+  .wx-card::before{content:"";position:absolute;inset:0;opacity:.35;mix-blend-mode:overlay;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='200' height='200' filter='url(%23n)'/%3E%3C/svg%3E")}
+  .wx-in{position:relative}
+  .wx-kick{font-size:10.5px;letter-spacing:.32em;color:#D6AF6E;text-transform:uppercase;font-weight:700}
+  .wx-price{font-size:44px;line-height:1;color:#F0DDB6;margin:14px 0 4px;
+    text-shadow:0 2px 18px rgba(214,175,110,.4)}
+  .wx-old{font-size:16px;color:rgba(240,221,182,.45)}
+  .wx-seal{position:absolute;right:14px;top:50%;transform:translateY(-50%);width:74px;height:74px;border-radius:50%;
+    background:radial-gradient(circle at 34% 30%,#A8483A,#7A2A20 55%,#541812);
+    box-shadow:0 6px 16px rgba(0,0,0,.45),inset 0 -3px 8px rgba(0,0,0,.35),inset 0 3px 6px rgba(255,255,255,.18);
+    display:flex;align-items:center;justify-content:center;font:800 26px/1 "Didot",Georgia,serif;color:#E8C9A0}
+  .wx-seal::after{content:"";position:absolute;inset:7px;border-radius:50%;border:1px dashed rgba(232,201,160,.55)}
+  .wx-tiers{margin-top:18px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11.5px;color:rgba(240,221,182,.6)}
+  .wx-tiers div{text-align:center;padding:9px 4px;border-radius:9px;background:rgba(255,255,255,.05);border:1px solid rgba(214,175,110,.22)}
+  .wx-tiers div.on{background:linear-gradient(135deg,#D6AF6E,#A87A3C);color:#2A1C11;font-weight:700;border-color:transparent}
+  .wx-tiers b{display:block;font-size:15px;margin-top:2px}
+  .wx-chips{margin-top:16px}
+  .wx-chips span{border:1px solid rgba(214,175,110,.35);color:#F0DDB6;background:rgba(255,255,255,.04);border-radius:8px}
+  .wx-chips span.on{background:linear-gradient(135deg,#D6AF6E,#A87A3C);color:#2A1C11;font-weight:700;border-color:transparent}
+
+  /* ===== C 胡桃木纹 + 烫金 ===== */
+  .wood{padding:26px 22px;background:#2E2015}
+  .wd-card{position:relative;border-radius:8px;padding:24px 22px;
+    background:
+      repeating-linear-gradient(88deg,rgba(0,0,0,.16) 0 2px,rgba(255,255,255,.03) 2px 7px),
+      repeating-linear-gradient(0deg,#5C3B22 0 6px,#513320 6px 13px,#5E3D23 13px 19px);
+    border:1px solid #2A1B10;
+    box-shadow:0 20px 40px -18px rgba(0,0,0,.8),inset 0 1px 0 rgba(255,220,180,.14)}
+  .wd-rivet{position:absolute;width:9px;height:9px;border-radius:50%;
+    background:radial-gradient(circle at 32% 30%,#F0D79B,#B98A45 60%,#7A5524);
+    box-shadow:0 1px 2px rgba(0,0,0,.6)}
+  .wd-rivet.a{top:11px;left:11px}.wd-rivet.b{top:11px;right:11px}
+  .wd-rivet.c{bottom:11px;left:11px}.wd-rivet.d{bottom:11px;right:11px}
+  .wd-in{text-align:center;padding:6px 0}
+  .wd-kick{font-size:10.5px;letter-spacing:.36em;color:#D9B26B;text-transform:uppercase;font-weight:700}
+  .wd-price{font-size:46px;line-height:1.05;margin:12px 0 4px;font-weight:800;letter-spacing:-.02em;
+    background:linear-gradient(180deg,#FBE9BC 0%,#E3C176 45%,#B3863C 55%,#F2DFA8 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+    filter:drop-shadow(0 2px 6px rgba(0,0,0,.55))}
+  .wd-old{font-size:16px;color:rgba(240,215,160,.45)}
+  .wd-line{height:1px;margin:16px 0 14px;background:linear-gradient(90deg,transparent,#C79A4E,transparent)}
+  .wd-tiers{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:11.5px;color:rgba(240,215,160,.65)}
+  .wd-tiers div{text-align:center;padding:9px 4px;border-radius:8px;background:rgba(0,0,0,.28);border:1px solid rgba(199,154,78,.32)}
+  .wd-tiers div.on{background:linear-gradient(135deg,#E7C583,#A87A3C);color:#2A1B10;font-weight:700;border-color:transparent}
+  .wd-tiers b{display:block;font-size:15px;margin-top:2px}
+  .wd-chips{justify-content:center;margin-top:15px}
+  .wd-chips span{border:1px solid rgba(199,154,78,.45);color:#F0D7A0;background:rgba(0,0,0,.28);border-radius:7px}
+  .wd-chips span.on{background:linear-gradient(135deg,#F0D79B,#B3863C);color:#2A1B10;font-weight:700;border-color:transparent}
+
+  /* ===== D 一叠小票 ===== */
+  .receipt{padding:26px 20px;background:linear-gradient(150deg,#E9DFCB,#DCCFB4)}
+  .rc-stack{position:relative;max-width:300px;margin:0 auto;height:290px}
+  .rc-slip{position:absolute;left:0;right:0;border-radius:2px;padding:16px 16px 12px;
+    background:#F6F1E4;border:1px solid #D9CDB4;box-shadow:0 10px 22px -12px rgba(70,50,25,.55)}
+  .rc-slip.s1{top:0;transform:rotate(-2.6deg) translateY(0);z-index:1;background:#EFE7D3;opacity:.85}
+  .rc-slip.s2{top:26px;transform:rotate(1.8deg);z-index:2;background:#F3ECDC;opacity:.95}
+  .rc-slip.s3{top:52px;z-index:3;background:#FBF6EA}
+  .rc-head{display:flex;justify-content:space-between;align-items:center;font:700 10px/1 "Courier New",monospace;
+    letter-spacing:.16em;color:#8A7554;border-bottom:1px dashed #C9BA99;padding-bottom:8px}
+  .rc-price{font:800 34px/1 "Courier New",monospace;color:#3B2A1E;margin:14px 0 3px;display:flex;align-items:baseline;gap:8px}
+  .rc-price span{font-size:14px;font-weight:600;color:#A89070;text-decoration:line-through}
+  .rc-rows{margin-top:12px;font:600 11.5px/1.9 "Courier New",monospace;color:#6B573C}
+  .rc-rows div{display:flex;justify-content:space-between}
+  .rc-rows b{color:#3B2A1E}
+  .rc-rows tr.on{color:#8A5A22}
+  .rc-foot{margin-top:12px;border-top:1px dashed #C9BA99;padding-top:9px;text-align:center;
+    font:700 10px/1 "Courier New",monospace;letter-spacing:.2em;color:#8A7554}
+  .rc-chips{justify-content:center;margin-top:12px}
+  .rc-chips span{border:1px solid #B49B72;color:#5A4028;background:#fff;border-radius:2px;font-family:"Courier New",monospace}
+  .rc-chips span.on{background:#3B2A1E;color:#F6F1E4;border-color:#3B2A1E}
+  .rc-edge{position:absolute;left:0;right:0;bottom:-9px;height:10px;z-index:4;
+    background:repeating-linear-gradient(90deg,#FBF6EA 0 8px,transparent 8px 16px);
+    -webkit-mask:radial-gradient(circle at 8px 0,transparent 5px,#000 5px) repeat-x 0 0/16px 10px;
+    mask:radial-gradient(circle at 8px 0,transparent 5px,#000 5px) repeat-x 0 0/16px 10px}
+
   .foot{margin-top:26px;font-size:13px;color:#6b7280;line-height:1.9}
-</style></head>
-<body><div class="wrap">
-<h1>价格段 · 只换配色（10 组）</h1>
-<p class="sub">2026-10-29 · 第 5 轮：<b>特效、结构全部保持线上现状不变</b>（渐变底 + 两层径向柔光 + 角落光晕 + 顶部高光线 + 圆角投影 + 阶梯价三档 + 变体按钮），<b>只换底色与配色</b>。回我编号即可。</p>
-<div class="note">配色都按「饰品 / 轻奢 / 走量」三类各给：<b>轻奢</b> 1 酒红玫瑰金 · 3 藏青亮金 · 8 砖红米白；<b>日常暖调</b> 2 摩卡焦糖 · 4 奶油珊瑚橘；<b>特色</b> 5 墨黑荧光黄 · 6 深紫樱粉 · 7 森林墨绿奶油 · 9 冷钢灰蓝 · 10 纯白正红。</div>
-<div class="grid">
-  <div class="cell">
-    <span class="tag">1</span>
-    <div class="title">酒红勃艮第 + 玫瑰金</div>
-    <p class="desc">经典轻奢，酒红底 + 玫瑰金描边/文字，饰品品牌最安全的一套。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#3E0B18 0%,#6B1526 48%,#4A0F1E 100%);border:1px solid rgba(231,183,160,0.30);box-shadow:0 18px 40px -22px rgba(80,10,25,0.60)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(231,183,160,0.18),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(180,90,110,0.20),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(231,183,160,0.16)"></span>
-      <span class="g2" style="background:rgba(231,183,160,0.18)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(231,183,160,0.85),rgba(255,220,205,0.85),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#F6DCD0;filter:drop-shadow(0 0 22px rgba(231,150,120,0.45))">$12.99
-          <span class="old" style="color:rgba(246,220,208,0.45);margin-left:8px">$19.99</span>
-        </div>
-        <div class="tiers">
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.22);color:#F6DCD0">1-2 pcs<b>#F6DCD0</b></div>
-          <div style="background:linear-gradient(135deg,#F0C3A8,#C97B6E);color:#3E0B18;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.22);color:#F6DCD0">10+ pcs<b>#F6DCD0</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#F0C3A8,#C97B6E);color:#3E0B18">Pink</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.28);color:#F6DCD0">White</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.28);color:#F6DCD0">Black</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(231,183,160,0.28);color:#F6DCD0">Red</span>
-        </div>
-      </div>
-    </div>
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>摩卡咖啡 + 焦糖 × 4 种新卡片形态</h1>
+  <p class="sub">2026-10-29 15:12 · 配色锁「2 摩卡咖啡 + 焦糖」，**结构换新的**（不再是第一版那种圆角渐变卡）。4 种形态：牛皮纸吊牌 / 蜡封印章 / 胡桃木纹烫金 / 一叠小票。</p>
+
+  <div class="note">
+    <b>A 牛皮纸吊牌</b> —— 打孔 + 麻绳 + 虚线撕口 + 等宽打字机字体 + 条码，咖啡豆袋/手作标签那种质感。<br/>
+    <b>B 蜡封印章</b> —— 深摩卡底 + 一枚浮雕蜡封章压在右边，价格香槟金，像高端手工品牌的封蜡信笺。<br/>
+    <b>C 胡桃木纹 + 烫金</b> —— 真木纹底板 + **烫金渐变价格字** + 四角铆钉，木箱/皮具店那种质感。<br/>
+    <b>D 一叠小票</b> —— 三张错位旋转的收货小票叠在一起，最上面那张是价格，等宽字体 + 底部锯齿撕口。<br/>
+    <span style="color:#6b7280">（当前线上是「酒红勃艮第 + 玫瑰金 · 第一版卡片式」，你要是想留着对比也可以直接说「保留现在的」）</span>
   </div>
 
-  <div class="cell">
-    <span class="tag">2</span>
-    <div class="title">摩卡咖啡 + 焦糖</div>
-    <p class="desc">暖调复古，巧克力底 + 焦糖色高亮，柔和不刺眼。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#33241D 0%,#4E382C 50%,#2E211A 100%);border:1px solid rgba(216,165,107,0.28);box-shadow:0 18px 40px -22px rgba(35,22,15,0.60)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(216,165,107,0.18),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(160,110,70,0.22),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(216,165,107,0.16)"></span>
-      <span class="g2" style="background:rgba(216,165,107,0.20)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(216,165,107,0.85),rgba(255,230,200,0.80),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#F3E3CE;filter:drop-shadow(0 0 22px rgba(216,165,107,0.45))">$12.99
-          <span class="old" style="color:rgba(243,227,206,0.45);margin-left:8px">$19.99</span>
+  <div class="grid">
+
+    <!-- A -->
+    <div class="cell">
+      <span class="tag">A</span>
+      <div class="title">牛皮纸吊牌</div>
+      <p class="desc">像挂在商品上的纸吊牌。打孔穿绳、虚线撕口、打字机字体、底部条码 —— 复古手作感最强，也最不像「电商卡片」。</p>
+      <div class="mock"><div class="kraft">
+        <div class="tag-paper">
+          <span class="tag-rope"></span><span class="tag-hole"></span>
+          <div class="kp-kick">Wholesale Price</div>
+          <div class="kp-price">$12.99</div>
+          <div class="kp-old">$19.99</div>
+          <div class="kp-line"></div>
+          <div class="kp-tiers">
+            <div>1-2 PCS<b>$12.99</b></div><div>3-9 PCS<b>$10.99</b></div><div>10+ PCS<b>$9.49</b></div>
+          </div>
+          <div class="chips kp-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+          <div class="kp-bar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
         </div>
-        <div class="tiers">
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.22);color:#F3E3CE">1-2 pcs<b>#F3E3CE</b></div>
-          <div style="background:linear-gradient(135deg,#E8C08A,#B87C4A);color:#33241D;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.22);color:#F3E3CE">10+ pcs<b>#F3E3CE</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#E8C08A,#B87C4A);color:#33241D">Pink</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.28);color:#F3E3CE">White</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.28);color:#F3E3CE">Black</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(216,165,107,0.28);color:#F3E3CE">Red</span>
-        </div>
-      </div>
+      </div></div>
     </div>
+
+    <!-- B -->
+    <div class="cell">
+      <span class="tag">B</span>
+      <div class="title">蜡封印章</div>
+      <p class="desc">深摩卡底 + 噪点颗粒，右侧压一枚浮雕蜡封章，价格香槟金。高端手工品牌/手工巧克力那套语言。</p>
+      <div class="mock"><div class="wax">
+        <div class="wx-card">
+          <div class="wx-in">
+            <div class="wx-kick">Fiestaflare · Wholesale</div>
+            <div class="wx-price">$12.99</div>
+            <div class="wx-old">$19.99</div>
+            <div class="wx-seal">F</div>
+            <div class="wx-tiers">
+              <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
+            </div>
+            <div class="chips wx-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- C -->
+    <div class="cell">
+      <span class="tag">C</span>
+      <div class="title">胡桃木纹 + 烫金</div>
+      <p class="desc">真木纹底板 + <b>烫金渐变价格字</b> + 四角铆钉。深色木 + 金 = 皮具/木箱/家具店的高级感。</p>
+      <div class="mock"><div class="wood">
+        <div class="wd-card">
+          <span class="wd-rivet a"></span><span class="wd-rivet b"></span><span class="wd-rivet c"></span><span class="wd-rivet d"></span>
+          <div class="wd-in">
+            <div class="wd-kick">Handcrafted</div>
+            <div class="wd-price">$12.99</div>
+            <div class="wd-old">$19.99</div>
+            <div class="wd-line"></div>
+            <div class="wd-tiers">
+              <div>1-2 pcs<b>$12.99</b></div><div class="on">3-9 pcs<b>$10.99</b></div><div>10+ pcs<b>$9.49</b></div>
+            </div>
+            <div class="chips wd-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+          </div>
+        </div>
+      </div></div>
+    </div>
+
+    <!-- D -->
+    <div class="cell">
+      <span class="tag">D</span>
+      <div class="title">一叠小票</div>
+      <p class="desc">三张错位旋转的收货小票叠成一摞，最上面那张是价格，底部有锯齿撕口。像批发档口开出的单据。</p>
+      <div class="mock"><div class="receipt">
+        <div class="rc-stack">
+          <div class="rc-slip s1"></div>
+          <div class="rc-slip s2"></div>
+          <div class="rc-slip s3">
+            <div class="rc-head"><span>FIESTAFLARE</span><span>#20261029</span></div>
+            <div class="rc-price">$12.99 <span>$19.99</span></div>
+            <div class="rc-rows">
+              <div><span>1-2 pcs</span><b>$12.99</b></div>
+              <div class="on"><span>3-9 pcs</span><b>$10.99</b></div>
+              <div><span>10+ pcs</span><b>$9.49</b></div>
+            </div>
+            <div class="chips rc-chips"><span class="on">Pink</span><span>White</span><span>Black</span><span>Red</span></div>
+            <div class="rc-foot">THANK YOU</div>
+          </div>
+          <span class="rc-edge"></span>
+        </div>
+      </div></div>
+    </div>
+
   </div>
 
-  <div class="cell">
-    <span class="tag">3</span>
-    <div class="title">藏青午夜 + 亮金</div>
-    <p class="desc">深蓝底 + 金线，稳重的贵气，比纯黑多一分层次。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#08152E 0%,#132A4D 50%,#0A1B36 100%);border:1px solid rgba(227,199,122,0.28);box-shadow:0 18px 40px -22px rgba(5,12,28,0.62)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(227,199,122,0.16),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(60,100,180,0.22),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(227,199,122,0.14)"></span>
-      <span class="g2" style="background:rgba(80,120,200,0.20)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(227,199,122,0.85),rgba(255,245,215,0.80),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#F3E4B6;filter:drop-shadow(0 0 22px rgba(227,199,122,0.45))">$12.99
-          <span class="old" style="color:rgba(243,228,182,0.45);margin-left:8px">$19.99</span>
-        </div>
-        <div class="tiers">
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.22);color:#F3E4B6">1-2 pcs<b>#F3E4B6</b></div>
-          <div style="background:linear-gradient(135deg,#F0DFA8,#C9A54B);color:#08152E;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.22);color:#F3E4B6">10+ pcs<b>#F3E4B6</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#F0DFA8,#C9A54B);color:#08152E">Pink</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.28);color:#F3E4B6">White</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.28);color:#F3E4B6">Black</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(227,199,122,0.28);color:#F3E4B6">Red</span>
-        </div>
-      </div>
-    </div>
+  <div class="foot">
+    静态预览页（纯 HTML/CSS，<b>不影响线上前台</b>）。回我字母 <b>A/B/C/D</b> 即可，也可以说「B 但蜡封别那么红」「C 但木纹浅一点」这种改法。<br/>
+    选定后我落到 <code>app/(shop)/products/[slug]/page.tsx</code>，并按老规矩做线上验证（chunk grep + 线上 CSS 确认渐变/纹理/裁切真的编译生效）。
   </div>
-
-  <div class="cell">
-    <span class="tag">4</span>
-    <div class="title">奶油杏 + 珊瑚橘</div>
-    <p class="desc">亮底暖色，奶油底 + 珊瑚橘高亮，亲和力强、适合走量。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#FFF4EA 0%,#FFE6D4 50%,#FFF8F2 100%);border:1px solid rgba(255,160,120,0.35);box-shadow:0 18px 40px -22px rgba(255,140,100,0.28)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(255,122,89,0.16),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(255,190,150,0.20),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(255,150,110,0.30)"></span>
-      <span class="g2" style="background:rgba(255,190,150,0.30)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(255,122,89,0.75),rgba(255,190,150,0.75),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#7A2E1C;filter:drop-shadow(0 0 22px rgba(255,122,89,0.30))">$12.99
-          <span class="old" style="color:rgba(122,46,28,0.45);margin-left:8px">$19.99</span>
-        </div>
-        <div class="tiers">
-          <div style="background:rgba(255,255,255,0.65);border:1px solid rgba(255,170,135,0.30);color:#7A2E1C">1-2 pcs<b>#7A2E1C</b></div>
-          <div style="background:linear-gradient(135deg,#FF9E76,#FF6E42);color:#FFFFFF;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(255,255,255,0.65);border:1px solid rgba(255,170,135,0.30);color:#7A2E1C">10+ pcs<b>#7A2E1C</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#FF9E76,#FF6E42);color:#FFFFFF">Pink</span>
-          <span style="background:rgba(255,255,255,0.70);border:1px solid rgba(255,170,135,0.35);color:#7A2E1C">White</span>
-          <span style="background:rgba(255,255,255,0.70);border:1px solid rgba(255,170,135,0.35);color:#7A2E1C">Black</span>
-          <span style="background:rgba(255,255,255,0.70);border:1px solid rgba(255,170,135,0.35);color:#7A2E1C">Red</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="cell">
-    <span class="tag">5</span>
-    <div class="title">墨黑 + 荧光柠檬</div>
-    <p class="desc">黑底 + 一抹荧光黄，街头潮牌感，识别度极高。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#0C0C0D 0%,#1B1B1E 50%,#0A0A0B 100%);border:1px solid rgba(232,255,61,0.28);box-shadow:0 18px 40px -22px rgba(0,0,0,0.70)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(232,255,61,0.14),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(120,140,40,0.18),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(232,255,61,0.16)"></span>
-      <span class="g2" style="background:rgba(200,255,90,0.12)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(232,255,61,0.85),rgba(255,255,255,0.60),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#E8FF3D;filter:drop-shadow(0 0 22px rgba(232,255,61,0.45))">$12.99
-          <span class="old" style="color:rgba(232,255,61,0.40);margin-left:8px">$19.99</span>
-        </div>
-        <div class="tiers">
-          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.22);color:#E8FF3D">1-2 pcs<b>#E8FF3D</b></div>
-          <div style="background:linear-gradient(135deg,#E8FF3D,#B4CC16);color:#0C0C0D;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.22);color:#E8FF3D">10+ pcs<b>#E8FF3D</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#E8FF3D,#B4CC16);color:#0C0C0D">Pink</span>
-          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.28);color:#E8FF3D">White</span>
-          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.28);color:#E8FF3D">Black</span>
-          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(232,255,61,0.28);color:#E8FF3D">Red</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="cell">
-    <span class="tag">6</span>
-    <div class="title">深紫罗兰 + 樱粉</div>
-    <p class="desc">深紫底 + 樱粉柔光，梦幻一点，适合少女/发饰类。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#241046 0%,#3E1B72 50%,#1C0B36 100%);border:1px solid rgba(240,166,208,0.30);box-shadow:0 18px 40px -22px rgba(20,6,40,0.62)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(240,166,208,0.20),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(120,60,190,0.25),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(240,166,208,0.18)"></span>
-      <span class="g2" style="background:rgba(170,110,230,0.20)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(240,166,208,0.85),rgba(200,150,255,0.80),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#F7D9EC;filter:drop-shadow(0 0 22px rgba(240,166,208,0.45))">$12.99
-          <span class="old" style="color:rgba(247,217,236,0.45);margin-left:8px">$19.99</span>
-        </div>
-        <div class="tiers">
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.22);color:#F7D9EC">1-2 pcs<b>#F7D9EC</b></div>
-          <div style="background:linear-gradient(135deg,#F7C2E0,#B07BE0);color:#241046;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.22);color:#F7D9EC">10+ pcs<b>#F7D9EC</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#F7C2E0,#B07BE0);color:#241046">Pink</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.28);color:#F7D9EC">White</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.28);color:#F7D9EC">Black</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(240,166,208,0.28);color:#F7D9EC">Red</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="cell">
-    <span class="tag">7</span>
-    <div class="title">森林墨绿 + 奶油白</div>
-    <p class="desc">深森林绿配奶油字，比「墨绿+香槟金」更素净、更日常。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#0D2418 0%,#1B3D2C 50%,#0B1D14 100%);border:1px solid rgba(226,240,225,0.24);box-shadow:0 18px 40px -22px rgba(6,22,14,0.62)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(226,240,225,0.14),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(60,120,90,0.22),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(210,235,215,0.12)"></span>
-      <span class="g2" style="background:rgba(80,150,110,0.20)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(226,240,225,0.70),rgba(255,255,255,0.55),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#F1EFE2;filter:drop-shadow(0 0 22px rgba(190,225,200,0.35))">$12.99
-          <span class="old" style="color:rgba(241,239,226,0.45);margin-left:8px">$19.99</span>
-        </div>
-        <div class="tiers">
-          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.20);color:#F1EFE2">1-2 pcs<b>#F1EFE2</b></div>
-          <div style="background:linear-gradient(135deg,#F1EFE2,#B9C9B4);color:#0D2418;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.20);color:#F1EFE2">10+ pcs<b>#F1EFE2</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#F1EFE2,#B9C9B4);color:#0D2418">Pink</span>
-          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.26);color:#F1EFE2">White</span>
-          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.26);color:#F1EFE2">Black</span>
-          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(226,240,225,0.26);color:#F1EFE2">Red</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="cell">
-    <span class="tag">8</span>
-    <div class="title">砖红陶土 + 米白</div>
-    <p class="desc">陶土红配米白，温暖手作感，适合手工/饰品。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#7E3421 0%,#A85038 50%,#6E2B1B 100%);border:1px solid rgba(246,241,231,0.30);box-shadow:0 18px 40px -22px rgba(70,25,12,0.60)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(246,241,231,0.20),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(180,90,60,0.25),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(246,241,231,0.16)"></span>
-      <span class="g2" style="background:rgba(190,100,70,0.22)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(246,241,231,0.85),rgba(255,225,200,0.75),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#FBF4E8;filter:drop-shadow(0 0 22px rgba(255,220,190,0.40))">$12.99
-          <span class="old" style="color:rgba(251,244,232,0.45);margin-left:8px">$19.99</span>
-        </div>
-        <div class="tiers">
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.22);color:#FBF4E8">1-2 pcs<b>#FBF4E8</b></div>
-          <div style="background:linear-gradient(135deg,#FBF4E8,#D9A08A);color:#7E3421;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.22);color:#FBF4E8">10+ pcs<b>#FBF4E8</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#FBF4E8,#D9A08A);color:#7E3421">Pink</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.28);color:#FBF4E8">White</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.28);color:#FBF4E8">Black</span>
-          <span style="background:rgba(255,255,255,0.06);border:1px solid rgba(246,241,231,0.28);color:#FBF4E8">Red</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="cell">
-    <span class="tag">9</span>
-    <div class="title">冷钢灰蓝 + 银白</div>
-    <p class="desc">工业冷调灰蓝 + 银白，偏科技/专业感，冷静克制。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#1A242C 0%,#2C3D4A 50%,#161F26 100%);border:1px solid rgba(199,210,220,0.26);box-shadow:0 18px 40px -22px rgba(10,16,22,0.62)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(199,210,220,0.16),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(90,130,170,0.24),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(199,210,220,0.14)"></span>
-      <span class="g2" style="background:rgba(90,140,190,0.20)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(199,210,220,0.80),rgba(255,255,255,0.60),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#E8EEF3;filter:drop-shadow(0 0 22px rgba(160,200,235,0.40))">$12.99
-          <span class="old" style="color:rgba(232,238,243,0.45);margin-left:8px">$19.99</span>
-        </div>
-        <div class="tiers">
-          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.20);color:#E8EEF3">1-2 pcs<b>#E8EEF3</b></div>
-          <div style="background:linear-gradient(135deg,#E8EEF3,#9FB3C4);color:#1A242C;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.20);color:#E8EEF3">10+ pcs<b>#E8EEF3</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#E8EEF3,#9FB3C4);color:#1A242C">Pink</span>
-          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.26);color:#E8EEF3">White</span>
-          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.26);color:#E8EEF3">Black</span>
-          <span style="background:rgba(255,255,255,0.05);border:1px solid rgba(199,210,220,0.26);color:#E8EEF3">Red</span>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="cell">
-    <span class="tag">10</span>
-    <div class="title">纯白 + 正红点缀</div>
-    <p class="desc">白底极简 + 一处正红（价格/角标），最干净，靠红色抓眼。</p>
-    <div class="mock" style="background:linear-gradient(135deg,#FFFFFF 0%,#FAFAFB 50%,#F3F4F6 100%);border:1px solid rgba(17,17,19,0.14);box-shadow:0 18px 40px -22px rgba(17,17,19,0.14)">
-      <span class="ov1" style="background:radial-gradient(90% 90% at 12% 0%,rgba(224,49,49,0.10),transparent 60%)"></span>
-      <span class="ov2" style="background:radial-gradient(100% 100% at 95% 100%,rgba(224,49,49,0.08),transparent 62%)"></span>
-      <span class="g1" style="background:rgba(224,49,49,0.14)"></span>
-      <span class="g2" style="background:rgba(224,49,49,0.10)"></span>
-      <span class="hair" style="background:linear-gradient(90deg,transparent,rgba(224,49,49,0.65),rgba(17,17,19,0.35),transparent)"></span>
-      <div class="in">
-        <div class="price" style="color:#111113;filter:drop-shadow(0 0 22px rgba(224,49,49,0.22))">$12.99
-          <span class="old" style="color:rgba(17,17,19,0.38);margin-left:8px">$19.99</span>
-        </div>
-        <div class="tiers">
-          <div style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.10);color:#111113">1-2 pcs<b>#111113</b></div>
-          <div style="background:linear-gradient(135deg,#E03131,#B02525);color:#FFFFFF;font-weight:700">3-9 pcs<b>$10.99</b></div>
-          <div style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.10);color:#111113">10+ pcs<b>#111113</b></div>
-        </div>
-        <div class="chips">
-          <span style="background:linear-gradient(135deg,#E03131,#B02525);color:#FFFFFF">Pink</span>
-          <span style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.14);color:#111113">White</span>
-          <span style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.14);color:#111113">Black</span>
-          <span style="background:rgba(17,17,19,0.03);border:1px solid rgba(17,17,19,0.14);color:#111113">Red</span>
-        </div>
-      </div>
-    </div>
-  </div></div>
-<div class="foot">静态预览页（纯 HTML/CSS，不影响线上前台）。选定后我落到 <code>app/(shop)/products/[slug]/page.tsx</code>，并按老规矩验证：chunk grep + 线上 CSS 确认渐变/柔光真的编译生效。</div>
-</div></body></html>
+</div>
+</body>
+</html>
