@@ -543,52 +543,60 @@ export default function ProductDetailPage() {
               )}
 
               {/* Price Display */}
-              {/* ★ 2026-10-29 13:25 价格段视觉 —— 配色「酒红勃艮第 + 玫瑰金」× 特效保持第一版卡片式
-                  · 底色：酒红勃艮第渐变（#3E0B18 → #6B1526 → #4A0F1E）
-                  · 特效：**第一版卡片式** —— 细描边 + 厚投影 + 两枚角落模糊光晕 + 顶部高光细线
-                  · 光晕改玫瑰金/酒红，描边与价格用玫瑰金暖白
-                  · 变体规格区 = 内嵌发光子卡（第一版同款结构）
+              {/* ★ 2026-10-29 15:50 价格段视觉 → 方案 B「蜡封印章」（摩卡咖啡 + 焦糖）
+                  · 深摩卡信笺底 + SVG 噪点颗粒 + 右上角浮雕蜡封章
+                  · 价格香槟金 #F0DDB6；阶梯价中间档 = 香槟金渐变
+                  · 变体规格区同一套语言（深摩卡底 + 金边 + 噪点）
               */}
-              <div className="relative overflow-hidden rounded-3xl mb-6 p-6
-                              bg-gradient-to-br from-[#3E0B18] via-[#6B1526] to-[#4A0F1E]
-                              border border-[#E7B7A0]/30 shadow-2xl shadow-[#500A19]/70">
-                {/* 角落光晕（第一版卡片式：两枚模糊大光） */}
-                <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#E7B7A0]/20 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-[#B45A6E]/25 blur-3xl" />
-                {/* 顶部亮金高光描边 */}
-                <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#E7B7A0]/60 to-transparent" />
+              <div className="relative overflow-hidden rounded-lg mb-6 p-6
+                              bg-[linear-gradient(150deg,rgba(88,58,34,0.55),rgba(46,30,18,0.85))]
+                              border border-[#D6AF6E]/30 shadow-2xl shadow-[#2A1C11]/40">
+                {/* 噪点颗粒 */}
+                <div className="pointer-events-none absolute inset-0 opacity-35 mix-blend-overlay"
+                     style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
+                {/* 蜡封印章 */}
+                <div className="pointer-events-none absolute right-5 top-5 w-[74px] h-[74px] rounded-full
+                                bg-[radial-gradient(circle_at_34%_30%,#A8483A,#7A2A20_55%,#541812)]
+                                shadow-[0_6px_16px_rgba(0,0,0,0.45),inset_0_-3px_8px_rgba(0,0,0,0.35),inset_0_3px_6px_rgba(255,255,255,0.18)]
+                                flex items-center justify-center">
+                  <span className="font-serif text-2xl font-extrabold text-[#E8C9A0]">F</span>
+                  <span className="absolute inset-[7px] rounded-full border border-dashed border-[#E8C9A0]/55" />
+                </div>
 
-                <div className="relative">
-                  <div className="flex items-baseline gap-3 mb-4">
-                    <span className="text-4xl font-extrabold tracking-tight text-[#F6DCD0]
-                                     drop-shadow-[0_0_26px_rgba(231,150,120,0.45)]">
+                <div className="relative pr-24">
+                  <div className="text-[10.5px] font-bold uppercase tracking-[0.32em] text-[#D6AF6E] mb-3">
+                    Fiestaflare · Wholesale
+                  </div>
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-4xl font-extrabold tracking-tight text-[#F0DDB6]"
+                          style={{ textShadow: '0 2px 18px rgba(214,175,110,0.40)' }}>
                       {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
                     </span>
                     {product.comparePrice && (
-                      <span className="text-xl text-[#F6DCD0]/40 line-through">
+                      <span className="text-xl text-[#F0DDB6]/45 line-through">
                         {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
                       </span>
                     )}
                   </div>
 
                   {/* Tier Prices */}
-                  <div className="grid grid-cols-3 gap-2 text-sm">
+                  <div className="grid grid-cols-3 gap-2 text-xs mt-5">
                     {tiers.map((tier, idx) => (
                       <div key={idx} className={cn(
-                        "text-center p-3 rounded-xl transition-all duration-200",
+                        "text-center p-3 rounded-lg transition-all duration-200",
                         idx === 1
-                          ? "bg-gradient-to-br from-[#F0C3A8] to-[#C97B6E] text-[#3E0B18] shadow-lg shadow-[#C97B6E]/25 scale-[1.03] ring-1 ring-[#3E0B18]/20"
-                          : "bg-white/[0.06] border border-[#E7B7A0]/20 text-[#F6DCD0] backdrop-blur-md"
+                          ? "bg-[linear-gradient(135deg,#D6AF6E,#A87A3C)] text-[#2A1C11] font-bold shadow-lg shadow-[#A87A3C]/30"
+                          : "bg-white/[0.05] border border-[#D6AF6E]/20 text-[#F0DDB6]"
                       )}>
                         <div className={cn(
                           "font-semibold mb-1",
-                          idx === 1 ? "text-[#3E0B18]/70" : idx === 2 ? "text-[#E7B7A0]/90" : "text-[#F6DCD0]/60"
+                          idx === 1 ? "text-[#2A1C11]/70" : idx === 2 ? "text-[#D6AF6E]" : "text-[#F0DDB6]/50"
                         )}>
                           {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
                         </div>
                         <div className={cn(
                           "font-semibold",
-                          idx === 1 ? "text-[#3E0B18]" : idx === 2 ? "text-[#E7B7A0]" : "text-[#F6DCD0]"
+                          idx === 1 ? "text-[#2A1C11]" : idx === 2 ? "text-[#D6AF6E]" : "text-[#F0DDB6]"
                         )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
                       </div>
                     ))}
@@ -598,82 +606,83 @@ export default function ProductDetailPage() {
 
               {/* Variants —— 多维度：每个维度一行；单维度：保持原样 */}
               {product.variants && product.variants.length > 0 && (
-                // ★ 变体选择器移进价格卡片后，规格按钮（灰底）落在灰卡片上会看不见
-                //   → 内嵌一层白底子卡片
-                // ★ 配色「藏青午夜 + 亮金」× 第一版卡片式特效（内嵌发光子卡）
-                <div className="relative overflow-hidden mb-6 space-y-4 rounded-3xl p-5
-                                bg-[#3E0B18]/70 backdrop-blur-xl
-                                border border-[#E7B7A0]/20 shadow-2xl shadow-[#500A19]/50">
-                  {/* 卡内光晕 */}
-                  <div className="pointer-events-none absolute -top-20 left-1/4 h-36 w-72 rounded-full bg-[#E7B7A0]/15 blur-3xl" />
-                  {variantRows.length > 0 ? variantRows.map((row) => {
-                    const isFirstRow = row === variantRows[0]
-                    const currentVal = variantSelection[row.name] || ''
-                    return (
-                      <div key={row.name}>
-                        <label className="block text-sm font-medium text-[#F6DCD0]/70 mb-2">
-                          {row.name}
+                // ★ 方案 B「蜡封印章」：变体规格区同一套材质语言（深摩卡 + 金边 + 噪点）
+                <div className="relative overflow-hidden mb-6 space-y-4 rounded-lg p-5
+                                bg-[linear-gradient(150deg,rgba(88,58,34,0.45),rgba(46,30,18,0.75))]
+                                border border-[#D6AF6E]/25">
+                  {/* 噪点颗粒 */}
+                  <div className="pointer-events-none absolute inset-0 opacity-30 mix-blend-overlay"
+                       style={{ backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)'/%3E%3C/svg%3E")` }} />
+                  <div className="relative">
+                    {variantRows.length > 0 ? variantRows.map((row) => {
+                      const isFirstRow = row === variantRows[0]
+                      const currentVal = variantSelection[row.name] || ''
+                      return (
+                        <div key={row.name}>
+                          <label className="block text-sm font-medium text-[#F0DDB6]/70 mb-2">
+                            {row.name}
+                          </label>
+                          <div className="flex flex-wrap gap-2">
+                            {row.values.map((val) => {
+                              // 选中该值后能否匹配到变体
+                              const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
+                              const disabled = !probe
+                              const isActive = currentVal === val
+                              return (
+                                <button
+                                  key={val}
+                                  disabled={disabled}
+                                  onClick={() => {
+                                    const next = { ...variantSelection, [row.name]: val }
+                                    setVariantSelection(next)
+                                    setImageMode('variant')
+                                    const m = matchVariant(product.variants, next)
+                                    if (m) setSelectedVariant(m.id)
+                                  }}
+                                  className={cn(
+                                    'px-4 py-3 rounded-lg font-medium text-base transition-all duration-200',
+                                    isActive
+                                      ? 'bg-[linear-gradient(135deg,#D6AF6E,#A87A3C)] text-[#2A1C11] shadow-lg shadow-[#A87A3C]/30 scale-[1.03]'
+                                      : 'bg-white/[0.05] border border-[#D6AF6E]/35 text-[#F0DDB6] hover:bg-white/[0.10] hover:border-[#D6AF6E]/60 hover:-translate-y-0.5',
+                                    disabled && 'opacity-40 cursor-not-allowed'
+                                  )}
+                                >
+                                  {val}
+                                  {(() => {
+                                    const inv = probe?.inventory
+                                    return inv != null && inv < 10 ? ` (${inv} left)` : ''
+                                  })()}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    }) : (
+                      <div>
+                        <label className="block text-sm font-medium text-[#F0DDB6]/70 mb-2">
+                          {product.variants[0].name}
                         </label>
                         <div className="flex flex-wrap gap-2">
-                          {row.values.map((val) => {
-                            // 选中该值后能否匹配到变体
-                            const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
-                            const disabled = !probe
-                            const isActive = currentVal === val
-                            return (
-                              <button
-                                key={val}
-                                disabled={disabled}
-                                onClick={() => {
-                                  const next = { ...variantSelection, [row.name]: val }
-                                  setVariantSelection(next)
-                                  setImageMode('variant')
-                                  const m = matchVariant(product.variants, next)
-                                  if (m) setSelectedVariant(m.id)
-                                }}
-                                className={cn(
-                                  'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
-                                  isActive
-                                    ? 'bg-gradient-to-r from-[#F0C3A8] to-[#C97B6E] text-[#3E0B18] shadow-lg shadow-[#C97B6E]/30 scale-[1.03] ring-1 ring-[#3E0B18]/20'
-                                    : 'bg-white/[0.06] border border-[#E7B7A0]/25 text-[#F6DCD0] hover:bg-white/[0.12] hover:border-[#E7B7A0]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#4A0F1E]/50',
-                                  disabled && 'opacity-40 cursor-not-allowed'
-                                )}
-                              >
-                                {val}
-                                {(() => {
-                                  const inv = probe?.inventory
-                                  return inv != null && inv < 10 ? ` (${inv} left)` : ''
-                                })()}
-                              </button>
-                            )
-                          })}
+                          {product.variants.map((variant) => (
+                            <button
+                              key={variant.id}
+                              onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
+                              className={cn(
+                                'px-4 py-3 rounded-lg font-medium text-base transition-all duration-200',
+                                selectedVariant === variant.id
+                                  ? 'bg-[linear-gradient(135deg,#D6AF6E,#A87A3C)] text-[#2A1C11] shadow-lg shadow-[#A87A3C]/30 scale-[1.03]'
+                                  : 'bg-white/[0.05] border border-[#D6AF6E]/35 text-[#F0DDB6] hover:bg-white/[0.10] hover:border-[#D6AF6E]/60 hover:-translate-y-0.5'
+                              )}
+                            >
+                              {variant.value}
+                              {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
+                            </button>
+                          ))}
                         </div>
                       </div>
-                    )
-                  }) : (
-                    <div>
-                      <label className="block text-sm font-medium text-[#F6DCD0]/70 mb-2">
-                        {product.variants[0].name}
-                      </label>
-                      <div className="flex flex-wrap gap-2">
-                        {product.variants.map((variant) => (
-                          <button
-                            key={variant.id}
-                            onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
-                            className={cn(
-                              'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
-                              selectedVariant === variant.id
-                                ? 'bg-gradient-to-r from-[#F0C3A8] to-[#C97B6E] text-[#3E0B18] shadow-lg shadow-[#C97B6E]/30 scale-[1.03] ring-1 ring-[#3E0B18]/20'
-                                : 'bg-white/[0.06] border border-[#E7B7A0]/25 text-[#F6DCD0] hover:bg-white/[0.12] hover:border-[#E7B7A0]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#4A0F1E]/50'
-                            )}
-                          >
-                            {variant.value}
-                            {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                    )}
+                  </div>
                 </div>
               )}
 
