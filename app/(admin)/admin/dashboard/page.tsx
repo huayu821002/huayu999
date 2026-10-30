@@ -321,6 +321,13 @@ export default function AdminDashboard() {
               <h3 className="font-semibold text-joy-gray-900">Customers</h3>
               <p className="text-sm text-joy-gray-500">Manage customer accounts</p>
             </Link>
+            <Link href="/admin/account" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
+              <div className="w-12 h-12 rounded-xl bg-joy-orange/10 flex items-center justify-center mb-4 group-hover:bg-joy-orange/20 transition-colors">
+                <Icons.Lock size={24} className="text-joy-orange" />
+              </div>
+              <h3 className="font-semibold text-joy-gray-900">Account Security</h3>
+              <p className="text-sm text-joy-gray-500">Change admin email &amp; password</p>
+            </Link>
             <Link href="/admin/settings" className="bg-white rounded-xl p-6 shadow-sm hover:shadow-md transition-shadow group">
               <div className="w-12 h-12 rounded-xl bg-joy-navy/10 flex items-center justify-center mb-4 group-hover:bg-joy-navy/20 transition-colors">
                 <Icons.Sliders size={24} className="text-joy-navy" />
