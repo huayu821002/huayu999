@@ -138,7 +138,11 @@ export default function BatchCheckoutPage() {
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
           return actions.order.create({
-            purchase_units: [{ amount: { value: total.toFixed(2) } }]
+            // ★ 金额口径：total 是 USD 原值（items.price / shipping.cost 都是 USD），
+            //   PayPal SDK 固定 USD → 显式声明 currency_code。
+            purchase_units: [{
+              amount: { currency_code: 'USD', value: total.toFixed(2) },
+            }]
           })
         },
         onApprove: async (_data: any, actions: any) => {
@@ -475,6 +479,7 @@ export default function BatchCheckoutPage() {
                   country={address.country}
                   value={selectedShipping?.id || ''}
                   onChange={setSelectedShipping}
+                  currency={currency}
                 />
               </div>
             </div>
@@ -506,6 +511,12 @@ export default function BatchCheckoutPage() {
                     <span className="font-semibold text-joy-gray-900">Total</span>
                     <span className="font-bold text-xl text-joy-orange">{formatCurrency(total, currency)}</span>
                   </div>
+                  {currency !== 'USD' && (
+                    <div className="text-xs text-joy-gray-500 bg-joy-gray-50 rounded-lg p-2">
+                      Charged in USD: <strong className="text-joy-gray-700">${total.toFixed(2)}</strong>
+                      {' '}— the amount above is a {currency} reference price converted from the USD total.
+                    </div>
+                  )}
                 </div>
 
                 {/* Payment Method Selection */}
@@ -542,7 +553,7 @@ export default function BatchCheckoutPage() {
                     size="lg"
                   >
                     <Icons.Check size={18} className="mr-2" />
-                    {paymentMethod === 'BANK_TRANSFER' ? 'Submit Order (Bank Transfer)' : `Pay ${formatCurrency(total, currency)}`}
+                    {paymentMethod === 'BANK_TRANSFER' ? 'Submit Order (Bank Transfer)' : `Pay ${currency === 'USD' ? formatCurrency(total, currency) : `$${total.toFixed(2)}`}`}
                   </Button>
                 )}
 

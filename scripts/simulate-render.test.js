@@ -35,7 +35,7 @@ const utils = loadTs('lib/utils/index.ts')
 const variants = loadTs('lib/variants.ts')
 const imgUtils = loadTs('lib/imageUtils.ts')
 
-const { parseTags, getTieredPricing, getPriceFromTieredPricing, formatCurrency, convertPrice } = utils
+const { parseTags, getTieredPricing, getPriceFromTieredPricing, formatCurrency } = utils
 const { buildVariantRows, matchVariant } = variants
 const { parseProductImages } = imgUtils
 
@@ -84,7 +84,7 @@ for (const f of files) {
   step('product.categories.map(name).join', () => (product.categories || []).map(c => c.name).join(', '))
   step('categories[0].name / slug', () => (product.categories?.[0] ? product.categories[0].name + '|' + product.categories[0].slug : 'none'))
   step('tiers.map → maxQty ? ... : ...', () => getTieredPricing(product.tieredPricing, displayPrice).map(t => (t.maxQty ? `${t.minQty}-${t.maxQty} pcs` : `${t.minQty}+ pcs`)).join(' | '))
-  step('formatCurrency(convertPrice(tier.price))', () => formatCurrency(convertPrice(getTieredPricing(product.tieredPricing, displayPrice)[0].price, 'USD'), 'USD'))
+  step('formatCurrency(tier.price) —— 单次换算', () => formatCurrency(getTieredPricing(product.tieredPricing, displayPrice)[0].price, 'USD'))
   step('minOrderQty', () => product.minOrderQty)
   step('inventory', () => product.inventory)
   step('barcode', () => product.barcode)

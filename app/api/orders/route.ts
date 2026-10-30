@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { sendEmail, getEmailTemplate, interpolateTemplate } from '@/lib/email'
+import { formatAmount } from '@/lib/utils'
 
 // GET /api/orders — 需要登录，用户只能查看自己的订单，admin 可以查看所有
 export async function GET(request: Request) {
@@ -57,9 +58,10 @@ export async function POST(request: Request) {
     const body = await request.json()
     const {
       userId, items, subtotal, shippingCost, tax, discount, total,
-      currency, shippingAddress, billingAddress, paymentMethod,
+      shippingAddress, billingAddress, paymentMethod,
       paypalOrderId, paypalStatus
     } = body
+    // 注意：body.currency 已不再采用 —— 落库币种固定 USD（见下方 create）
 
     // Generate order number
     const timestamp = Date.now().toString(36).toUpperCase()
@@ -82,7 +84,10 @@ export async function POST(request: Request) {
         tax: parseNum(tax),
         discount: parseNum(discount),
         total: parseNum(total),
-        currency: currency || 'USD',
+        // ★ 金额口径（2026-10-30）：全站内部金额统一为 **USD**，
+        //   展示层才换算。所以新订单一律以 USD 落库，
+        //   不接受前端传入的其它币种（否则会出现「金额是 USD、币种标成 AUD」的错账）。
+        currency: 'USD',
         shippingAddress: typeof shippingAddress === 'string' ? shippingAddress : JSON.stringify(shippingAddress || {}),
         billingAddress: billingAddress ? (typeof billingAddress === 'string' ? billingAddress : JSON.stringify(billingAddress)) : null,
         paymentMethod: paymentMethod || 'BATCH_ORDER',
@@ -159,7 +164,7 @@ async function sendOrderConfirmationEmail(
         <tr>
           <td style="padding:8px;border:1px solid #ddd;">${item.name || 'Product'}</td>
           <td style="padding:8px;border:1px solid #ddd;text-align:center;">${item.quantity || 1}</td>
-          <td style="padding:8px;border:1px solid #ddd;text-align:right;">$${(item.price || 0).toFixed(2)}</td>
+          <td style="padding:8px;border:1px solid #ddd;text-align:right;">${formatAmount(item.price || 0, 'USD')}</td>
         </tr>
       `).join('')
       : '<tr><td colspan="3">Order details unavailable</td></tr>'
@@ -179,23 +184,23 @@ async function sendOrderConfirmationEmail(
         <tfoot>
           <tr>
             <td colspan="2" style="padding:8px;border:1px solid #ddd;text-align:right;"><strong>Subtotal:</strong></td>
-            <td style="padding:8px;border:1px solid #ddd;text-align:right;">$${order.subtotal?.toFixed(2) || '0.00'}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;">${formatAmount(order.subtotal || 0, order.currency || 'USD')}</td>
           </tr>
           ${order.shippingCost > 0 ? `
           <tr>
             <td colspan="2" style="padding:8px;border:1px solid #ddd;text-align:right;">Shipping:</td>
-            <td style="padding:8px;border:1px solid #ddd;text-align:right;">$${order.shippingCost?.toFixed(2) || '0.00'}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;">${formatAmount(order.shippingCost || 0, order.currency || 'USD')}</td>
           </tr>
           ` : ''}
           ${order.tax > 0 ? `
           <tr>
             <td colspan="2" style="padding:8px;border:1px solid #ddd;text-align:right;">Tax:</td>
-            <td style="padding:8px;border:1px solid #ddd;text-align:right;">$${order.tax?.toFixed(2) || '0.00'}</td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;">${formatAmount(order.tax || 0, order.currency || 'USD')}</td>
           </tr>
           ` : ''}
           <tr>
             <td colspan="2" style="padding:8px;border:1px solid #ddd;text-align:right;"><strong>Total:</strong></td>
-            <td style="padding:8px;border:1px solid #ddd;text-align:right;"><strong>$${order.total?.toFixed(2) || '0.00'} ${order.currency || 'USD'}</strong></td>
+            <td style="padding:8px;border:1px solid #ddd;text-align:right;"><strong>${formatAmount(order.total || 0, order.currency || 'USD')}</strong> (${order.currency || 'USD'})</td>
           </tr>
         </tfoot>
       </table>
@@ -212,7 +217,7 @@ async function sendOrderConfirmationEmail(
       customer_name: customerName,
       order_number: order.orderNumber,
       order_date: new Date(order.createdAt).toLocaleDateString(),
-      order_total: `$${order.total?.toFixed(2) || '0.00'} ${order.currency || 'USD'}`,
+      order_total: `${formatAmount(order.total || 0, order.currency || 'USD')} ${order.currency || 'USD'}`,
       order_items: orderItemsTable,
     })
 

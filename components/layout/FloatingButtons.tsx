@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { Icons } from '@/components/ui/Icons'
-import { getWhatsAppLink, getTikTokShareLink } from '@/lib/utils'
+import { getWhatsAppLink, getTikTokShareLink, formatCurrency } from '@/lib/utils'
 import { parseProductImages } from '@/lib/imageUtils'
 
 const WHATSAPP_NUMBER = '12025551234' // Replace with actual number
@@ -145,7 +145,7 @@ export function CartFloatingButton() {
                   </p>
                 </div>
                 <p className="text-sm font-semibold text-joy-orange">
-                  ${(item.product.price * item.quantity).toFixed(2)}
+                  {formatCurrency((item.variant?.price ?? item.product.price) * item.quantity, currency)}
                 </p>
               </div>
             ))}
@@ -158,7 +158,7 @@ export function CartFloatingButton() {
           <div className="mt-3 pt-3 border-t border-joy-gray-100">
             <div className="flex items-center justify-between mb-3">
               <span className="text-joy-gray-600">Subtotal:</span>
-              <span className="font-bold text-joy-gray-900">${subtotal.toFixed(2)}</span>
+              <span className="font-bold text-joy-gray-900">{formatCurrency(subtotal, currency)}</span>
             </div>
             <button
               onClick={() => useCartStore.getState().toggleCart()}

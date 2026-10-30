@@ -8,7 +8,7 @@ import { Footer } from '@/components/layout/Footer'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
-import { cn, formatCurrency, convertPrice } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
 import { parseProductImages } from '@/lib/imageUtils'
 import type { Currency } from '@/types'
@@ -60,7 +60,7 @@ export default function CartPage() {
               <div className="bg-white rounded-2xl shadow-sm divide-y divide-joy-gray-100">
                 {items.map((item) => {
                   const images = parseProductImages(item.product.images)
-                  const itemPrice = convertPrice((item.variant?.price ?? item.product.price) * item.quantity, currency)
+                  const itemPrice = (item.variant?.price ?? item.product.price) * item.quantity
                   return (
                     <div key={item.id} className="p-4 sm:p-6 flex gap-4">
                       {/* Product Image */}
@@ -185,8 +185,12 @@ export default function CartPage() {
                     className="w-full px-4 py-2.5 rounded-xl border-2 border-joy-gray-200 text-sm focus:border-joy-orange focus:outline-none"
                   >
                     <option value="USD">$ USD</option>
-                    <option value="MXN">MX$ MXN</option>
-                    <option value="BRL">R$ BRL</option>
+                    <option value="AUD">A$ AUD</option>
+                    <option value="KRW">₩ KRW</option>
+                    <option value="JPY">¥ JPY</option>
+                    <option value="IDR">Rp IDR</option>
+                    <option value="MYR">RM MYR</option>
+                    <option value="SGD">S$ SGD</option>
                   </select>
                 </div>
 

@@ -4,7 +4,7 @@ import { useEffect } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { cn, formatCurrency, convertPrice } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
 import { parseProductImages } from '@/lib/imageUtils'
 import { Icons } from '@/components/ui/Icons'
@@ -131,11 +131,11 @@ export function CartDrawer() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-1">
                         <span className="font-semibold text-joy-orange">
-                          {formatCurrency(convertPrice(item.variant?.price ?? item.product.price, currency), currency)}
+                          {formatCurrency(item.variant?.price ?? item.product.price, currency)}
                         </span>
                         {item.product.comparePrice && (
                           <span className="text-xs text-joy-gray-400 line-through">
-                            {formatCurrency(convertPrice(item.product.comparePrice, currency), currency)}
+                            {formatCurrency(item.product.comparePrice, currency)}
                           </span>
                         )}
                       </div>

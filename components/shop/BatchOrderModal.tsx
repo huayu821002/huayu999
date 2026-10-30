@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
 import { useCartStore } from '@/lib/store'
+import { formatCurrency } from '@/lib/utils'
 import type { Product } from '@/types'
 
 interface BatchOrderModalProps {
@@ -15,7 +16,7 @@ interface BatchOrderModalProps {
 export function BatchOrderModal({ isOpen, onClose, products }: BatchOrderModalProps) {
   const [quantities, setQuantities] = useState<Record<string, number>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const { addItem } = useCartStore()
+  const { addItem, currency } = useCartStore()
 
   if (!isOpen) return null
 
@@ -79,7 +80,7 @@ export function BatchOrderModal({ isOpen, onClose, products }: BatchOrderModalPr
                     <div className="flex-1 min-w-0">
                       <p className="font-medium text-joy-gray-800 truncate">{product.name}</p>
                       <p className="text-sm text-joy-gray-500">SKU: {product.sku}</p>
-                      <p className="text-joy-orange font-semibold">${product.price?.toFixed(2)}</p>
+                      <p className="text-joy-orange font-semibold">{formatCurrency(product.price || 0, currency)}</p>
                     </div>
                     <div className="flex items-center gap-2">
                       <button
@@ -104,7 +105,7 @@ export function BatchOrderModal({ isOpen, onClose, products }: BatchOrderModalPr
                     </div>
                     {qty > 0 && (
                       <p className="text-sm font-medium text-joy-orange w-20 text-right">
-                        ${(product.price * qty).toFixed(2)}
+                        {formatCurrency((product.price || 0) * qty, currency)}
                       </p>
                     )}
                   </div>
@@ -120,7 +121,7 @@ export function BatchOrderModal({ isOpen, onClose, products }: BatchOrderModalPr
             <div className="flex items-center justify-between mb-4">
               <div>
                 <p className="text-sm text-joy-gray-500">Total ({totalItems} items)</p>
-                <p className="text-2xl font-bold text-joy-orange">${totalPrice.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-joy-orange">{formatCurrency(totalPrice, currency)}</p>
               </div>
               <Button onClick={handleAddToCart} isLoading={isSubmitting} size="lg">
                 Add to Cart

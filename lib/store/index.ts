@@ -1,7 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
 import type { CartItem, Currency, Product, ProductVariant } from '@/types'
-import { convertPrice } from '@/lib/utils'
 
 interface CartState {
   items: CartItem[]
@@ -80,12 +79,15 @@ export const useCartStore = create<CartState>()(
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
 
       getSubtotal: () => {
-        const { items, currency } = get()
+        const { items } = get()
         return items.reduce((total, item) => {
+          // ★ 2026-10-30 币种口径统一：内部金额一律 **USD 原值**，
+          //   展示层换算交给 formatCurrency（只在这里换一次）。
+          //   原来这里就 convertPrice 了一次，展示时 formatCurrency 又乘一次 → 双重换算。
           // ★ 2026-10-28 修：优先用**变体价**，没有变体才用商品价。
           //   原来只看 item.product.price → 选了贵/便宜的变体，小计都一样。
           const unit = item.variant?.price ?? item.product.price
-          return total + convertPrice(unit, currency) * item.quantity
+          return total + unit * item.quantity
         }, 0)
       },
 

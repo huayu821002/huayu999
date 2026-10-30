@@ -33,7 +33,8 @@ export function BatchProductCard({
   const hasDiscount = product.comparePrice && product.comparePrice > product.price
   
   // Calculate price based on quantity tier
-  const currentPrice = getPriceByTier(product.price, quantity, currency).price
+  // getPriceByTier 返回 USD 原值；展示时由 formatCurrency 换算一次
+  const currentPrice = getPriceByTier(product.price, quantity).price
   const isOutOfStock = product.inventory === 0
 
   const handleQtyChange = (e: React.ChangeEvent<HTMLInputElement>) => {

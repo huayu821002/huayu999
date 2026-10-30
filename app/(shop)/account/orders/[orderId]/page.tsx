@@ -7,6 +7,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
+import { formatAmount, toUSD } from '@/lib/utils'
 
 interface Order {
   id: string
@@ -192,8 +193,15 @@ export default function OrderDetailPage() {
       paypal.Buttons({
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
+          // ★ 订单金额的币种就是 order.currency（历史订单按自身币种存），
+          //   而 PayPal 固定以 USD 收款 → 历史非 USD 订单需先回算 USD。
           return actions.order.create({
-            purchase_units: [{ amount: { value: order.total.toFixed(2) } }]
+            purchase_units: [{
+              amount: {
+                currency_code: 'USD',
+                value: toUSD(order.total, order.currency).toFixed(2),
+              },
+            }]
           })
         },
         onApprove: async (_data: any, actions: any) => {
@@ -304,7 +312,7 @@ export default function OrderDetailPage() {
                         isLoading={isPaying}
                         className="w-full"
                       >
-                        Pay ${order.total.toFixed(2)} with Card
+                        Pay {formatAmount(order.total, order.currency)} with Card
                       </Button>
                       <p className="text-xs text-joy-gray-400 mt-2 text-center">Stripe integration coming soon</p>
                     </div>
@@ -315,7 +323,7 @@ export default function OrderDetailPage() {
                     <div className="bg-joy-gray-50 rounded-xl p-4 max-w-lg">
                       <p className="text-sm font-medium text-joy-gray-700 mb-2">Bank Transfer Instructions:</p>
                       <div className="text-sm text-joy-gray-600 space-y-1">
-                        <p>Amount: <strong>${order.total.toFixed(2)} {order.currency}</strong></p>
+                        <p>Amount: <strong>{formatAmount(order.total, order.currency)}</strong></p>
                         <p>Order Reference: <strong>#{order.orderNumber}</strong></p>
                         <p className="pt-2 text-joy-gray-500">Please include your order number as the payment reference. Your order will be processed after payment is received (2-5 business days).</p>
                       </div>
@@ -364,7 +372,9 @@ export default function OrderDetailPage() {
                       <p className="text-sm text-joy-gray-500">SKU: {item.sku} {item.variant ? `| ${item.variant}` : ''}</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-semibold text-joy-gray-900">{order.currency} ${item.price.toFixed(2)}</p>
+                      {/* item.price 一直存的是 USD 原值（item.variant?.price ?? item.product.price），
+                          不管订单币种是什么，所以这里固定按 USD 展示 */}
+                      <p className="font-semibold text-joy-gray-900">{formatAmount(item.price, 'USD')}</p>
                       <p className="text-sm text-joy-gray-500">Qty: {item.quantity}</p>
                     </div>
                   </div>
@@ -381,11 +391,11 @@ export default function OrderDetailPage() {
               <div className="bg-white rounded-2xl shadow-sm p-6">
                 <h2 className="font-semibold text-lg text-joy-gray-900 mb-4">Order Summary</h2>
                 <div className="space-y-2">
-                  <div className="flex justify-between text-sm"><span className="text-joy-gray-500">Subtotal</span><span>{order.currency} ${order.subtotal.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-joy-gray-500">Shipping</span><span>{order.currency} ${order.shippingCost.toFixed(2)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-joy-gray-500">Tax</span><span>{order.currency} ${order.tax.toFixed(2)}</span></div>
-                  {order.discount > 0 && <div className="flex justify-between text-sm text-green-600"><span>Discount</span>-{order.currency} ${order.discount.toFixed(2)}</div>}
-                  <div className="flex justify-between font-bold pt-2 border-t border-joy-gray-100"><span>Total</span><span className="text-joy-orange">{order.currency} ${order.total.toFixed(2)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-joy-gray-500">Subtotal</span><span>{formatAmount(order.subtotal, order.currency)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-joy-gray-500">Shipping</span><span>{formatAmount(order.shippingCost, order.currency)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-joy-gray-500">Tax</span><span>{formatAmount(order.tax, order.currency)}</span></div>
+                  {order.discount > 0 && <div className="flex justify-between text-sm text-green-600"><span>Discount</span>-{formatAmount(order.discount, order.currency)}</div>}
+                  <div className="flex justify-between font-bold pt-2 border-t border-joy-gray-100"><span>Total</span><span className="text-joy-orange">{formatAmount(order.total, order.currency)}</span></div>
                 </div>
                 <div className="mt-4 pt-4 border-t border-joy-gray-100">
                   <p className="text-sm text-joy-gray-500">Payment Method</p>

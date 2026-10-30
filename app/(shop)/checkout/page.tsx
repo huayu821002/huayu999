@@ -9,7 +9,7 @@ import { Footer } from '@/components/layout/Footer'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
 import { Icons } from '@/components/ui/Icons'
-import { cn, formatCurrency, convertPrice } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
 
 import { parseProductImages } from '@/lib/imageUtils'
@@ -127,7 +127,8 @@ export default function CheckoutPage() {
         warehouseId: warehouseId === 'default' ? null : warehouseId,
         warehouseName: firstItem?.warehouseName || 'Standard Warehouse',
         items: whItems,
-        subtotal: whItems.reduce((sum, item) => sum + convertPrice(item.variant?.price ?? item.product.price, currency) * item.quantity, 0),
+        // ★ 币种口径：subtotal 一律 USD 原值（展示时才换算）
+        subtotal: whItems.reduce((sum, item) => sum + (item.variant?.price ?? item.product.price) * item.quantity, 0),
         totalWeight: whItems.reduce((sum, item) => sum + (item.product.weight || 0) * item.quantity, 0),
         shippingOptions: [],
         selectedShipping: '',
@@ -305,7 +306,14 @@ export default function CheckoutPage() {
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
           return actions.order.create({
-            purchase_units: [{ amount: { value: (hasMultipleWarehouses ? grandTotal : total).toFixed(2) } }]
+            // ★ 金额口径：total 是 USD 原值；PayPal SDK 固定以 USD 加载，
+            //   必须显式带上 currency_code: 'USD'，否则 PayPal 会按默认币种解释金额。
+            purchase_units: [{
+              amount: {
+                currency_code: 'USD',
+                value: (hasMultipleWarehouses ? grandTotal : total).toFixed(2),
+              },
+            }]
           })
         },
         onApprove: async (_data: any, actions: any) => {
@@ -338,7 +346,14 @@ export default function CheckoutPage() {
         style: { layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' },
         createOrder: (_data: any, actions: any) => {
           return actions.order.create({
-            purchase_units: [{ amount: { value: (hasMultipleWarehouses ? grandTotal : total).toFixed(2) } }]
+            // ★ 金额口径：total 是 USD 原值；PayPal SDK 固定以 USD 加载，
+            //   必须显式带上 currency_code: 'USD'，否则 PayPal 会按默认币种解释金额。
+            purchase_units: [{
+              amount: {
+                currency_code: 'USD',
+                value: (hasMultipleWarehouses ? grandTotal : total).toFixed(2),
+              },
+            }]
           })
         },
         onApprove: async (_data: any, actions: any) => {
@@ -476,7 +491,8 @@ export default function CheckoutPage() {
               tax: totals.tax,
               discount: 0,
               total: totals.total,
-              currency,
+              // ★ 金额口径：全站统一存 USD，展示层才换算 → 落库币种固定 USD
+              currency: 'USD',
               shippingAddress,
               paymentMethod: paymentMethod,
               warehouseId: group.warehouseId,
@@ -519,7 +535,8 @@ export default function CheckoutPage() {
             tax,
             discount: 0,
             total,
-            currency,
+            // ★ 金额口径：全站统一存 USD，展示层才换算 → 落库币种固定 USD
+            currency: 'USD',
             shippingAddress,
             paymentMethod: paymentMethod,
           }),
@@ -593,7 +610,8 @@ export default function CheckoutPage() {
               tax: totals.tax,
               discount: 0,
               total: totals.total,
-              currency,
+              // ★ 金额口径：全站统一存 USD，展示层才换算 → 落库币种固定 USD
+              currency: 'USD',
               shippingAddress,
               paymentMethod: 'PAYPAL',
               paypalOrderId: paypalDetails.id,
@@ -637,7 +655,8 @@ export default function CheckoutPage() {
             tax,
             discount: 0,
             total,
-            currency,
+            // ★ 金额口径：全站统一存 USD，展示层才换算 → 落库币种固定 USD
+            currency: 'USD',
             shippingAddress,
             paymentMethod: 'PAYPAL',
             paypalOrderId: paypalDetails.id,
@@ -797,7 +816,7 @@ export default function CheckoutPage() {
                           {item.variant && <p className="text-xs sm:text-sm text-joy-gray-500">{item.variant.name}: {item.variant.value}</p>}
                           <div className="flex items-center justify-between mt-1 sm:mt-2">
                             <span className="text-xs sm:text-sm text-joy-gray-500">Qty: {item.quantity}{item.product.weight ? ` | ${item.product.weight}kg` : ''}</span>
-                            <span className="font-semibold text-joy-orange text-sm sm:text-base">{formatCurrency(convertPrice((item.variant?.price ?? item.product.price) * item.quantity, currency), currency)}</span>
+                            <span className="font-semibold text-joy-orange text-sm sm:text-base">{formatCurrency((item.variant?.price ?? item.product.price) * item.quantity, currency)}</span>
                           </div>
                         </div>
                       </div>
@@ -1070,7 +1089,7 @@ export default function CheckoutPage() {
                     <div className="flex gap-4 mt-6">
                       <Button variant="secondary" onClick={() => setCurrentStep(2)}>Back</Button>
                       <Button onClick={handlePlaceOrder} className="flex-1" size="lg" isLoading={isProcessing}>
-                        {isProcessing ? 'Processing...' : paymentMethod === 'BANK_TRANSFER' ? `Place Order (Bank Transfer)` : `Pay ${formatCurrency(hasMultipleWarehouses ? grandTotal : total, currency)}`}
+                        {isProcessing ? 'Processing...' : paymentMethod === 'BANK_TRANSFER' ? `Place Order (Bank Transfer)` : `Pay ${currency === 'USD' ? formatCurrency(hasMultipleWarehouses ? grandTotal : total, currency) : `$${(hasMultipleWarehouses ? grandTotal : total).toFixed(2)}`}`}
                       </Button>
                     </div>
                   )}
@@ -1115,7 +1134,7 @@ export default function CheckoutPage() {
                         <p className="text-sm font-medium text-joy-gray-900 truncate">{item.product.name}</p>
                         <p className="text-xs text-joy-gray-500">Qty: {item.quantity}</p>
                       </div>
-                      <p className="text-sm font-semibold text-joy-gray-900">{formatCurrency(convertPrice((item.variant?.price ?? item.product.price) * item.quantity, currency), currency)}</p>
+                      <p className="text-sm font-semibold text-joy-gray-900">{formatCurrency((item.variant?.price ?? item.product.price) * item.quantity, currency)}</p>
                     </div>
                   ))}
                   {items.length > 3 && <p className="text-xs sm:text-sm text-joy-gray-500 text-center">+ {items.length - 3} more items</p>}
@@ -1145,6 +1164,15 @@ export default function CheckoutPage() {
                   
                   <div className="flex justify-between text-sm"><span className="text-joy-gray-600">Tax ({(taxRate * 100).toFixed(0)}%)</span><span className="font-medium">{formatCurrency(tax, currency)}</span></div>
                   <div className="flex justify-between text-base sm:text-lg font-bold pt-2 sm:pt-3 border-t border-joy-gray-100"><span>Total</span><span className="text-joy-orange">{formatCurrency(hasMultipleWarehouses ? grandTotal : total, currency)}</span></div>
+
+                  {/* ★ 币种说明：全站内部金额为 USD，PayPal / 银行转账实际以 USD 收款。
+                      当展示币种不是 USD 时，必须明确告知实际扣款金额，避免展示与扣款不一致。 */}
+                  {currency !== 'USD' && (
+                    <p className="text-xs text-joy-gray-500 bg-joy-gray-50 rounded-lg p-2">
+                      Charged in USD: <strong className="text-joy-gray-700">${(hasMultipleWarehouses ? grandTotal : total).toFixed(2)}</strong>
+                      {' '}— the amount above is a {currency} reference price converted from the USD total.
+                    </p>
+                  )}
                   
                   {hasMultipleWarehouses && (
                     <p className="text-xs text-joy-gray-400 bg-joy-gray-50 rounded-lg p-2">
@@ -1155,7 +1183,13 @@ export default function CheckoutPage() {
                 <div className="mt-4 sm:mt-6">
                   <label className="block text-sm font-medium text-joy-gray-700 mb-2">Display Currency</label>
                   <select value={currency} onChange={e => useCartStore.getState().setCurrency(e.target.value as Currency)} className="w-full px-3 sm:px-4 py-2 sm:py-2.5 rounded-xl border-2 border-joy-gray-200 text-sm focus:border-joy-orange focus:outline-none">
-                    <option value="USD">$ USD</option><option value="MXN">MX$ MXN</option><option value="BRL">R$ BRL</option>
+                    <option value="USD">$ USD</option>
+                    <option value="AUD">A$ AUD</option>
+                    <option value="KRW">₩ KRW</option>
+                    <option value="JPY">¥ JPY</option>
+                    <option value="IDR">Rp IDR</option>
+                    <option value="MYR">RM MYR</option>
+                    <option value="SGD">S$ SGD</option>
                   </select>
                 </div>
               </div>

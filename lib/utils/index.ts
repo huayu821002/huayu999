@@ -6,6 +6,16 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * ★ 2026-10-30 币种口径统一（方案 i：全站内部统一存 USD，只在展示层换算）
+ *
+ * 约定（全站唯一口径）：
+ *   - **所有内部金额值（state / API payload / 数据库 / PayPal 金额）都是 USD 原值**
+ *   - `formatCurrency(usdAmount, currency)` 是**唯一的展示层换算入口**：
+ *     入参必须是 USD 原值，内部乘一次汇率得到目标币种展示串。
+ *   - **禁止** `formatCurrency(convertPrice(x, currency), currency)` —— 那是双重换算
+ *     （多币种功能 76706b7 引入后一直存在，导致 KRW/IDR 金额膨胀上千倍）。
+ */
 export function formatCurrency(amount: number, currency: Currency = 'USD'): string {
   const symbol = CURRENCY_SYMBOLS[currency]
   const rate = CURRENCY_RATES[currency]
@@ -15,14 +25,44 @@ export function formatCurrency(amount: number, currency: Currency = 'USD'): stri
   return `${symbol}${converted.toFixed(decimals)}`
 }
 
+/**
+ * 格式化一个**已经是目标币种**的金额（只加符号 + 小数位，**不乘汇率**）。
+ *
+ * 用于：订单记录（Order.currency 就是金额本身的币种，金额已按该币种存库）、
+ * 后台订单列表、订单邮件等「值已经是该币种」的场合。
+ * 切勿与 formatCurrency 混用：formatCurrency 的入参是 USD 原值。
+ */
+export function formatAmount(amount: number, currency: string = 'USD'): string {
+  const symbol = CURRENCY_SYMBOLS[currency as Currency] || '$'
+  const decimals = CURRENCY_DECIMALS[currency as Currency] ?? 2
+  return `${symbol}${(Number(amount) || 0).toFixed(decimals)}`
+}
+
+/**
+ * 把 USD 原值换算成目标币种的**数值**（不是字符串）。
+ * 仅在确实需要「目标币种数值」时使用（如 PayPal 金额 —— 本项目 PayPal 固定 USD，
+ * 所以结算链路现在不需要它）。展示请一律用 formatCurrency。
+ */
 export function convertPrice(priceUSD: number, toCurrency: Currency): number {
   return priceUSD * CURRENCY_RATES[toCurrency]
 }
 
+/**
+ * 反向换算：把「已经是某币种」的金额折回 USD。
+ * 用于历史订单（当时存的是已换算值 + 对应 currency）重新支付时回算 USD。
+ */
+export function toUSD(amount: number, fromCurrency: string): number {
+  const rate = CURRENCY_RATES[fromCurrency as Currency] || 1
+  return rate === 0 ? amount : amount / rate
+}
+
+/**
+ * 按数量档位算价。**返回 USD 原值**（不再内部换算）——
+ * 调用方需要展示时自己调 formatCurrency(price, currency) 换算一次。
+ */
 export function getPriceByTier(
   price: number,
-  quantity: number,
-  currency: Currency = 'USD'
+  quantity: number
 ): { tier: string; price: number; total: number } {
   let tier: string
   let multiplier: number
@@ -41,8 +81,8 @@ export function getPriceByTier(
   const unitPrice = price * multiplier
   return {
     tier,
-    price: convertPrice(unitPrice, currency),
-    total: convertPrice(unitPrice * quantity, currency),
+    price: unitPrice,
+    total: unitPrice * quantity,
   }
 }
 

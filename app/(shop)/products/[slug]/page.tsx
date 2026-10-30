@@ -10,7 +10,7 @@ import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { ProductCard } from '@/components/shop/ProductCard'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { cn, formatCurrency, getPriceByTier, convertPrice, getTieredPricing, getPriceFromTieredPricing, getVariantAwareTiers, parseTags } from '@/lib/utils'
+import { cn, formatCurrency, convertPrice, getTieredPricing, getPriceFromTieredPricing, getVariantAwareTiers, parseTags } from '@/lib/utils'
 import { useCartStore, useWishlistStore } from '@/lib/store'
 import { parseProductImages, parseImageUrl } from '@/lib/imageUtils'
 import { useLocale, useTranslation } from '@/lib/translation/client'
@@ -387,10 +387,11 @@ export default function ProductDetailPage() {
   const priceByQty = getPriceFromTieredPricing(tiers, quantity)
 
   // ★ 2026-10-30 方向 B：主价格拆成「货币符号（小）+ 数字（超大）」两段。
-  //   注意：这里刻意与页面其它地方保持**完全一致**的换算口径
-  //   formatCurrency(convertPrice(x, currency), currency)，
-  //   只是把结果按「前导符号 / 数字」切开，避免与购物车页显示对不上。
-  const priceText = formatCurrency(convertPrice(priceByQty.price, currency), currency)
+  //   ★ 币种口径（2026-10-30）：全站内部金额一律 USD 原值，
+  //   展示层只用 formatCurrency 换算**一次**。
+  //   原来这里是 formatCurrency(convertPrice(x, currency), currency) → 换算了两次，
+  //   KRW/IDR 这类高汇率币种会离谱地放大（单价 5.83 → KRW 103,126,870）。
+  const priceText = formatCurrency(priceByQty.price, currency)
   const priceParts = priceText.match(/^([^\d.,\-]*)([\d.,\-]+)$/)
   const priceSymbol = priceParts ? priceParts[1] : ''
   const priceNumber = priceParts ? priceParts[2] : priceText
@@ -584,7 +585,7 @@ export default function ProductDetailPage() {
                     </span>
                     {product.comparePrice && (
                       <span className="font-jakarta text-lg text-[#F6E4EA]/40 line-through mb-1 tabular-nums">
-                        {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
+                        {formatCurrency(product.comparePrice, currency)}
                       </span>
                     )}
                     {product.comparePrice && product.comparePrice > priceByQty.price && (
@@ -615,7 +616,7 @@ export default function ProductDetailPage() {
                         <div className={cn(
                           "font-jakarta font-extrabold text-[17px] tabular-nums",
                           idx === 1 ? "text-[#4B1030]" : "text-[#F6E4EA]"
-                        )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
+                        )}>{formatCurrency(tier.price, currency)}</div>
                       </div>
                     ))}
                   </div>
@@ -1044,7 +1045,8 @@ export default function ProductDetailPage() {
             url: `${process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'}/products/${product.slug}`,
             offers: {
               '@type': 'Offer',
-              price: product.price?.toFixed(2) || '0.00',
+              // ★ 结构化数据要与页面展示一致：展示价 = USD 原值 × 汇率
+              price: (convertPrice(product.price || 0, currency)).toFixed(2),
               priceCurrency: currency,
               availability: product.inventory > 0
                 ? 'https://schema.org/InStock'

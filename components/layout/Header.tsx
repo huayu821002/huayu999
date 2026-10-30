@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { useCartStore, useUIStore, useUserStore } from '@/lib/store'
 import { LanguageSwitcher } from '@/components/LanguageSwitcher'
 import { parseProductImages } from '@/lib/imageUtils'
@@ -345,7 +345,7 @@ export function Header({ initialSettings }: HeaderProps) {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-joy-gray-800 group-hover:text-joy-orange truncate">{product.name}</p>
-                              <p className="text-xs text-joy-orange font-semibold">${product.price?.toFixed(2)}</p>
+                              <p className="text-xs text-joy-orange font-semibold">{formatCurrency(product.price || 0, currency)}</p>
                             </div>
                             <Icons.ChevronRight size={14} className="text-joy-gray-300 group-hover:text-joy-orange flex-shrink-0" />
                           </button>

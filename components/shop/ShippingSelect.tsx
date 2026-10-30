@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { cn } from '@/lib/utils'
+import { cn, formatCurrency } from '@/lib/utils'
 import { Icons } from '@/components/ui/Icons'
 import { ShippingOption } from '@/lib/shipping'
+import type { Currency } from '@/types'
 
 interface ShippingSelectProps {
   items: { productId: string; quantity: number; weight?: number | null; price: number }[]
@@ -11,13 +12,15 @@ interface ShippingSelectProps {
   country: string
   value: string
   onChange: (option: ShippingOption) => void
+  /** 展示币种；option.cost 是 USD 原值，展示时换算 */
+  currency?: Currency
 }
 
 function calculateTotalWeight(items: { weight?: number | null; quantity: number }[]): number {
   return items.reduce((total, item) => total + (item.weight || 0) * item.quantity, 0)
 }
 
-export function ShippingSelect({ items, subtotal, country, value, onChange }: ShippingSelectProps) {
+export function ShippingSelect({ items, subtotal, country, value, onChange, currency = 'USD' }: ShippingSelectProps) {
   const [shippingOptions, setShippingOptions] = useState<ShippingOption[]>([])
   const [isLoading, setIsLoading] = useState(true)
 
@@ -113,7 +116,7 @@ export function ShippingSelect({ items, subtotal, country, value, onChange }: Sh
             {option.freeShipping ? (
               <span className="font-bold text-joy-green">FREE</span>
             ) : (
-              <span className="font-bold text-joy-gray-900">${(option.cost ?? 0).toFixed(2)}</span>
+              <span className="font-bold text-joy-gray-900">{formatCurrency(option.cost ?? 0, currency)}</span>
             )}
           </div>
         </label>

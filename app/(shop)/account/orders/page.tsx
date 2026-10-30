@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
+import { formatAmount } from '@/lib/utils'
 
 interface Order {
   id: string
@@ -99,7 +100,7 @@ export default function AccountOrdersPage() {
                     </div>
                     <div className="flex items-center gap-4 mb-4 text-sm text-joy-gray-600">
                       <span>{items.length} item{items.length !== 1 ? 's' : ''}</span>
-                      <span className="font-semibold text-joy-orange">{order.currency} ${order.total.toFixed(2)}</span>
+                      <span className="font-semibold text-joy-orange">{formatAmount(order.total, order.currency)}</span>
                     </div>
                     <div className="flex gap-2">
                       <Link href={`/account/orders/${order.orderNumber}`}>

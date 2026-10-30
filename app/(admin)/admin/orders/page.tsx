@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { Header } from '@/components/layout/Header'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { cn } from '@/lib/utils'
+import { cn, formatAmount } from '@/lib/utils'
 import { adminFetch } from '@/lib/adminFetch'
 
 interface OrderItem {
@@ -284,7 +284,7 @@ export default function AdminOrdersPage() {
                         </span>
                       </td>
                       <td className="px-6 py-4 font-semibold text-joy-orange">
-                        ${order.total.toFixed(2)}
+                        {formatAmount(order.total, order.currency)}
                       </td>
                       <td className="px-6 py-4">
                         <span className={cn(
@@ -431,10 +431,10 @@ export default function AdminOrdersPage() {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-sm text-joy-gray-500 font-mono">{item.sku || '-'}</td>
-                          <td className="px-4 py-3 text-joy-gray-600">${item.price.toFixed(2)}</td>
+                          <td className="px-4 py-3 text-joy-gray-600">{formatAmount(item.price, 'USD')}</td>
                           <td className="px-4 py-3 text-joy-gray-600">{item.quantity}</td>
                           <td className="px-4 py-3 text-right font-semibold text-joy-orange">
-                            ${(item.price * item.quantity).toFixed(2)}
+                            {formatAmount(item.price * item.quantity, 'USD')}
                           </td>
                         </tr>
                       ))}
@@ -447,27 +447,27 @@ export default function AdminOrdersPage() {
                   <div className="w-64 space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-joy-gray-500">Subtotal</span>
-                      <span className="font-medium">${selectedOrder.subtotal.toFixed(2)}</span>
+                      <span className="font-medium">{formatAmount(selectedOrder.subtotal, selectedOrder.currency)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-joy-gray-500">Shipping</span>
-                      <span className="font-medium">${selectedOrder.shippingCost.toFixed(2)}</span>
+                      <span className="font-medium">{formatAmount(selectedOrder.shippingCost, selectedOrder.currency)}</span>
                     </div>
                     {selectedOrder.tax > 0 && (
                       <div className="flex justify-between">
                         <span className="text-joy-gray-500">Tax</span>
-                        <span className="font-medium">${selectedOrder.tax.toFixed(2)}</span>
+                        <span className="font-medium">{formatAmount(selectedOrder.tax, selectedOrder.currency)}</span>
                       </div>
                     )}
                     {selectedOrder.discount > 0 && (
                       <div className="flex justify-between text-joy-green">
                         <span>Discount</span>
-                        <span>-${selectedOrder.discount.toFixed(2)}</span>
+                        <span>-{formatAmount(selectedOrder.discount, selectedOrder.currency)}</span>
                       </div>
                     )}
                     <div className="flex justify-between text-lg font-bold border-t border-joy-gray-200 pt-2">
                       <span>Total</span>
-                      <span className="text-joy-orange">${selectedOrder.total.toFixed(2)}</span>
+                      <span className="text-joy-orange">{formatAmount(selectedOrder.total, selectedOrder.currency)}</span>
                     </div>
                   </div>
                 </div>

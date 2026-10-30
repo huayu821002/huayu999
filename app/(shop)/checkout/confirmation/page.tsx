@@ -6,6 +6,7 @@ import { Header } from '@/components/layout/Header'
 import { Footer } from '@/components/layout/Footer'
 import { Icons } from '@/components/ui/Icons'
 import { Button } from '@/components/ui/Button'
+import { formatAmount } from '@/lib/utils'
 
 function ConfirmationContent() {
   const searchParams = useSearchParams()
@@ -74,7 +75,7 @@ function ConfirmationContent() {
             </div>
             <div className="flex justify-between">
               <span className="text-joy-gray-500">Total</span>
-              <span className="font-semibold text-joy-orange">${orderData.total?.toFixed(2)}</span>
+              <span className="font-semibold text-joy-orange">{formatAmount(orderData.total ?? 0, orderData.currency || 'USD')}</span>
             </div>
           </div>
         </div>

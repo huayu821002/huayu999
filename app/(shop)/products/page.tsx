@@ -12,7 +12,7 @@ import { BatchOrderBar } from '@/components/shop/BatchOrderBar'
 import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { cn, formatCurrency } from '@/lib/utils'
+import { cn, formatCurrency, getPriceByTier } from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
 import type { Product } from '@/types'
 
@@ -244,7 +244,9 @@ function ProductsContent() {
       productId,
       name: product.name,
       sku: product.sku || '',
-      price: product.price,
+      // ★ 存阶梯价（USD 原值）：卡片上显示的就是 getPriceByTier 的结果，
+      //   这里如果存 base price 就会出现「卡片显示批发价、订单按原价收」的坑。
+      price: getPriceByTier(product.price, qty).price,
       quantity: qty,
       weight: product.weight || 0.5,
       image: images[0],

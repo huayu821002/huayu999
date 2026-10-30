@@ -73,9 +73,9 @@ export function ProductCard({ product, currency = 'USD', showTierPrices = true, 
   }
 
   // Get tier prices for display
-  const retailPrice = getPriceByTier(product.price, 1, currency)
-  const wholesalePrice = getPriceByTier(product.price, 50, currency)
-  const vipPrice = getPriceByTier(product.price, 200, currency)
+  const retailPrice = getPriceByTier(product.price, 1)
+  const wholesalePrice = getPriceByTier(product.price, 50)
+  const vipPrice = getPriceByTier(product.price, 200)
 
   return (
     <Link href={`/products/${product.slug}`}>
