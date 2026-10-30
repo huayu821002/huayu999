@@ -109,6 +109,13 @@ export async function POST(request: Request) {
   try {
     const { action, email, password, name } = body
 
+    // ★ 2026-10-30 修：登录/注册/找回密码统一把邮箱**转小写**再查库。
+    //   背景：改邮箱接口（/api/admin/account）会把邮箱存成小写，
+    //   而登录是 `findUnique({ where: { email } })` **大小写敏感** →
+    //   用户输入 "Fadmin1002@qq.com"、库里是 "fadmin1002@qq.com" → 登录直接失败。
+    //   邮箱本地部分理论上大小写敏感，但现实中几乎没人区分，统一小写最省心。
+    const emailKey = typeof email === 'string' ? email.trim().toLowerCase() : email
+
     if (action === 'register') {
       // 注册也要有账号维度限流：否则可以用同一个邮箱反复注册来轰炸数据库/发欢迎邮件
       const registerLimit = checkAccountRateLimit(String(email || ''), 10, 15 * 60 * 1000)
@@ -141,7 +148,7 @@ export async function POST(request: Request) {
 
       // Check if user exists
       const existingUser = await prisma.user.findUnique({
-        where: { email },
+        where: { email: emailKey },
       })
 
       if (existingUser) {
@@ -157,9 +164,9 @@ export async function POST(request: Request) {
       // Create user
       const user = await prisma.user.create({
         data: {
-          email,
+          email: emailKey,
           password: hashedPassword,
-          name: name || email.split('@')[0],
+          name: name || String(emailKey).split('@')[0],
           role: 'CUSTOMER',
         },
       })
@@ -212,7 +219,7 @@ export async function POST(request: Request) {
       }
 
       const user = await prisma.user.findUnique({
-        where: { email },
+        where: { email: emailKey },
       })
 
       if (!user) {
@@ -262,7 +269,7 @@ export async function POST(request: Request) {
       }
 
       const user = await prisma.user.findUnique({
-        where: { email },
+        where: { email: emailKey },
       })
 
       // Always return success to prevent email enumeration
@@ -278,7 +285,7 @@ export async function POST(request: Request) {
       const resetExpiry = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
 
       await prisma.user.update({
-        where: { email },
+        where: { email: emailKey },
         data: { resetToken, resetExpiry },
       })
 
