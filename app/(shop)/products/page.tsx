@@ -12,7 +12,7 @@ import { BatchOrderBar } from '@/components/shop/BatchOrderBar'
 import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { cn, formatCurrency, getPriceByTier } from '@/lib/utils'
+import { cn, formatCurrency, getPriceByTier, safeJsonLd} from '@/lib/utils'
 import { useCartStore } from '@/lib/store'
 import type { Product } from '@/types'
 
@@ -381,7 +381,7 @@ function ProductsContent() {
 
       {/* JSON-LD CollectionPage Schema */}
       <script type="application/ld+json" dangerouslySetInnerHTML={{
-        __html: JSON.stringify({
+        __html: safeJsonLd({
           '@context': 'https://schema.org',
           '@type': 'CollectionPage',
           name: 'Huayu Wholesale Products',

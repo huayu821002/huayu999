@@ -34,6 +34,11 @@ export async function ensureColumn(
   if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(table) || !/^[A-Za-z_][A-Za-z0-9_]*$/.test(column)) {
     return false
   }
+  // type 也要白名单：它是直接拼进 SQL 的（表名/列名已经用正则卡住了，
+  // 但 type 之前没校验 —— 万一将来有人把用户输入当 type 传进来就是注入）
+  if (!/^(TEXT|VARCHAR|INTEGER|BIGINT|BOOLEAN|TIMESTAMP|DATE|JSONB|NUMERIC|DECIMAL|FLOAT|DOUBLE PRECISION|SERIAL|BIGSERIAL)$/i.test(type)) {
+    return false
+  }
   try {
     await prisma.$executeRawUnsafe(
       `ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS "${column}" ${type}`

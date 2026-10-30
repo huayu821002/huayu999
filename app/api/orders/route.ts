@@ -121,7 +121,7 @@ export async function POST(request: Request) {
     console.error('Create order error:', error)
     console.error('Create order full error:', JSON.stringify(error, null, 2))
     return NextResponse.json(
-      { success: false, error: 'Failed to create order: ' + (error?.message || 'Unknown error'), details: error?.message, code: error?.code },
+      { success: false, error: 'Failed to create order' },
       { status: 500 }
     )
   }

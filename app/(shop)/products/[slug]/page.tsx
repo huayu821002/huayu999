@@ -10,7 +10,7 @@ import { FloatingButtons } from '@/components/layout/FloatingButtons'
 import { ProductCard } from '@/components/shop/ProductCard'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
-import { cn, formatCurrency, convertPrice, getTieredPricing, getPriceFromTieredPricing, getVariantAwareTiers, parseTags } from '@/lib/utils'
+import { cn, formatCurrency, convertPrice, getTieredPricing, getPriceFromTieredPricing, getVariantAwareTiers, parseTags, safeJsonLd} from '@/lib/utils'
 import { useCartStore, useWishlistStore } from '@/lib/store'
 import { parseProductImages, parseImageUrl } from '@/lib/imageUtils'
 import { useLocale, useTranslation } from '@/lib/translation/client'
@@ -1022,7 +1022,7 @@ export default function ProductDetailPage() {
 
         {/* BreadcrumbList Schema */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: safeJsonLd({
             '@context': 'https://schema.org',
             '@type': 'BreadcrumbList',
             itemListElement: [
@@ -1035,7 +1035,7 @@ export default function ProductDetailPage() {
 
         {/* SEO: JSON-LD Product Schema */}
         <script type="application/ld+json" dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: safeJsonLd({
             '@context': 'https://schema.org',
             '@type': 'Product',
             name: product.name,

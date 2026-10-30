@@ -66,7 +66,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, data: productsWithCategory })
   } catch (error: any) {
     console.error('Products API error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message, code: error?.code }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch products' }, { status: 500 })
   }
 }
 

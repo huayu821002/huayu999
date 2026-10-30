@@ -25,10 +25,30 @@ export async function OPTIONS(request: NextRequest) {
   })
 }
 
+/**
+ * ★ 2026-10-30 安全审计：原来 POST 的 CORS 是**反射任意 Origin**（Access-Control-Allow-Origin: origin）。
+ *   实际风险有限（接口还要管理员 JWT，浏览器不会自动带 cookie），但反射任意源不是好习惯。
+ *   现在只对白名单来源回显 Origin（采集脚本跑在 1688 页面上 → *.1688.com），
+ *   其它来源直接不给 CORS 头 → 浏览器会拦掉跨域请求。
+ */
+function isAllowedOrigin(origin: string | null): boolean {
+  if (!origin) return false
+  try {
+    const host = new URL(origin).hostname.toLowerCase()
+    if (host === 'fiestaflare.com' || host === 'www.fiestaflare.com') return true
+    if (host === 'localhost' || host === '127.0.0.1') return true
+    // 采集脚本运行在 1688 的页面上
+    if (host === '1688.com' || host.endsWith('.1688.com')) return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 export async function POST(request: NextRequest) {
-  const origin = request.headers.get('origin') || '*'
-  const cors = {
-    'Access-Control-Allow-Origin': origin,
+  const origin = request.headers.get('origin') || ''
+  const originAllowed = isAllowedOrigin(origin)
+  const cors: Record<string, string> = {
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-import-key',
     'Vary': 'Origin',
@@ -36,6 +56,10 @@ export async function POST(request: NextRequest) {
     // 采集脚本据此区分「应用层返回的 401/403」和「Hostinger 边缘层返回的 403」——
     // 边缘层不会带这个头，诊断时一眼就能看出来。
     'X-FF-Origin': 'app',
+  }
+  // 只对白名单来源回显 Origin（非白名单不给 CORS 头 → 浏览器直接拦）
+  if (originAllowed) {
+    cors['Access-Control-Allow-Origin'] = origin
   }
 
   try {

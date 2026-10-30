@@ -18,6 +18,7 @@ import { Newsletter } from '@/components/home/Newsletter'
 import { Button } from '@/components/ui/Button'
 import { Icons } from '@/components/ui/Icons'
 import type { Product } from '@/types'
+import { safeJsonLd } from '@/lib/utils'
 
 const defaultCategories = [
   { id: 'cat-1', name: 'Accessories', slug: 'accessories', image: 'https://images.unsplash.com/photo-1515562141207-7a88fb7ce338?w=400', count: 0 },
@@ -170,7 +171,7 @@ export default async function ShopHomePage() {
       <Header initialSettings={headerSettings} />
       <main>
         <script type="application/ld+json" dangerouslySetInnerHTML={{
-          __html: JSON.stringify({
+          __html: safeJsonLd({
             '@context': 'https://schema.org',
             '@type': 'Organization',
             name: 'Huayu Wholesale',

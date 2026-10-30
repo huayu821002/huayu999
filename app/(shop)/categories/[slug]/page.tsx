@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import { cookies } from 'next/headers'
 import { prisma } from '@/lib/prisma'
 import { CategoryClient } from './CategoryClient'
+import { safeJsonLd } from '@/lib/utils'
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || 'https://fiestaflare.com'
 
@@ -175,7 +176,7 @@ export default async function CategoryPage({ params, searchParams }: Props) {
     <>
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(categoryJsonLd) }}
+        dangerouslySetInnerHTML={{ __html: safeJsonLd(categoryJsonLd) }}
       />
       <CategoryClient
         category={category}

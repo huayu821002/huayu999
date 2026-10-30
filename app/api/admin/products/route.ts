@@ -48,7 +48,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ success: true, data: productsWithCategory, count: products.length })
   } catch (error: any) {
     console.error('Admin products GET error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch products', details: error?.message }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to fetch products' }, { status: 500 })
   }
 }
 
@@ -115,6 +115,6 @@ export async function POST(request: Request) {
     console.error('Admin products POST error:', error)
     console.error('Error code:', error?.code)
     console.error('Error meta:', error?.meta)
-    return NextResponse.json({ success: false, error: 'Failed to create product', details: error?.message, code: error?.code }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to create product' }, { status: 500 })
   }
 }
