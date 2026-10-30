@@ -386,6 +386,15 @@ export default function ProductDetailPage() {
   const tiers = getVariantAwareTiers(product.tieredPricing, product.price, currentVariant?.price ?? null)
   const priceByQty = getPriceFromTieredPricing(tiers, quantity)
 
+  // ★ 2026-10-30 方向 B：主价格拆成「货币符号（小）+ 数字（超大）」两段。
+  //   注意：这里刻意与页面其它地方保持**完全一致**的换算口径
+  //   formatCurrency(convertPrice(x, currency), currency)，
+  //   只是把结果按「前导符号 / 数字」切开，避免与购物车页显示对不上。
+  const priceText = formatCurrency(convertPrice(priceByQty.price, currency), currency)
+  const priceParts = priceText.match(/^([^\d.,\-]*)([\d.,\-]+)$/)
+  const priceSymbol = priceParts ? priceParts[1] : ''
+  const priceNumber = priceParts ? priceParts[2] : priceText
+
   // ★ 安全解析（之前 JSON.parse 遇到逗号串直接抛异常 → 整页 Application error）
   const tags = parseTags(product.tags)
 
@@ -516,7 +525,8 @@ export default function ProductDetailPage() {
               </div>
 
               {/* Title */}
-              <h1 className="font-display text-3xl font-bold text-joy-gray-900 mb-3">
+              {/* ★ 2026-10-30 方向 B：标题改 Plus Jakarta Sans 800 + 负字距，比 Poppins 更紧更贵 */}
+              <h1 className="font-jakarta text-[27px] leading-[1.2] font-extrabold tracking-[-0.02em] text-joy-gray-900 mb-3">
                 {displayProduct?.name || product.name}
               </h1>
 
@@ -542,173 +552,192 @@ export default function ProductDetailPage() {
                 <p className="text-joy-gray-600 mb-4">{displayProduct?.shortDesc || product.shortDesc}</p>
               )}
 
-              {/* Price Display + Variants —— 合并为同一张大卡片 */}
-              {/* ★ 2026-10-29 20:08 配色「深莓紫 + 玫瑰灰」全量装回（深色底 + 玫瑰灰强调）
-                  · 卡片底色：深莓紫渐变（#4B1030 → #7A1E4C → #28081A）
-                  · 强调/按钮底色：玫瑰灰渐变（#E3C3CE → #A87689），中间档 + 变体选中态
-                  · 文字：价格玫瑰灰 #F6E4EA；对比价/维度名同色系
-                  · 特效全部保留：两层径向柔光 + 两枚角落光晕 + 顶部高光细线 + 圆角投影 + 发光分隔线
+              {/* ═══ 方向 B（2026-10-30）：价格卡 / 规格卡 / 仓库卡 三块分离 ═══
+                  配色锁定：深莓紫 + 玫瑰灰（#4B1030→#7A1E4C→#28081A / #E3C3CE→#A87689）
+                  字体：标题与价格数字 = Plus Jakarta Sans（font-jakarta），正文 = Inter
+                  结构变化：
+                    · 价格卡独立（深色），只放「主价格 + 阶梯价」，主价格用超大字 + 货币符号降级
+                    · 规格卡改成白卡，维度名改小型大写标签，按钮白底、选中态玫瑰灰渐变
+                    · 仓库卡改成白卡列表：默认仓 badge + 每仓库存数
               */}
-              <div className="relative overflow-hidden rounded-3xl mb-6 p-6
+              <div className="relative overflow-hidden rounded-2xl mb-4 p-6
                               bg-gradient-to-br from-[#4B1030] via-[#7A1E4C] to-[#28081A]
-                              border border-[#E3C3CE]/28 shadow-2xl shadow-[#18040E]/60">
-                {/* 径向柔光 */}
+                              border border-[#E3C3CE]/26 shadow-xl shadow-[#18040E]/45">
+                {/* 径向柔光 + 角落光晕 + 顶部高光 */}
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_90%_at_12%_0%,rgba(227,195,206,0.18),transparent_60%)]" />
                 <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(100%_100%_at_95%_100%,rgba(164,94,133,0.22),transparent_62%)]" />
-                {/* 角落光晕 */}
                 <div className="pointer-events-none absolute -top-24 -right-16 h-56 w-56 rounded-full bg-[#E3C3CE]/20 blur-3xl" />
-                <div className="pointer-events-none absolute -bottom-28 -left-14 h-52 w-52 rounded-full bg-[#A45E85]/25 blur-3xl" />
-                {/* 顶部高光描边 */}
                 <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-[#E3C3CE]/60 to-transparent" />
 
                 <div className="relative">
-                  {/* ---- 价格 ---- */}
-                  <div className="flex items-baseline gap-3 mb-4">
-                    <span className="text-4xl font-extrabold tracking-tight text-[#F6E4EA]
-                                     drop-shadow-[0_0_26px_rgba(230,170,195,0.34)]">
-                      {formatCurrency(convertPrice(priceByQty.price, currency), currency)}
+                  {/* 主价格 —— 全页第一视觉焦点 */}
+                  <div className="text-[11px] font-bold uppercase tracking-[0.16em] text-[#F6E4EA]/55 mb-2">
+                    Wholesale price · 起订 {product.minOrderQty} pcs
+                  </div>
+                  <div className="flex items-end gap-3 flex-wrap">
+                    <span className="font-jakarta text-[22px] font-bold text-[#F6E4EA]/90 leading-none mb-1">
+                      {priceSymbol}
+                    </span>
+                    <span className="font-jakarta text-[46px] leading-none font-extrabold tracking-[-0.03em] tabular-nums
+                                     text-[#F6E4EA] drop-shadow-[0_0_26px_rgba(230,170,195,0.34)]">
+                      {priceNumber}
                     </span>
                     {product.comparePrice && (
-                      <span className="text-xl text-[#F6E4EA]/40 line-through">
+                      <span className="font-jakarta text-lg text-[#F6E4EA]/40 line-through mb-1 tabular-nums">
                         {formatCurrency(convertPrice(product.comparePrice, currency), currency)}
+                      </span>
+                    )}
+                    {product.comparePrice && product.comparePrice > priceByQty.price && (
+                      <span className="mb-1.5 text-[11px] font-extrabold tracking-[0.08em] px-2 py-1 rounded-lg
+                                       bg-[#E3C3CE]/16 text-[#E3C3CE] border border-[#E3C3CE]/35">
+                        SAVE {Math.round((1 - priceByQty.price / product.comparePrice) * 100)}%
                       </span>
                     )}
                   </div>
 
-                  {/* 阶梯价 —— 每档一个圆角按钮底色 */}
-                  <div className="grid grid-cols-3 gap-2 text-sm">
+                  {/* 阶梯价 —— 三档，每档一个圆角底色 */}
+                  <div className="grid grid-cols-3 gap-2 mt-5">
                     {tiers.map((tier, idx) => (
                       <div key={idx} className={cn(
                         "text-center p-3 rounded-xl transition-all duration-200",
                         idx === 1
-                          ? "bg-[linear-gradient(135deg,#E3C3CE,#A87689)] text-[#4B1030] shadow-lg shadow-[#A87689]/40 scale-[1.03] ring-1 ring-[#4B1030]/20"
+                          ? "bg-[linear-gradient(135deg,#E3C3CE,#A87689)] text-[#4B1030] shadow-lg shadow-[#A87689]/40"
                           : idx === 0
                             ? "bg-[#4B1030]/60 border border-[#E3C3CE]/20 text-[#F6E4EA]"
                             : "bg-[#7A1E4C]/60 border border-[#E3C3CE]/25 text-[#F6E4EA]"
                       )}>
                         <div className={cn(
-                          "font-semibold mb-1",
+                          "text-[11.5px] font-bold tracking-[0.04em] mb-1",
                           idx === 1 ? "text-[#4B1030]/70" : idx === 2 ? "text-[#F6E4EA]" : "text-[#F6E4EA]/60"
                         )}>
                           {tier.maxQty ? `${tier.minQty}-${tier.maxQty} pcs` : `${tier.minQty}+ pcs`}
                         </div>
                         <div className={cn(
-                          "font-semibold",
-                          idx === 1 ? "text-[#4B1030]" : idx === 2 ? "text-[#F6E4EA]" : "text-[#F6E4EA]"
+                          "font-jakarta font-extrabold text-[17px] tabular-nums",
+                          idx === 1 ? "text-[#4B1030]" : "text-[#F6E4EA]"
                         )}>{formatCurrency(convertPrice(tier.price, currency), currency)}</div>
                       </div>
                     ))}
                   </div>
-
-                  {/* ---- 变体规格（同一张大卡片内） ---- */}
-                  {product.variants && product.variants.length > 0 && (
-                    <div className="mt-6 pt-5">
-                      {/* 发光分隔线 */}
-                      <div className="pointer-events-none h-px w-full bg-gradient-to-r from-transparent via-[#E3C3CE]/30 to-transparent" />
-                      <div className="space-y-4">
-                        {variantRows.length > 0 ? variantRows.map((row) => {
-                          const currentVal = variantSelection[row.name] || ''
-                          return (
-                            <div key={row.name}>
-                              <label className="block text-sm font-medium text-[#F6E4EA]/70 mb-2">
-                                {row.name}
-                              </label>
-                              <div className="flex flex-wrap gap-2">
-                                {row.values.map((val) => {
-                                  // 选中该值后能否匹配到变体
-                                  const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
-                                  const disabled = !probe
-                                  const isActive = currentVal === val
-                                  return (
-                                    <button
-                                      key={val}
-                                      disabled={disabled}
-                                      onClick={() => {
-                                        const next = { ...variantSelection, [row.name]: val }
-                                        setVariantSelection(next)
-                                        setImageMode('variant')
-                                        const m = matchVariant(product.variants, next)
-                                        if (m) setSelectedVariant(m.id)
-                                      }}
-                                      className={cn(
-                                        'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
-                                        isActive
-                                          ? 'bg-[linear-gradient(135deg,#E3C3CE,#A87689)] text-[#4B1030] shadow-lg shadow-[#A87689]/40 scale-[1.03] ring-1 ring-[#4B1030]/20'
-                                          : 'bg-white/[0.06] border border-[#E3C3CE]/28 text-[#F6E4EA] hover:bg-white/[0.12] hover:border-[#E3C3CE]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#28081A]/50',
-                                        disabled && 'opacity-40 cursor-not-allowed'
-                                      )}
-                                    >
-                                      {val}
-                                      {(() => {
-                                        const inv = probe?.inventory
-                                        return inv != null && inv < 10 ? ` (${inv} left)` : ''
-                                      })()}
-                                    </button>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )
-                        }) : (
-                          <div>
-                            <label className="block text-sm font-medium text-[#F6E4EA]/70 mb-2">
-                              {product.variants[0].name}
-                            </label>
-                            <div className="flex flex-wrap gap-2">
-                              {product.variants.map((variant) => (
-                                <button
-                                  key={variant.id}
-                                  onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
-                                  className={cn(
-                                    'px-4 py-3 rounded-xl font-medium text-base transition-all duration-200',
-                                    selectedVariant === variant.id
-                                      ? 'bg-[linear-gradient(135deg,#E3C3CE,#A87689)] text-[#4B1030] shadow-lg shadow-[#A87689]/40 scale-[1.03] ring-1 ring-[#4B1030]/20'
-                                      : 'bg-white/[0.06] border border-[#E3C3CE]/28 text-[#F6E4EA] hover:bg-white/[0.12] hover:border-[#E3C3CE]/60 hover:-translate-y-0.5 hover:shadow-lg hover:shadow-[#28081A]/50'
-                                  )}
-                                >
-                                  {variant.value}
-                                  {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
-                                </button>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
 
-              {/* Warehouse Selection */}
+              {/* ---- 规格卡（白卡） ---- */}
+              {product.variants && product.variants.length > 0 && (
+                <div className="rounded-2xl border border-joy-gray-200 bg-white p-5 mb-4">
+                  <div className="space-y-4">
+                    {variantRows.length > 0 ? variantRows.map((row) => {
+                      const currentVal = variantSelection[row.name] || ''
+                      return (
+                        <div key={row.name}>
+                          <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-joy-gray-400 mb-2.5">
+                            {row.name}
+                          </div>
+                          <div className="flex flex-wrap gap-2">
+                            {row.values.map((val) => {
+                              // 选中该值后能否匹配到变体
+                              const probe = matchVariant(product.variants, { ...variantSelection, [row.name]: val })
+                              const disabled = !probe
+                              const isActive = currentVal === val
+                              return (
+                                <button
+                                  key={val}
+                                  disabled={disabled}
+                                  onClick={() => {
+                                    const next = { ...variantSelection, [row.name]: val }
+                                    setVariantSelection(next)
+                                    setImageMode('variant')
+                                    const m = matchVariant(product.variants, next)
+                                    if (m) setSelectedVariant(m.id)
+                                  }}
+                                  className={cn(
+                                    'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200',
+                                    isActive
+                                      ? 'bg-[linear-gradient(135deg,#E3C3CE,#A87689)] text-[#4B1030] shadow-lg shadow-[#A87689]/40 ring-1 ring-[#4B1030]/20'
+                                      : 'bg-white border border-joy-gray-200 text-joy-gray-800 hover:border-[#A87689] hover:bg-[#FBF6F9]',
+                                    disabled && 'bg-joy-gray-50 border-joy-gray-100 text-joy-gray-300 cursor-not-allowed hover:border-joy-gray-100 hover:bg-joy-gray-50'
+                                  )}
+                                >
+                                  {val}
+                                  {(() => {
+                                    const inv = probe?.inventory
+                                    return inv != null && inv < 10 ? ` (${inv} left)` : ''
+                                  })()}
+                                </button>
+                              )
+                            })}
+                          </div>
+                        </div>
+                      )
+                    }) : (
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-[0.14em] text-joy-gray-400 mb-2.5">
+                          {product.variants[0].name}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                          {product.variants.map((variant) => (
+                            <button
+                              key={variant.id}
+                              onClick={() => { setSelectedVariant(variant.id); setImageMode('variant') }}
+                              className={cn(
+                                'px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200',
+                                selectedVariant === variant.id
+                                  ? 'bg-[linear-gradient(135deg,#E3C3CE,#A87689)] text-[#4B1030] shadow-lg shadow-[#A87689]/40 ring-1 ring-[#4B1030]/20'
+                                  : 'bg-white border border-joy-gray-200 text-joy-gray-800 hover:border-[#A87689] hover:bg-[#FBF6F9]'
+                              )}
+                            >
+                              {variant.value}
+                              {variant.inventory != null && variant.inventory < 10 && ` (${variant.inventory} left)`}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* ---- 仓库卡（白卡 · 列表式） ---- */}
               {warehouseInventories.length > 0 && (
-                <div className="mb-6">
-                  <label className="block text-sm font-medium text-joy-gray-700 mb-2">
-                    Select Warehouse
-                  </label>
-                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                <div className="rounded-2xl border border-joy-gray-200 bg-white p-5 mb-6">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-[11px] font-bold uppercase tracking-[0.14em] text-joy-gray-400">
+                      Ship from · 仓库
+                    </span>
+                    {warehouseInventories.find(i => i.warehouse.isDefault) && (
+                      <span className="text-[10.5px] font-extrabold tracking-[0.08em] px-2 py-1 rounded-md bg-[#FBEFE2] text-[#9A6B2F]">
+                        DEFAULT {warehouseInventories.find(i => i.warehouse.isDefault)?.warehouse.name}
+                      </span>
+                    )}
+                  </div>
+                  <div className="grid gap-2">
                     {warehouseInventories.map((inv) => (
                       <button
                         key={inv.warehouseId}
                         onClick={() => setSelectedWarehouseId(inv.warehouseId)}
                         className={cn(
-                          'p-3 rounded-xl border-2 text-left transition-all',
+                          'flex items-center gap-3 w-full px-3.5 py-3 rounded-xl border text-left transition-all',
                           selectedWarehouseId === inv.warehouseId
-                            ? 'border-joy-orange bg-orange-50'
+                            ? 'border-[#7A1E4C] bg-[#FBF6F9]'
                             : 'border-joy-gray-200 hover:border-joy-gray-300'
                         )}
                       >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-sm text-joy-gray-900">{inv.warehouse.name}</span>
-                          {inv.warehouse.isDefault && (
-                            <span className="text-xs text-joy-orange">Default</span>
-                          )}
-                        </div>
-                        <div className={cn('text-sm font-semibold', inv.quantity > 0 ? 'text-joy-green' : 'text-red-500')}>
-                          {inv.quantity > 0 ? `${inv.quantity} in stock` : 'Out of stock'}
-                        </div>
-                        {inv.quantity > 0 && inv.quantity < 20 && (
-                          <div className="text-xs text-red-500 mt-0.5">Low stock</div>
+                        <span className={cn(
+                          'w-2 h-2 rounded-full shrink-0',
+                          inv.quantity > 0 ? 'bg-[#1B5E20]' : 'bg-joy-gray-300'
+                        )} />
+                        <span className="text-sm font-bold text-joy-gray-900">{inv.warehouse.name}</span>
+                        {inv.warehouse.isDefault && (
+                          <span className="text-[10.5px] font-extrabold tracking-[0.08em] px-1.5 py-0.5 rounded bg-[#FBEFE2] text-[#9A6B2F]">
+                            DEFAULT
+                          </span>
                         )}
+                        <span className={cn(
+                          'ml-auto text-[13px] font-bold tabular-nums',
+                          inv.quantity > 0 ? 'text-joy-gray-600' : 'text-red-500'
+                        )}>
+                          {inv.quantity > 0 ? `${inv.quantity} in stock` : 'Out of stock'}
+                        </span>
                       </button>
                     ))}
                   </div>

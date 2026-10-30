@@ -10,6 +10,10 @@
     --joy-navy: #1A237E;
     --font-inter: 'Inter', system-ui, sans-serif;
     --font-poppins: 'Poppins', system-ui, sans-serif;
+    /* ★ 2026-10-30：详情页标题/价格数字字体。
+       不用 next/font（构建时需下载字体文件，Hostinger 构建曾因字体 CDN 不稳失败），
+       改成运行时 <link> 加载，加载失败也不阻塞构建与首屏。 */
+    --font-jakarta: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   }
 
   * {

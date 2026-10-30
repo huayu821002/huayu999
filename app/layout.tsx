@@ -57,6 +57,13 @@ export default function RootLayout({
         <link rel="preconnect" href="https://images.unsplash.com" />
         <link rel="preconnect" href="https://picsum.photos" />
         <link rel="dns-prefetch" href="https://www.google-analytics.com" />
+        {/* ★ 2026-10-30 方向 B：Plus Jakarta Sans（详情页标题 / 价格数字），运行时加载 */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link
+          href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet"
+        />
         {/* Favicon */}
         <link rel="icon" href="/favicon.ico" sizes="any" />
         {/* PWA Manifest */}
