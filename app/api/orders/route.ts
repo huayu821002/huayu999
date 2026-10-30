@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
 import { sendEmail, getEmailTemplate, interpolateTemplate } from '@/lib/email'
 import { formatAmount } from '@/lib/utils'
+import { checkRateLimit, getClientKey } from '@/lib/rateLimit'
 
 // GET /api/orders — 需要登录，用户只能查看自己的订单，admin 可以查看所有
 export async function GET(request: Request) {
@@ -55,6 +56,20 @@ export async function GET(request: Request) {
 // POST /api/orders — 公开接口（用于创建批量订单，无需登录）
 export async function POST(request: Request) {
   try {
+    // ★ 2026-10-30 安全修复：下单接口是公开的（游客结账），原来无限流 →
+    // 可被刷单（灌库 + 触发确认邮件，发信配额被打爆）。
+    // 同一 IP 15 分钟内最多 20 单（B2B 批量下单也够用）。
+    const limit = checkRateLimit(`order:${getClientKey(request)}`, {
+      maxAttempts: 20,
+      windowMs: 15 * 60 * 1000,
+    })
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many orders, please try again later' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(limit.retryAfterMs / 1000)) } }
+      )
+    }
+
     const body = await request.json()
     const {
       userId, items, subtotal, shippingCost, tax, discount, total,

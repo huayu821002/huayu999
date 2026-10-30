@@ -1,5 +1,6 @@
 const { PrismaClient } = require('@prisma/client')
 const bcrypt = require('bcryptjs')
+const { randomBytes } = require('crypto')
 
 const prisma = new PrismaClient()
 
@@ -234,21 +235,39 @@ async function main() {
 
   console.log('✅ Products created')
 
-  // Create admin user
-  const hashedPassword = await bcrypt.hash('admin123', 10)
-  
+  // ★ 2026-10-30 安全修复：不写死弱口令 `admin123`（该口令在生产实测可用）。
+  //   密码从环境变量读；未配置时随机生成强密码并打印一次。
+  const adminEmail = process.env.SEED_ADMIN_EMAIL || 'admin@joyhub.com'
+  const envPassword = process.env.SEED_ADMIN_PASSWORD
+  const generated = !envPassword
+  const adminPassword = envPassword || randomBytes(12).toString('base64url')
+
+  if (adminPassword.length < 8 || !/[A-Za-z]/.test(adminPassword) || !/\d/.test(adminPassword)) {
+    throw new Error('SEED_ADMIN_PASSWORD must be at least 8 characters and contain both letters and numbers')
+  }
+
+  const hashedPassword = await bcrypt.hash(adminPassword, 10)
+
   await prisma.user.upsert({
-    where: { email: 'admin@joyhub.com' },
-    update: {},
+    where: { email: adminEmail },
+    // 显式配置了 SEED_ADMIN_PASSWORD 时同步覆盖旧口令（避免旧的弱口令残留）；
+    // 未配置（随机生成）时不动已有账号，避免每次 seed 都把密码改掉。
+    update: envPassword ? { password: hashedPassword, role: 'ADMIN' } : {},
     create: {
-      email: 'admin@joyhub.com',
+      email: adminEmail,
       password: hashedPassword,
       name: 'Admin',
       role: 'ADMIN',
     },
   })
 
-  console.log('✅ Admin user created (admin@joyhub.com / admin123)')
+  console.log(`✅ Admin user ready: ${adminEmail}`)
+  if (generated) {
+    // 随机密码只打印这一次，请立即保存
+    console.log('==============================================')
+    console.log(`管理员密码（仅显示一次，请立即保存）: ${adminPassword}`)
+    console.log('==============================================')
+  }
   console.log('')
   console.log('🎉 Seeding completed!')
 }

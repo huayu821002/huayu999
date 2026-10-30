@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { verifyToken } from '@/lib/auth'
+import { checkRateLimit } from '@/lib/rateLimit'
 
 // Extract user from Authorization header
 async function getUserFromRequest(request: Request): Promise<{ userId: string; role: string } | null> {
@@ -76,6 +77,19 @@ export async function POST(request: NextRequest) {
     if (!user) {
       console.error('Review auth failed:', { hasAuthHeader: !!authHeader, authHeaderPrefix: authHeader?.slice(0, 20) })
       return NextResponse.json({ success: false, error: 'Unauthorized', debug: { hasAuthHeader: !!authHeader } }, { status: 401 })
+    }
+
+    // ★ 2026-10-30 安全修复：评价接口原本无限流 → 同一账号可刷海量垃圾评价。
+    // 每个账号 15 分钟内最多 5 条。
+    const reviewLimit = checkRateLimit(`review:${user.userId}`, {
+      maxAttempts: 5,
+      windowMs: 15 * 60 * 1000,
+    })
+    if (!reviewLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many reviews, please try again later' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(reviewLimit.retryAfterMs / 1000)) } }
+      )
     }
 
     if (!productId || !rating) {

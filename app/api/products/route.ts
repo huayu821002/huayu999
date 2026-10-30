@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { withProxiedImages } from '@/lib/imgProxy'
 import { unproxyImagesField } from '@/lib/imgProxy'
+import { requireAdmin, isAuthError } from '@/lib/apiAuth'
 
 export async function GET(request: Request) {
   try {
@@ -71,6 +72,12 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   try {
+    // ★ 2026-10-30 安全修复：这个接口原来**完全公开**，
+    // 未登录的任何人 POST 一个 JSON 就能往生产库塞商品（垃圾数据 / 钓鱼链接 / 压库）。
+    // 现在写操作一律要求管理员 JWT。后台建商品请走 /api/admin/products。
+    const admin = await requireAdmin(request)
+    if (isAuthError(admin)) return admin
+
     const body = await request.json()
     const {
       name, slug, description, shortDesc, price, comparePrice, costPrice,

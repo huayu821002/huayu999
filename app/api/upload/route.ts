@@ -10,6 +10,9 @@ import { resolveUploadDir } from '@/lib/localImages'
 export async function POST(request: Request) {
   try {
     // 验证用户身份
+    // ★ 2026-10-30 安全修复：原来只要任意有效 JWT（普通客户也能传任意文件）。
+    //   现在收紧为仅 ADMIN —— 文件上传会写入服务端磁盘并可被公开 URL 访问，
+    //   客户账号不应该有这个能力。
     const authHeader = request.headers.get('authorization')
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
@@ -19,6 +22,9 @@ export async function POST(request: Request) {
     const user = await verifyToken(token)
     if (!user) {
       return NextResponse.json({ success: false, error: 'Invalid token' }, { status: 401 })
+    }
+    if (user.role !== 'ADMIN') {
+      return NextResponse.json({ success: false, error: 'Admin access required' }, { status: 403 })
     }
 
     const formData = await request.formData()

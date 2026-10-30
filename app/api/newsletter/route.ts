@@ -1,8 +1,22 @@
 import { NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
+import { checkRateLimit, getClientKey } from '@/lib/rateLimit'
 
 export async function POST(request: Request) {
   try {
+    // ★ 2026-10-30 安全修复：订阅接口无限流 → 可被用来灌垃圾邮箱（发信成本 + 退信率），
+    // 同一 IP 1 小时最多 10 次。
+    const limit = checkRateLimit(`newsletter:${getClientKey(request)}`, {
+      maxAttempts: 10,
+      windowMs: 60 * 60 * 1000,
+    })
+    if (!limit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(limit.retryAfterMs / 1000)) } }
+      )
+    }
+
     const { email } = await request.json()
 
     if (!email || !email.includes('@')) {

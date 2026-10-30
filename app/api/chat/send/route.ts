@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { prisma } from '@/lib/prisma'
 import { appendFileSync } from 'fs'
 import { signVisitorToken, verifyVisitorToken, getVisitorToken } from '@/lib/chatAuth'
+import { checkRateLimit, getClientKey } from '@/lib/rateLimit'
 
 // MiniMax native API
 const MINIMAX_API = 'https://api.minimax.chat/v1/text/chatcompletion_v2'
@@ -42,6 +43,45 @@ export async function POST(request: NextRequest) {
 
     if (!message?.trim()) {
       return NextResponse.json({ error: 'Message is required' }, { status: 400 })
+    }
+
+    // ★ 2026-10-30 安全修复：访客聊天保持公开可用（不需登录），
+    //   但必须限流 —— 否则任意人可无限刷，直接消耗 MiniMax 额度。
+    //   两层：IP 维度（防换会话/刷量）+ 会话维度（防单个会话刷屏）。
+    const ipLimit = checkRateLimit('chat:' + getClientKey(request), {
+      maxAttempts: 20,
+      windowMs: 60 * 1000,
+    })
+    if (!ipLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many messages. Please slow down.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil(ipLimit.retryAfterMs / 1000)),
+            'X-RateLimit-Remaining': '0',
+          },
+        }
+      )
+    }
+
+    if (conversationId) {
+      const convLimit = checkRateLimit('chat-conv:' + conversationId, {
+        maxAttempts: 10,
+        windowMs: 60 * 1000,
+      })
+      if (!convLimit.allowed) {
+        return NextResponse.json(
+          { success: false, error: 'Too many messages. Please slow down.' },
+          {
+            status: 429,
+            headers: {
+              'Retry-After': String(Math.ceil(convLimit.retryAfterMs / 1000)),
+              'X-RateLimit-Remaining': '0',
+            },
+          }
+        )
+      }
     }
 
     // Find or create conversation.
