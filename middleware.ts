@@ -44,12 +44,49 @@ export async function middleware(request: NextRequest) {
     }
   }
 
+  // ★ 2026-10-30：后台页面 / 采集器安装页也必须登录后才能看。
+  //   之前只保护了 /api/admin（数据接口），页面本身是公开的：
+  //   任何人都能打开 /admin/orders、/1688-collector 看到后台外壳和内部流程说明。
+  //   页面鉴权靠登录时下发的 httpOnly cookie `ff_admin_session`（role=ADMIN 的 JWT），
+  //   服务端在中间件里直接验签 —— 比前端 localStorage 判断可靠（防的不只是"看到页面"）。
+  const isAdminPage =
+    pathname === '/admin' ||
+    pathname.startsWith('/admin/') ||
+    pathname === '/1688-collector'
+
+  if (isAdminPage) {
+    if (IS_PRODUCTION && !process.env.JWT_SECRET) {
+      return NextResponse.json({ success: false, error: 'Server misconfigured' }, { status: 500 })
+    }
+
+    const cookieToken = request.cookies.get('ff_admin_session')?.value
+    let role: string | undefined
+    if (cookieToken) {
+      try {
+        const { payload } = await jwtVerify(cookieToken, JWT_SECRET)
+        role = (payload as any).role
+      } catch {
+        role = undefined
+      }
+    }
+
+    if (role !== 'ADMIN') {
+      // 页面请求 → 302 去登录页（带 next 参数，登录后跳回）
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('next', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+  }
+
   return NextResponse.next()
 }
 
 export const config = {
   matcher: [
     '/api/admin/:path*',
+    '/admin/:path*',
+    '/admin',
+    '/1688-collector',
     '/((?!_next/static|_next/image|favicon.ico).*)',
   ],
 }

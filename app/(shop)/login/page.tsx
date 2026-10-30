@@ -49,8 +49,21 @@ export default function LoginPage() {
       useUserStore.getState().login(data.data.user)
 
       // Redirect based on role
+      // ★ 2026-10-30：后台页面现在需要登录（中间件校验 ff_admin_session cookie），
+      //   未登录访问会被 302 到 /login?next=/admin/xxx → 登录后跳回原来那一页。
+      //   这里直接在浏览器里读 query（不用 useSearchParams，避免 Suspense 包裹要求）。
+      const nextParam = (() => {
+        try {
+          const v = new URLSearchParams(window.location.search).get('next')
+          // 只允许站内相对路径，防止开放重定向
+          return v && v.startsWith('/') && !v.startsWith('//') ? v : null
+        } catch {
+          return null
+        }
+      })()
+
       if (data.data.user.role === 'ADMIN') {
-        router.push('/admin/dashboard')
+        router.push(nextParam || '/admin/dashboard')
       } else {
         router.push('/account')
       }
