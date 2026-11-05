@@ -1,0 +1,57 @@
+[
+  {
+    "id": "t1",
+    "title": "2024新款做旧水洗棒球帽 男女款嘻哈街头鸭舌帽",
+    "url": "https://detail.1688.com/offer/123456.html",
+    "cost": 12.5,
+    "moq": 50,
+    "supplier": "义乌某帽业",
+    "variantCount": 12,
+    "images": [
+      "https://cbu01.alicdn.com/img/ibank/O1CN01kZzz1.jpg",
+      "https://cbu01.alicdn.com/img/ibank/O1CN01kZzz2.jpg"
+    ],
+    "description": "纯棉水洗做旧工艺，可调节后扣，帽檐可弯，透气舒适，男女同款，四季百搭。",
+    "category": "帽子"
+  },
+  {
+    "id": "t2",
+    "title": "羊绒混纺围巾 冬季加厚保暖 渐变印花长巾 男女",
+    "url": "https://detail.1688.com/offer/234567.html",
+    "cost": 28,
+    "moq": 30,
+    "supplier": "某针织围巾厂",
+    "variantCount": 20,
+    "images": [
+      "https://cbu01.alicdn.com/img/ibank/O1CN01kZaa1.jpg"
+    ],
+    "description": "30%羊绒混纺，手感柔软不掉毛，渐变印花工艺，尺寸180x30cm，冬天保暖首选。",
+    "category": "围巾"
+  },
+  {
+    "id": "t3",
+    "title": "加绒保暖手套 触屏款 男女冬季防风",
+    "url": "https://detail.1688.com/offer/345678.html",
+    "cost": 9.8,
+    "moq": 100,
+    "supplier": "义乌手套厂",
+    "variantCount": 8,
+    "images": [
+      "https://cbu01.alicdn.com/img/ibank/O1CN01kZbb1.jpg"
+    ],
+    "description": "内衬加绒保暖，触屏指尖设计，防风面料，五指灵活。",
+    "category": "手套"
+  },
+  {
+    "id": "t4",
+    "title": "低价塑料毛线帽 一元起 走量款",
+    "url": "https://detail.1688.com/offer/456789.html",
+    "cost": 3.2,
+    "moq": 500,
+    "supplier": "通货档口",
+    "variantCount": 3,
+    "images": [],
+    "description": "",
+    "category": "帽子"
+  }
+]

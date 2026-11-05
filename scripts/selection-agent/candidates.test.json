@@ -1,0 +1,50 @@
+[
+  {
+    "id": "t1",
+    "title": "2024新款做旧水洗棒球帽 男女款嘻哈街头鸭舌帽",
+    "url": "https://detail.1688.com/offer/123456.html",
+    "cost": 12.5,
+    "moq": 50,
+    "supplier": "义乌某帽业",
+    "variantCount": 12,
+    "images": ["http://127.0.0.1:8899/cap.jpg"],
+    "description": "纯棉水洗做旧工艺，可调节后扣，帽檐可弯，透气舒适，男女同款，四季百搭。",
+    "category": "帽子"
+  },
+  {
+    "id": "t2",
+    "title": "粗针罗纹针织帽 冬天保暖毛线帽 情侣款",
+    "url": "https://detail.1688.com/offer/234567.html",
+    "cost": 18,
+    "moq": 30,
+    "supplier": "某针织帽厂",
+    "variantCount": 20,
+    "images": ["http://127.0.0.1:8899/scarf.jpg"],
+    "description": "粗针罗纹编织，弹性好不塌，冬季保暖，男女情侣同款，可当套头款。",
+    "category": "帽子"
+  },
+  {
+    "id": "t3",
+    "title": "加绒保暖手套 触屏款 男女冬季防风",
+    "url": "https://detail.1688.com/offer/345678.html",
+    "cost": 9.8,
+    "moq": 100,
+    "supplier": "义乌手套厂",
+    "variantCount": 8,
+    "images": [],
+    "description": "内衬加绒保暖，触屏指尖设计，防风面料，五指灵活。",
+    "category": "手套"
+  },
+  {
+    "id": "t4",
+    "title": "低价塑料毛线帽 一元起 走量款",
+    "url": "https://detail.1688.com/offer/456789.html",
+    "cost": 3.2,
+    "moq": 500,
+    "supplier": "通货档口",
+    "variantCount": 3,
+    "images": [],
+    "description": "",
+    "category": "帽子"
+  }
+]

@@ -76,7 +76,9 @@
     "collector:test:pricerange": "node public/1688-core.price-range.test.js",
     "check:prodprices": "node scripts/check-prod-prices.js",
     "collector:test:spectext": "node public/1688-core.spectext.test.js",
-    "test:sku": "node scripts/test-sku.js"
+    "test:sku": "node scripts/test-sku.js",
+    "selection:score": "node --experimental-strip-types scripts/selection-agent/run.ts",
+    "selection:enrich": "node --experimental-strip-types scripts/selection-agent/enrich-cli.ts"
   },
   "dependencies": {
     "@headlessui/react": "^2.1.2",
