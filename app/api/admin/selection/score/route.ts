@@ -38,9 +38,16 @@ const JUDGE_SYSTEM = `你是跨境/国内电商的资深选品总监，专精服
 
 判分时请先在心里对比：这几个候选里哪个最好、哪个最平庸，**相对排序必须体现出来**。
 
+★ 另外必须给出**市场零售价**和**建议包装件数**（这两个直接影响能不能赚钱，规则引擎会用它们算净利）：
+- sellPrice：这件商品在**目标市场**（跨境看 Temu/Amazon/AliExpress 同类成交价，国内看 1688/拼多多）真实能卖到的**单笔订单价**（美元/人民币均可，但要考虑运费，不要用国内单件零售价）
+  → 例：1688 进价 0.36 元的发夹，实际在 Temu 上是 20 个装卖 $2.99，sellPrice 应填约 20 元（整包价），而不是 1 元
+- pack：建议一次卖几件（1 = 单件卖；低价小件应该按包卖才能摊薄运费，发饰类常 10-20 件/包，服饰配件一般 1-3 件）
+  → 必须结合品类：帽子/围巾/手套/袜子本身单件卖，pack=1；发夹/发圈/小挂件这类应 pack=10~20
+
 严格只输出 JSON 对象，不要任何解释文字、不要 markdown 代码块标记、不要思考过程。
-输出形如：{"demand": 7, "competition": 6, "bundle": 3, "reasons": ["理由1"], "risks": ["风险1"]}
+输出形如：{"demand": 7, "competition": 6, "bundle": 3, "sellPrice": 25.9, "pack": 1, "category": "发夹", "reasons": ["理由1"], "risks": ["风险1"]}
 字段含义：demand=需求分(0-10，越高越好卖)、competition=竞争分(0-10，越高越红海)、bundle=套装潜力(0-10，越高越容易同色成套)
+sellPrice=建议单笔订单零售价(数字)、pack=建议包装件数(整数)、category=商品品类（如 帽子/围巾/手套/发夹/发圈）
 reasons 最多 3 条，risks 最多 2 条，每条不超过 20 字。`
 
 export async function POST(request: NextRequest) {
@@ -106,7 +113,13 @@ export async function POST(request: NextRequest) {
         }
 
         const supply = scoreSupply(cand)
-        const profit = scoreProfit(cand)
+
+        // AI 先判：它会给出市场零售价、包装件数和品类，规则再据此算钱
+        // （顺序很关键：先按规则倍数算再让 AI 看，等于让 AI 去猜已经算错的钱）
+        const ai = await judgeOne(cand, images, model, withVision, maxImages)
+        // AI 识别的品类比用户填的 categoryHint 准（用户可能不填）
+        if (ai.category) cand.category = ai.category
+        const profit = scoreProfit(cand, ai.sellPrice, ai.pack)
         const rule = {
           supply: supply.score,
           profit: profit.score,
@@ -115,7 +128,6 @@ export async function POST(request: NextRequest) {
           hardFail: profit.hardFail,
         }
 
-        const ai = await judgeOne(cand, rule.economics, images, model, withVision, maxImages)
         const total = composeScore(cand, ai, rule)
 
         return {
@@ -167,18 +179,26 @@ export async function POST(request: NextRequest) {
 
 async function judgeOne(
   c: any,
-  econ: any,
   images: string[],
   model: string,
   withVision: boolean,
   maxImages: number
-): Promise<{ demand: number; competition: number; bundle: number; reasons: string[]; risks: string[] }> {
+): Promise<{
+  demand: number
+  competition: number
+  bundle: number
+  sellPrice?: number
+  pack?: number
+  category?: string
+  reasons: string[]
+  risks: string[]
+}> {
   const prompt = [
     `商品：${c.title}`,
     c.supplier ? `供应商：${c.supplier}` : '',
-    `采购价：${c.cost ?? '未知'} 元｜起批量：${c.moq ?? '未知'}｜变体数：${c.variantCount ?? '未知'}`,
-    `建议零售价：${econ.sellPrice} 元｜最优渠道(${econ.channel})预估单件净利：${econ.net} 元（净利率 ${econ.margin}%）`,
+    `采购价：${c.cost ?? '未知'} 元/件｜起批量：${c.moq ?? '未知'}｜变体数：${c.variantCount ?? '未知'}`,
     c.description ? `描述：${c.description.slice(0, 300)}` : '',
+    '请给出：需求分/竞争分/套装分 + 市场零售价 sellPrice + 建议包装件数 pack。',
   ]
     .filter(Boolean)
     .join('\n')
@@ -210,15 +230,23 @@ async function judgeOne(
     }
     const j = extractJson<any>(raw)
     const cl = (v: any) => Math.max(0, Math.min(10, Number(v) || 0))
+    const sp = Number(j.sellPrice)
+    const pk = Math.round(Number(j.pack))
     return {
       demand: cl(j.demand ?? 5),
       competition: cl(j.competition ?? 6),
       bundle: cl(j.bundle ?? 0),
+      sellPrice: Number.isFinite(sp) && sp > 0 ? sp : undefined,
+      pack: Number.isFinite(pk) && pk >= 1 ? pk : undefined,
+      category: typeof j.category === 'string' && j.category.trim() ? j.category.trim().slice(0, 20) : undefined,
       reasons: Array.isArray(j.reasons) ? j.reasons.map(String).slice(0, 5) : [],
       risks: Array.isArray(j.risks) ? j.risks.map(String).slice(0, 5) : [],
     }
   } catch (e: any) {
     console.warn('AI judge failed:', String(e).slice(0, 150))
-    return { demand: 5, competition: 6, bundle: 0, reasons: [], risks: ['AI 判断失败，用保守默认分'] }
+    return {
+      demand: 5, competition: 6, bundle: 0, sellPrice: undefined, pack: undefined, category: undefined,
+      reasons: [], risks: ['AI 判断失败，用保守默认分'],
+    }
   }
 }

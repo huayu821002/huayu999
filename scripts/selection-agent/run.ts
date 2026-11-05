@@ -93,20 +93,26 @@ const JUDGE_SYSTEM = `你是跨境/国内电商的资深选品总监，专精服
 
 判分时请先在心里对比：这几个候选里哪个最好、哪个最平庸，**相对排序必须体现出来**。
 
+★ 另外必须给出**市场零售价**和**建议包装件数**（直接影响能不能赚钱，规则引擎用它们算净利）：
+- sellPrice：这件商品在**目标市场**（跨境看 Temu/Amazon/AliExpress 同类成交价，国内看 1688/拼多多）真实能卖到的**单笔订单价**
+  → 例：1688 进价 0.36 元的发夹，实际在 Temu 上是 20 个装卖 $2.99，sellPrice 应填约 20 元（整包价），而不是 1 元
+- pack：建议一次卖几件（1 = 单件卖；低价小件应按包卖才能摊薄运费，发饰类常 10-20 件/包，服饰配件一般 1-3 件）
+  → 必须结合品类：帽子/围巾/手套/袜子本身单件卖，pack=1；发夹/发圈/小挂件应 pack=10~20
+
 严格只输出 JSON 对象，不要任何解释文字、不要 markdown 代码块标记、不要思考过程。
-输出形如：{"demand": 7, "competition": 6, "bundle": 3, "reasons": ["理由1"], "risks": ["风险1"]}
+输出形如：{"demand": 7, "competition": 6, "bundle": 3, "sellPrice": 25.9, "pack": 1, "reasons": ["理由1"], "risks": ["风险1"]}
 字段含义：demand=需求分(0-10，越高越好卖)、competition=竞争分(0-10，越高越红海)、bundle=套装潜力(0-10，越高越容易同色成套)
+sellPrice=建议单笔订单零售价(数字)、pack=建议包装件数(整数)
 reasons 最多 3 条，risks 最多 2 条，每条不超过 20 字。`
 
-function buildJudgePrompt(c: Candidate, econ: any) {
+function buildJudgePrompt(c: Candidate) {
   const imgs = (c.images || []).slice(0, 3).join('\n')
   return `商品：${c.title}
-${c.supplier ? `供应商：${c.supplier}\n` : ''}${c.category ? `品类：${c.category}\n` : ''}采购价：${c.cost ?? '未知'} 元｜起批量：${c.moq ?? '未知'}｜变体数：${c.variantCount ?? '未知'}
-建议零售价：${econ.sellPrice} 元｜预估单件净利：${econ.net} 元（净利率 ${econ.margin}%）
+${c.supplier ? `供应商：${c.supplier}\n` : ''}${c.category ? `品类：${c.category}\n` : ''}采购价：${c.cost ?? '未知'} 元/件｜起批量：${c.moq ?? '未知'}｜变体数：${c.variantCount ?? '未知'}
 ${c.description ? `描述：${c.description.slice(0, 300)}\n` : ''}图片地址：
 ${imgs}
 
-请综合图片和上述信息打分。`
+请给出：需求分/竞争分/套装分 + 市场零售价 sellPrice + 建议包装件数 pack。`
 }
 
 /** 套装矩阵：判断两两能否成套 */
@@ -155,75 +161,72 @@ async function main() {
   const provider = getProvider()
   console.log(`🤖 AI 通道：${provider.name}｜模型：${args.model}`)
 
-  /* Step 1: 规则打分 */
-  const ruleResults = candidates.map((c) => {
-    const supply = scoreSupply(c)
-    const profit = scoreProfit(c)
-    return {
-      c,
-      supply,
-      profit,
-      rule: {
-        supply: supply.score,
-        profit: profit.score,
-        economics: profit.economics,
-        risks: [...supply.risks, ...profit.risks],
-        hardFail: profit.hardFail,
-      },
-    }
-  })
-  console.log('📊 规则打分完成（供给分/利润分）')
+  /* Step 1: 供给分（纯规则，不依赖 AI） */
+  const supplyResults = candidates.map((c) => ({ c, supply: scoreSupply(c) }))
+  console.log('📊 供给分完成')
 
   if (args.dryRun) {
-    const out = ruleResults.map((r) => ({
-      title: r.c.title,
-      supply: r.rule.supply,
-      profit: r.rule.profit,
-      net: r.rule.economics.net,
-      margin: r.rule.economics.margin,
-      hardFail: r.rule.hardFail,
-    }))
+    const out = supplyResults.map((r) => {
+      const profit = scoreProfit(r.c)
+      return {
+        title: r.c.title,
+        supply: r.supply.score,
+        profit: profit.score,
+        net: profit.economics.net,
+        margin: profit.economics.margin,
+        hardFail: profit.hardFail,
+      }
+    })
     console.log(JSON.stringify(out, null, 2))
     return
   }
 
-  /* Step 2+3: 抓图 + AI 视觉判断 */
+  /* Step 2+3: 抓图 + AI 视觉判断（AI 同时给出市场零售价和包装件数） */
   console.log('🖼️  抓图并调用 AI 视觉判断…')
   let done = 0
-  const judged = await pool(ruleResults, args.concurrency, async (r) => {
+  const judged = await pool(supplyResults, args.concurrency, async (r) => {
     const imgs: Array<{ b64: string; mime: string }> = []
     for (const url of (r.c.images || []).slice(0, args.maxImages)) {
       const got = await fetchImageB64(url)
       if (got) imgs.push(got)
     }
+    let txt: string
+    let imageCount = 0
     if (!imgs.length) {
-      const txt = await aiChat(
+      txt = await aiChat(
         [
           { role: 'system', content: JUDGE_SYSTEM },
-          { role: 'user', content: buildJudgePrompt(r.c, r.rule.economics) + '\n（本次没有可用图片，仅凭标题和参数判断）' },
+          { role: 'user', content: buildJudgePrompt(r.c) + '\n（本次没有可用图片，仅凭标题和参数判断）' },
         ],
         { model: args.model, maxTokens: 900, temperature: 0.25 }
       )
-      const j = safeParse(txt)
-      done++
-      console.log(`  [${done}/${ruleResults.length}] ⚠️ 无图，纯文本判断：${r.c.title.slice(0, 30)} → 需求${j.demand} 竞争${j.competition}`)
-      return { ...r, ai: j, imageCount: 0 }
+    } else {
+      txt = await aiVision(
+        buildJudgePrompt(r.c),
+        imgs.map((i) => ({ b64: i.b64, mime: i.mime })),
+        { model: args.model, maxTokens: 900, temperature: 0.25, system: JUDGE_SYSTEM }
+      )
+      imageCount = imgs.length
     }
-
-    const txt = await aiVision(
-      buildJudgePrompt(r.c, r.rule.economics),
-      imgs.map((i) => ({ b64: i.b64, mime: i.mime })),
-      { model: args.model, maxTokens: 900, temperature: 0.25, system: JUDGE_SYSTEM }
-    )
     const j = safeParse(txt)
     done++
-    console.log(`  [${done}/${ruleResults.length}] ✅ ${r.c.title.slice(0, 30)} → 需求${j.demand} 竞争${j.competition} 套装${j.bundle} (${imgs.length}图)`)
-    return { ...r, ai: j, imageCount: imgs.length }
+    console.log(
+      `  [${done}/${supplyResults.length}] ${imageCount ? '✅' : '⚠️ 无图'} ${r.c.title.slice(0, 26)} → 需求${j.demand} 竞争${j.competition} 套装${j.bundle} 售价¥${j.sellPrice ?? '?'} pack${j.pack ?? '?'}`
+    )
+    return { ...r, ai: j, imageCount }
   })
 
-  /* Step 4: 合成 */
+  /* Step 4: 规则算钱（用 AI 给的售价和包装件数）+ 合成 */
   const scored = judged.map((r) => {
-    const total = composeScore(r.c, r.ai, r.rule)
+    const profit = scoreProfit(r.c, r.ai.sellPrice, r.ai.pack)
+    const rule = {
+      supply: r.supply.score,
+      profit: profit.score,
+      economics: profit.economics,
+      risks: [...r.supply.risks, ...profit.risks],
+      hardFail: profit.hardFail,
+    }
+    const total = composeScore(r.c, r.ai, rule)
     return {
       id: r.c.id,
       title: r.c.title,
@@ -239,7 +242,7 @@ async function main() {
         bundle: total.bundle,
         total: total.total,
       },
-      economics: r.rule.economics,
+      economics: rule.economics,
       risks: total.risks,
       hardFail: total.hardFail,
       reasons: total.reasons,
@@ -293,15 +296,21 @@ function safeParse(txt: string): {
   demand: number
   competition: number
   bundle: number
+  sellPrice?: number
+  pack?: number
   reasons: string[]
   risks: string[]
 } {
   try {
     const j = extractJson<any>(txt)
+    const sp = Number(j.sellPrice)
+    const pk = Math.round(Number(j.pack))
     return {
       demand: clamp(Number(j.demand ?? 5), 0, 10),
       competition: clamp(Number(j.competition ?? 5), 0, 10),
       bundle: clamp(Number(j.bundle ?? 0), 0, 10),
+      sellPrice: Number.isFinite(sp) && sp > 0 ? sp : undefined,
+      pack: Number.isFinite(pk) && pk >= 1 ? pk : undefined,
       reasons: Array.isArray(j.reasons) ? j.reasons.map(String).slice(0, 5) : [],
       risks: Array.isArray(j.risks) ? j.risks.map(String).slice(0, 5) : [],
     }

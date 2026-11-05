@@ -50,6 +50,10 @@ export type RuleScores = {
     margin: number
     /** 最优渠道 */
     channel: string
+    /** 打包件数（低价小件靠多件装摊薄运费） */
+    pack: number
+    /** 售价来源：ai = AI 给的市场价，rule = 规则倍数 */
+    priceSource: 'ai' | 'rule'
     /** 两个渠道对比 */
     byChannel: Array<{ key: string; label: string; net: number; margin: number }>
   }
@@ -130,6 +134,69 @@ const PRICE_MULTIPLE: Record<string, number> = {
   套装: 2.6, // 套装折扣，客单高但倍率低
 }
 
+/**
+ * ★ 多件装策略（2026-11-05 生产实测发现）
+ *
+ * 生产库里的低价小件（如 0.36 元的发夹）用「单件 × 倍数」算必亏：
+ *   成本 0.36 → 售价 1.08 → 扣掉 4-6 元运费直接负数。
+ * 但这类商品的真实玩法是**多件装/套装卖**：
+ *   10 个发夹当一套卖 9.9 元，运费仍是一份。
+ * 所以低价小件必须引入「打包数」，把运费在多件间摊薄。
+ *
+ * ⚠️ 但**帽子/围巾/手套/袜子这类本身就是单件卖的商品绝对不能打包**
+ *    （实测：帽子 12.5 元被误算成 3 件装 138 元，严重高估）。
+ *    所以这里必须结合品类判断，不能只看成本。
+ *
+ * 规则：
+ *   - 明确单件卖的品类（帽子/围巾/手套/袜子）→ 永远 1 件
+ *   - 其余：单件成本 < 5 元 → 10 件装；5-15 元 → 3 件装；更高 → 单件
+ */
+const SINGLE_ITEM_CATS = ['帽子', '围巾', '手套', '袜子', '领结', '腰带', '发箍']
+
+/**
+ * ★ 退货率按品类（2026-11-05 生产实测发现）
+ *
+ * 服饰（帽子/围巾/手套）普遍 25-30%，因为有尺码、颜色主观。
+ * 但**无尺码小件（发夹/发圈/耳饰/小挂件）退货率只有 5-8%** ——
+ * 买家不会因为“尺码不合”退发夹。
+ * 用 26% 去算发夹，会把它的净利直接算成负数、把好款误杀。
+ *
+ * 规则：服饰类用 26%；无尺码小件用 8%；介于之间用 18%。
+ */
+const NO_SIZE_CATS = ['发夹', '发圈', '发箍', '耳饰', '耳环', '耳钉', '发卡', '发饰', '挂件', '配件', '小饰品', '头饰']
+const APPAREL_CATS = ['帽', '围巾', '手套', '袜', '上衣', '裤', '裙', '外套', '毛衣', '卫衣', '领结', '腰带']
+
+export function returnRate(category?: string, base?: number): number {
+  const cat = String(category || '')
+  for (const k of NO_SIZE_CATS) {
+    if (cat.includes(k)) return Math.min(base ?? 0.26, 0.08)
+  }
+  for (const k of APPAREL_CATS) {
+    if (cat.includes(k)) return base ?? 0.26
+  }
+  // 未知品类：如果 pack > 1（多件装）多为小件，退货率也低
+  return base ?? 0.18
+}
+
+export function packSize(cost?: number, category?: string): number {
+  const cat = String(category || '')
+  for (const k of SINGLE_ITEM_CATS) if (cat.includes(k)) return 1
+
+  const c = Number(cost) || 0
+  if (c <= 0) return 1
+  if (c < 2) return 20 // 一包 20 个发夹是 1688 常规包装
+  if (c < 5) return 10
+  if (c < 15) return 3
+  return 1
+}
+
+/** 打包后的整体倍率（多件装能卖出更高总价，但单件摊薄） */
+function packMultiple(base: number, pack: number): number {
+  if (pack <= 1) return base
+  // 多件装总价倍率略高于单件倍率（买家为“一次买够”付溢价），但仍有折扣空间
+  return base * 1.35
+}
+
 export function priceMultiple(cat?: string): number {
   if (!cat) return 3.0
   for (const k of Object.keys(PRICE_MULTIPLE)) if (cat.includes(k)) return PRICE_MULTIPLE[k]
@@ -196,7 +263,13 @@ export function scoreSupply(c: Candidate): { score: number; risks: string[] } {
  * 利润分（纯规则，单位经济模型）
  * 两种渠道各算一遍，取净利高的一档作为最优渠道。
  */
-export function scoreProfit(c: Candidate): {
+export function scoreProfit(
+  c: Candidate,
+  /** AI 给出的市场零售价（优先，AI 有市场价认知）；没给就用规则倍数 */
+  priceOverride?: number,
+  /** AI 建议的包装件数（优先） */
+  packOverride?: number
+): {
   score: number
   economics: RuleScores['economics']
   risks: string[]
@@ -205,7 +278,26 @@ export function scoreProfit(c: Candidate): {
   const risks: string[] = []
   const cost = c.cost ?? 0
   const mult = priceMultiple(c.category)
-  const sellPrice = round2(cost * mult)
+  const pack = Math.max(1, Math.round(packOverride || packSize(cost, c.category)))
+  const totalCost = round2(cost * pack)
+
+  // 售价：AI 给了市场价就用（AI 知道海外/跨境真实成交价），否则用规则倍数
+  let sellPrice: number
+  let priceSource: 'ai' | 'rule'
+  if (priceOverride && priceOverride > 0) {
+    sellPrice = round2(priceOverride)
+    priceSource = 'ai'
+  } else {
+    sellPrice = round2(totalCost * (pack > 1 ? packMultiple(mult, pack) : mult))
+    priceSource = 'rule'
+  }
+  // AI 给的价如果低于成本，明显不可信 → 回退到规则倍数并记风险
+  if (priceSource === 'ai' && sellPrice < totalCost) {
+    risks.push(`AI 建议零售价¥${sellPrice}低于成本¥${totalCost}，已改用规则倍数`)
+    sellPrice = round2(totalCost * (pack > 1 ? packMultiple(mult, pack) : mult))
+    priceSource = 'rule'
+  }
+
   const shipping = shippingCost(c.category)
   const platformFee = round2(sellPrice * PLATFORM.commissionRate)
 
@@ -215,7 +307,8 @@ export function scoreProfit(c: Candidate): {
       score: 0,
       economics: {
         cost: 0, sellPrice: 0, shipping, platformFee, channelFee: 0, adCost: 0,
-        returnLoss: 0, net: 0, margin: 0, channel: '-', byChannel: [],
+        returnLoss: 0, net: 0, margin: 0, channel: '-', byChannel: [], pack: 1,
+        priceSource: 'rule',
       },
       risks,
       hardFail: '缺采购价',
@@ -226,39 +319,49 @@ export function scoreProfit(c: Candidate): {
   const byChannel = Object.values(CHANNELS).map((ch) => {
     const channelFee = round2(sellPrice * ch.commissionRate)
     const adCost = round2(sellPrice * ch.adRate)
-    const returnLoss = round2(sellPrice * ch.returnRate * 0.5)
-    const net = round2(sellPrice - cost - shipping - platformFee - channelFee - adCost - returnLoss)
+    const rr = returnRate(c.category, ch.returnRate)
+    const returnLoss = round2(sellPrice * rr * 0.5)
+    const net = round2(sellPrice - totalCost - shipping - platformFee - channelFee - adCost - returnLoss)
     const margin = sellPrice > 0 ? round2((net / sellPrice) * 100) : 0
-    return { key: ch.key, label: ch.label, net, margin, channelFee, adCost, returnLoss }
+    return { key: ch.key, label: ch.label, net, margin, channelFee, adCost, returnLoss, returnRate: rr }
   })
 
   const best = byChannel.slice().sort((a, b) => b.net - a.net)[0]
 
+  // ★ 利润分以**净利率为主**、绝对净利为辅。
+  //   原因：不同价位段的商品不能比绝对值。
+  //   售价 19.9 的 12 件装发夹，净利 4.2 元（净利率 21%）—— 单看绝对值是差生意，
+  //   但它走量大、每单都在赚钱；售价 138 的帽子，净利 5 元（净利率 4%）—— 那才是真差。
   let score = 0
-  if (best.net >= 20) score = 9.5
-  else if (best.net >= 15) score = 8.5
-  else if (best.net >= 12) score = 7.5
-  else if (best.net >= PLATFORM.minNet) score = 6
-  else if (best.net >= 5) score = 4
-  else if (best.net >= 0) score = 2
+  if (best.margin >= 40) score = 9
+  else if (best.margin >= 30) score = 8
+  else if (best.margin >= 22) score = 7
+  else if (best.margin >= 15) score = 5.5
+  else if (best.margin >= 10) score = 3.5
+  else if (best.margin >= 5) score = 2
   else score = 0
 
-  if (best.margin >= 45) score += 1
-  else if (best.margin >= 35) score += 0.5
-  else if (best.margin < 25) {
-    score -= 1
+  // 绝对净利作加成：单笔赚得多再好一档
+  if (best.net >= 20) score += 1
+  else if (best.net >= 12) score += 0.5
+  else if (best.net >= PLATFORM.minNet) score += 0.3
+
+  // 净利率不足则惩罚
+  if (best.margin < 15) {
     risks.push(`最优渠道净利率仅${best.margin}%，投流一超就亏`)
   }
 
   if (best.net < PLATFORM.minNet) {
-    risks.push(`最优渠道单件净利${best.net}元 < 红线${PLATFORM.minNet}元`)
+    risks.push(`最优渠道单笔净利${best.net}元 < 红线${PLATFORM.minNet}元`)
   }
-  // 两渠道差距大 = 渠道依赖严重
+  if (pack > 1) {
+    risks.push(`需按 ${pack} 件装售卖才能摊薄运费`)
+  }  // 两渠道差距大 = 渠道依赖严重
   const spread = Math.abs(byChannel[0].net - byChannel[1].net)
   if (spread >= 8) risks.push(`渠道依赖重：达人分销${byChannel[0].net} vs 自播${byChannel[1].net}`)
 
   const economics: RuleScores['economics'] = {
-    cost,
+    cost: totalCost,
     sellPrice,
     shipping,
     platformFee,
@@ -267,6 +370,8 @@ export function scoreProfit(c: Candidate): {
     returnLoss: best.returnLoss,
     net: best.net,
     margin: best.margin,
+    pack,
+    priceSource,
     channel: best.label,
     byChannel: byChannel.map((b) => ({ key: b.key, label: b.label, net: b.net, margin: b.margin })),
   }
@@ -275,7 +380,12 @@ export function scoreProfit(c: Candidate): {
     score: clamp(score, 0, 10),
     economics,
     risks,
-    hardFail: best.net < PLATFORM.minNet ? `单件净利不足(${best.net}元)` : undefined,
+    hardFail:
+      best.net < PLATFORM.minNet && best.margin < 12
+        ? pack > 1
+          ? `单笔订单净利不足(${best.net}元, 净利率${best.margin}%)`
+          : `单件净利不足(${best.net}元)`
+        : undefined,
   }
 }
 
