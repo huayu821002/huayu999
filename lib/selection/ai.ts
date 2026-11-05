@@ -105,6 +105,48 @@ export function stripThink(s: string): string {
     .trim()
 }
 
+/**
+ * ★ 提取可用于 AI 视觉的真实图片 URL
+ *
+ * 采集品库里存的 images 是**站内代理相对路径**：
+ *   /api/img?u=https%3A%2F%2Fcbu01.alicdn.com%2F...
+ * 直接把相对路径喂给 AI → 模型根本拿不到图（而且 /api/img 需鉴权），
+ * 结果就是“无声地退化成纯文本打分”。必须先解包出上游真 URL。
+ *
+ * 1688 CDN（cbu01.alicdn.com）有防盗链：**不带 Referer 直连才 200，带了 403**。
+ * 所以这里还原成上游绝对 URL，由抓取时不发 Referer。
+ */
+export function extractImageUrls(raw: any): string[] {
+  const list: string[] = []
+  const push = (v: any) => {
+    if (typeof v !== 'string') return
+    let u = v.trim()
+    if (!u) return
+    // 站内代理路径 → 解包 u 参数
+    if (u.startsWith('/api/img')) {
+      try {
+        const q = u.split('?')[1] || ''
+        const inner = new URLSearchParams(q).get('u')
+        if (inner) u = decodeURIComponent(inner)
+      } catch {}
+    }
+    if (u.startsWith('//')) u = 'https:' + u
+    if (!u.startsWith('http')) return
+    list.push(u)
+  }
+  if (Array.isArray(raw)) raw.forEach(push)
+  else if (typeof raw === 'string') {
+    try {
+      const parsed = JSON.parse(raw)
+      if (Array.isArray(parsed)) parsed.forEach(push)
+      else push(parsed)
+    } catch {
+      raw.split(/[,;\s]+/).forEach(push)
+    }
+  }
+  return Array.from(new Set(list))
+}
+
 /** 从模型输出里抠出 JSON（容忍 ```json 包裹和前后废话） */
 export function extractJson<T = any>(raw: string): T {
   const s = stripThink(raw)

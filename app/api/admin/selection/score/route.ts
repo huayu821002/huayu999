@@ -3,7 +3,7 @@ import { prisma } from '@/lib/prisma'
 import { requireAdmin, isAuthError } from '@/lib/apiAuth'
 import { ensureSupplierProductTable, parseJsonField } from '@/lib/supplier'
 import { scoreSupply, scoreProfit, composeScore, PLATFORM } from '@/lib/selection/scoring'
-import { aiChat, aiVision, extractJson, MODELS } from '@/lib/selection/ai'
+import { aiChat, aiVision, extractJson, extractImageUrls, MODELS } from '@/lib/selection/ai'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 300
@@ -87,7 +87,10 @@ export async function POST(request: NextRequest) {
           ? variants.length || (parseJsonField<any[]>(it.variantDims) || []).reduce((n, d) => n + (d?.values?.length || 0), 0)
           : 0
         const imgsRaw = parseJsonField<string[]>(it.images) || []
-        const images = (Array.isArray(imgsRaw) ? imgsRaw : []).filter((u) => typeof u === 'string' && u.startsWith('http'))
+        // ★ 必须解包站内代理相对路径，否则模型拿不到图，会静默退化成纯文本打分
+        const images = extractImageUrls(it.images).filter((u) =>
+          /alicdn\.com|1688\.com|aliyuncs\.com/.test(u)
+        )
 
         const cand = {
           id: it.id,
